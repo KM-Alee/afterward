@@ -2,13 +2,12 @@
 
 Freeze **17 Oct 2026 12:00 PKT**; submit **12:45 PKT**. Valid states:
 `todo / in-progress / blocked / review / done`. Times are PKT.
-Foundation here means workflow scaffold, not the full product foundation in Phase 1.
-Parallel implementation starts only after user approval of the frontend mock AND
-the lead publishes shared Python contract revision 1. See FRONTEND-FIRST.md.
+The frontend mock is approved and contract revision 1 is published.
+Parallel slices A–D start from that revision. See FRONTEND-FIRST.md and CONTRACTS.md.
 
 | Slice | Owner | State | Branch | Last update | Blockers |
 |---|---|---|---|---|---|
-| Foundation | Codex setup | done | main | 2026-10-16 20:42 PKT | None for workflow; user-approved mock UX and lead product contracts gate parallel launch |
+| Foundation | Lead | done | main | 2026-10-16 23:39 PKT | Contract revision 1 published. A–D may start from this main. |
 | Frontend UX | Claude | done | slice/frontend-mockup | 2026-10-16 22:53 PKT | None. Approved by the user and merged; D implements it after contract revision 1 |
 | A Engine & Truth | Unassigned | todo | slice/engine-truth | 2026-10-16 20:27 PKT | User-approved frontend first; lead shared models, contracts, schemas and fakes |
 | B Channels & Conversation | Unassigned | todo | slice/channels-conversation | 2026-10-16 20:27 PKT | User-approved frontend first; contract revision 1 and fakes |

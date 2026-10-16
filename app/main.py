@@ -10,6 +10,7 @@ from sqlalchemy import create_engine, text
 from sqlalchemy.pool import NullPool
 
 from app.config import Settings, postgres_url
+from app.db import init_db, make_engine
 from app.logging import case_id_context, configure_logging, request_id_context
 
 # Uvicorn emits startup records before entering lifespan; keep those JSON as well.
@@ -22,7 +23,14 @@ async def lifespan(app: FastAPI):
     settings = Settings.from_env()
     configure_logging(settings.log_transcripts)
     app.state.settings = settings
-    # Product worker and integrations are deliberately absent in the scaffold.
+    database_url = settings.database_url.get_secret_value()
+    if database_url:
+        try:
+            init_db(make_engine(database_url))
+            logger.info("database bootstrap", extra={"kind": "db.bootstrap", "ok": True})
+        except Exception:
+            logger.info("database bootstrap", extra={"kind": "db.bootstrap", "ok": False})
+    # The job worker is wired in Phase 3. This process only boots the schema.
     yield
 
 
@@ -88,10 +96,12 @@ def status(request: Request) -> dict:
             "fast": settings.llm_fast_model,
             "accurate": settings.llm_accurate_model,
             "tts": settings.tts_model,
+            "realtime": settings.realtime_model,
         },
         "channels": {
             "telegram": settings.telegram_mode,
             "whatsapp": "webhook" if settings.whatsapp_token.get_secret_value() else "disabled",
         },
+        "phone_calls": "enabled" if settings.phone_calls_enabled else "disabled",
         "db_reachable": database_reachable(settings),
     }

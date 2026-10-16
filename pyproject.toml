@@ -4,9 +4,20 @@ version = "0.0.1"
 description = "Afterward hackathon repository and agent workflow"
 requires-python = ">=3.13,<3.14"
 dependencies = [
-  "fastapi", "uvicorn[standard]", "sqlalchemy>=2.1", "psycopg[binary]>=3.3",
-  "pydantic>=2", "httpx", "openai==3.31.0", "google-api-python-client",
-  "google-auth", "google-auth-oauthlib", "cryptography", "python-multipart", "jinja2",
+  "fastapi",
+  "uvicorn[standard]",
+  "sqlalchemy[asyncio]>=2.1",
+  "psycopg[binary]>=3.3",
+  "pydantic>=2",
+  "httpx",
+  "openai==3.31.0",
+  "google-api-python-client",
+  "google-auth",
+  "google-auth-oauthlib",
+  "cryptography",
+  "python-multipart",
+  "jinja2",
+  "openai-agents>=0.24.0",
 ]
 
 [dependency-groups]

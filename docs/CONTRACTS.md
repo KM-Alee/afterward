@@ -1,12 +1,10 @@
-# Frozen shared contracts — revision 0
+# Frozen shared contracts — revision 1
 
 Owner: lead. Frozen source requirements: AFTERWARD-TECH §§T4, T6, T8 and
-IMPLEMENTATION Phase 1. This file freezes the boundaries and required semantics;
-it does not claim the Python protocols, tables, fakes or schemas are implemented.
-`app/contracts.py`, `app/models.py`, `app/ai/schemas.py` and `app/fakes/` are stubs.
-The lead must implement and publish their exact Python types before Phase 2 starts.
-The user must also approve the dedicated frontend mock first (FRONTEND-FIRST.md).
-The standalone prototype does not define or change backend contracts.
+IMPLEMENTATION Phase 1, plus ADR-011 / CR-lead-1. The Python protocols, tables,
+schemas and fakes below are implemented. Phase 2 may start. The frontend mock
+is already approved (FRONTEND-APPROVAL.md). The standalone prototype does not
+define or change these backend contracts.
 Agents may read any public tracked source; they edit only their owned paths.
 
 Only the lead changes frozen sections. A slice may append a proposal under
@@ -24,12 +22,62 @@ record an ADR when appropriate, and are broadcast to every slice before rebasing
 | Clock | `case_now(case)` | Timezone-aware case time = wall clock plus demo-only clock_offset_s. Business days and jobs use the same case clock; leases use wall clock. |
 | EventBus | `publish(case_id, kind, payload)` | Persist append-only audit event and fan out to WebSocket subscribers. Secrets and raw document bodies do not belong in event payloads. |
 
-Exact argument/result models not specified by the source docs are lead-owned Phase 1
-work, not decisions delegated to slices. Event, message, option, cursor and ID types,
-async/sync signatures for Mailbox and Clock, and transaction boundaries must all be
-published together in revision 1 before independent implementations begin.
-The frozen behavior above must be preserved. Do not infer that missing details are
-permission to invent incompatible types in each slice.
+Exact argument and result models are published in revision 1. Do not invent
+incompatible types in a slice. Import them from `app/contracts.py`,
+`app/models.py` and `app/ai/schemas.py`.
+
+### Revision 1 signatures
+
+`CONTRACT_REVISION = 1`.
+
+| Symbol | Signature | Sync |
+|---|---|---|
+| `Channel.send_text` | `async (to: str, text: str) -> str` | async |
+| `Channel.send_buttons` | `async (to: str, text: str, options: Sequence[Option]) -> str` | async |
+| `Channel.send_voice` | `async (to: str, ogg_opus: bytes) -> str` | async |
+| `Channel.fetch_media` | `async (media_ref: str) -> tuple[bytes, str]` | async |
+| `Channel.parse_webhook` | `(request: WebhookRequest) -> list[InboundEvent]` | sync; raises `WebhookRejected` when authenticity fails |
+| `Mailbox.poll` | `async (mailbox: str, cursor: MailCursor \| None) -> tuple[list[MailMessage], MailCursor]` | async; unknown or `expired` cursor returns the stored messages |
+| `Mailbox.get` | `async (mailbox: str, gmail_id: str) -> MailMessage` | async; raises `MailNotFound` |
+| `Mailbox.send` | `async (request: SendRequest) -> SentRecord` | async; caller puts the visible `Ref AW-…` marker in `text` |
+| `Mailbox.search_sent` | `async (mailbox: str, footer_ref: str) -> SentRecord \| None` | async; matches that marker in the sent text |
+| `AIClient.transcribe` | `async (audio, *, mime, prompt="", keywords=()) -> Transcript` | async; English |
+| `AIClient.structured` | `async (role, schema, messages, images=None) -> schema instance` | async; Agents SDK `output_type` |
+| `AIClient.speak_stream` | `async (text, *, voice=None, audio_format="pcm") -> AsyncIterator[SpeechChunk]` | async |
+| `Clock.case_now` | `(case: CaseClock) -> datetime` | sync; timezone-aware wall clock plus `clock_offset_s` |
+| `CallSession` | `start`, `stop`, `relay_audio_in`, `relay_audio_out`, `send_typed_turn`, `suspend_acceptance`, `resume_acceptance`, `play_approved_sentence`, `discard_queued_acceptance`, `events` | `relay_audio_out` is an async iterator; `events` is sync; there is no accept method |
+| `EventBus.publish` | `(session, case_id, kind, payload, *, actor) -> EventRecord` | sync; joins the caller's transaction and does **not** commit |
+| `EventBus.subscribe` | `(case_id, callback) -> None` | callbacks run only after that transaction commits |
+
+`Option` is `{id, label}` with at most 3 options and labels of at most 20 characters
+(`validate_options`). `InboundKind` is `text`, `voice`, `photo`, `document` or `button`.
+`AIRole` is `intake`, `family_conversation`, `dependency`, `reply_reader` or
+`document_reader`. `CallTransport` is `browser` or `phone`. `CallEventKind` is
+`transcript`, `terms_offered`, `guardrail_tripped`, `audio_interrupted` or `latency`.
+
+`make_structured_agent(...)` builds an Agents SDK `Agent` with `output_type`.
+`make_call_agent(...)` builds a `RealtimeAgent` and raises `ContractError` if any
+tool name contains `accept`. `configure_agents_sdk(tracing=...)` toggles tracing
+without writing secrets. Conversation memory uses
+`agents.extensions.memory.SQLAlchemySession` on an async engine. Use the
+psycopg asyncio driver (`postgresql+psycopg`); do not add a second database driver.
+The realtime model is selected by the call transport from `REALTIME_MODEL`, not
+on the `RealtimeAgent` object.
+
+`JOB_KINDS` and `ACTION_KINDS` in `app/contracts.py` are the closed sets for
+`jobs.kind` and `actions.kind`. `handoff` is an action kind for web-form and
+phone-only providers. A new kind needs a contract revision.
+
+`SqlEventBus` is the shared bus. `json_payload` refuses non-JSON values and keys
+that look like secrets, tokens, vault material or document bodies. Quotes and
+short summaries are allowed. Subscribers must not assume a row is visible until
+the caller has committed.
+
+Fakes: `FakeAI`, `FakeMailbox`, `FakeChannel`, `FakeClock`, `FakeCallSession`
+in `app/fakes/`. `FakeAI` raises `FakeFixtureMissing` instead of inventing a
+completion. `FakeChannel.parse_webhook` requires `X-Channel-Signature: ok`.
+`FakeCallSession` queues `play_approved_sentence` while suspended and
+`discard_queued_acceptance` drops that audio.
 
 ## AI schemas
 
@@ -101,19 +149,38 @@ class ReplyOut(BaseModel):
 
 `DocRequest`: document type, required form and recipient mentioned in the untrusted
 reply. A mentioned recipient never becomes an approved recipient.
-`CallTurnOut`: structured dialogue proposal and offered facts with quotes. Model
-choices exclude `ACCEPT_APPROVED_TERMS`; acceptance is server-controlled only.
-Allowed model actions: ASK_CLARIFICATION, REQUEST_PLAN_OUTCOME, EXPLAIN_CONDITIONS,
-PRESENT_DECISION, REQUEST_HUMAN_HELP, END_CALL (T9).
+
+`CallTurnOut` is removed (CR-lead-1). Realtime tool argument models live in
+`app/ai/schemas.py`: `ReportOfferedTermsArgs`, `RequestFamilyDecisionArgs`
+(at most three options), `RequestHumanHelpArgs` and `EndCallArgs`. Read-only
+`get_request_and_conditions` takes no model-supplied case id; the server binds
+the call. There is no accept schema. `CALL_TOOL_NAMES` lists the five tools.
+`request_family_decision` is the only call tool that requires approval.
 
 ## Database tables
 
-The following is the source table contract, copied from T4. It specifies required
-columns/semantics, not a completed SQLAlchemy schema. The lead owns column types,
-FKs, nullability, indexes, enums and boot migration implementation. Resolve source
-ambiguities centrally: global provider_profiles/proof_runs and the cases primary
-key cannot receive a meaningful case_id merely by applying the opening sentence
-literally. No slice may add columns or silently choose a competing schema.
+Revision 1 implements this source table contract in `app/models.py`. Primary keys
+are UUIDs. Timestamps are timezone-aware `created_at` and `updated_at`. Enum
+values are stored as strings (not shared PostgreSQL enum types) so isolated test
+schemas cannot collide. `app.db.init_db` runs `create_all` and records
+`schema_migrations.revision = contract-rev-1`.
+
+Resolved ambiguities, now frozen:
+
+- `cases` has no `case_id`. Its primary key is the case id. `quiet_until` is a
+  nullable timestamp used when `control` is `quiet_until`.
+- `provider_profiles` and `proof_runs` are global and have no `case_id`.
+- Every other product table has `case_id`.
+- `plans.recipient` is stored because the plan hash covers the recipient.
+- `commitments.facts` is a JSONB list of `{key, value, evidence_quote}`.
+- `accounts` are unique on `(case_id, account_ref)`. Different references stay
+  separate, including two accounts at one provider.
+- `clock_offset_s` must be 0 unless `is_demo` is true.
+- `jobs.idem_key` and `actions.idem_key` are unique and non-empty.
+- Account money status includes `likely_error` and `dispute_open` as well as the
+  §8.3 values. Money-item status uses the F12 set and has no separate `none`.
+
+No slice may add columns or choose a competing schema.
 
 Postgres tables (JSONB where structure is nested). Every table has `case_id` and timestamps.
 
@@ -149,13 +216,14 @@ Postgres tables (JSONB where structure is nested). Every table has `case_id` and
 - Latest text only; quotes are verified; ambiguity never becomes completion.
 - Jobs/actions have unique idempotency keys; uncertain sends require reconciliation.
 - PostgreSQL is mandatory; no SQLite substitute for SKIP LOCKED tests.
-- FakeAI, FakeMailbox, FakeChannel and FakeClock belong in app/fakes and follow these contracts.
+- FakeAI, FakeMailbox, FakeChannel, FakeClock and FakeCallSession belong in app/fakes and follow these contracts.
 
 ## Change log
 
 | Revision | Date | Author | Change |
 |---|---|---|---|
 | 0 | 2026-10-16 | Foundation | Recorded source interfaces, AI requirements and all 19 tables; Python implementation is a prerequisite for Phase 2. |
+| 1 | 2026-10-16 | Foundation | Accepted CR-lead-1. Published models, protocols, strict schemas, fakes, Malik seed skeleton and Agents SDK constructors. Implementation commit recorded below. |
 
 ## Change requests (append-only proposals)
 
@@ -172,3 +240,6 @@ Only the lead may accept, edit the frozen sections and increment revision.
   accept action. New settings: `REALTIME_MODEL`, `REALTIME_TRANSCRIBE_MODEL`, `REALTIME_VOICE`,
   `AGENTS_TRACING`, `PHONE_CALLS_ENABLED`, `TWILIO_*`. Dependency: `openai-agents`.
   — ADR-011, user request — affects A (AI client, proofs), B (conversation agent), D (call room).
+- Accepted — 2026-10-16 — CR-lead-1 — revision 1. `openai-agents` is a dependency.
+  SQLAlchemy asyncio support (greenlet) is included so `SQLAlchemySession` imports.
+  No asyncpg driver. Implementation commit: see the revision 1 row after publish.

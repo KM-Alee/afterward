@@ -21,8 +21,10 @@ def test_shell_routes_and_status(monkeypatch):
                 "fast": "gpt-6-luna",
                 "accurate": "gpt-6.1-sol",
                 "tts": "gpt-4o-mini-tts",
+                "realtime": "gpt-realtime-2.1",
             },
             "channels": {"telegram": "webhook", "whatsapp": "disabled"},
+            "phone_calls": "disabled",
             "db_reachable": False,
         }
         assert "fixture-value-only" not in status.text
