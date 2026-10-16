@@ -23,6 +23,10 @@ class Settings(BaseModel):
     llm_fast_effort: str = "none"
     llm_accurate_effort: str = "low"
     tts_voice: str = "marin"
+    realtime_model: str = "gpt-realtime-2.1"
+    realtime_transcribe_model: str = "gpt-live-transcribe"
+    realtime_voice: str = "marin"
+    agents_tracing: bool = True
     telegram_bot_token: SecretStr = Field(default=SecretStr(""), repr=False)
     telegram_webhook_secret: SecretStr = Field(default=SecretStr(""), repr=False)
     telegram_mode: str = "webhook"
@@ -38,6 +42,10 @@ class Settings(BaseModel):
     providers_mailbox: str = Field(default="", repr=False)
     vault_key: SecretStr = Field(default=SecretStr(""), repr=False)
     demo_passcode: SecretStr = Field(default=SecretStr(""), repr=False)
+    phone_calls_enabled: bool = False
+    twilio_account_sid: SecretStr = Field(default=SecretStr(""), repr=False)
+    twilio_auth_token: SecretStr = Field(default=SecretStr(""), repr=False)
+    twilio_caller_number: str = Field(default="", repr=False)
     poll_seconds: int = Field(default=15, ge=1)
     log_transcripts: bool = False
 

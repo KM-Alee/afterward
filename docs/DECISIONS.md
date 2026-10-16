@@ -83,3 +83,27 @@ Only the lead accepts ADR changes. Alternatives and reasons below come from AFTE
 - Reason: The user wants the experience considered and reviewed before implementation
   fans out. Separate mock data and local interactions keep review independent of
   live integrations and do not implement backend features during workflow setup.
+
+## ADR-011: OpenAI Agents SDK and realtime voice calls
+
+- Date: 2026-10-16
+- Decision: Run all model work through the OpenAI Agents SDK (Responses API): agents with
+  structured outputs, tools, guardrails, `needs_approval`, SQLAlchemy sessions and tracing.
+  Provider calls use an Agents SDK `RealtimeAgent` on `gpt-realtime-2.1`, relayed through
+  our server, for the browser call room and (stretch) real outbound phone calls via Twilio
+  Media Streams. Keep `gpt-transcribe`, `gpt-6-luna`, `gpt-6.1-sol` (upgrade: `gpt-6-astra`)
+  and `gpt-4o-mini-tts` for exact approved wording.
+- Alternatives: Chained STT → LLM → TTS call engine (previous); GPT-Live `gpt-live-1` with
+  direct SIP calling; hand-rolled Responses calls without the SDK.
+- Reason: User asked for current OpenAI voice and agent tooling, and for agents that place
+  calls. The SDK gives approvals, guardrails and tracing natively. Relaying audio through our
+  server keeps the core guarantees: no model-chosen acceptance, server-played approved
+  wording, discarded obsolete audio. GPT-Live has no documented verbatim control and its SIP
+  audio bypasses our server; revisit once that is verified. The engine stays the authority:
+  SDK approvals are the flow, versioned approvals and execution-time checks decide.
+- Status: architecture decision; not implemented or verified. Requires adding `openai-agents`
+  as a dependency and contract revision 1 (CR-lead-1 in CONTRACTS.md).
+- Sources: [Voice agents](https://developers.openai.com/api/docs/guides/voice-agents),
+  [Telephony and SIP](https://developers.openai.com/api/docs/guides/realtime-sip),
+  [Agents SDK realtime guide](https://openai.github.io/openai-agents-python/realtime/guide/),
+  [Human-in-the-loop](https://openai.github.io/openai-agents-python/human_in_the_loop/).

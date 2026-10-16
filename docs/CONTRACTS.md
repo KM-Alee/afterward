@@ -161,3 +161,14 @@ Postgres tables (JSONB where structure is nested). Every table has `case_id` and
 
 Use `CR-<slice>-<number> — date — proposed interface/schema change — why — affected slices`.
 Only the lead may accept, edit the frozen sections and increment revision.
+
+- CR-lead-1 — 2026-10-16 — Back `AIClient` with the OpenAI Agents SDK (agents, `output_type`,
+  guardrails, `needs_approval`, SQLAlchemy sessions, tracing) and add a `CallSession` contract:
+  a realtime call engine (`gpt-realtime-2.1`, `RealtimeAgent`) over a transport (`browser` |
+  `phone`) exposing start/stop, relay audio in/out, send typed turn, suspend/resume queued
+  acceptance, play approved sentence, and events (transcript, terms offered, guardrail tripped,
+  audio interrupted, latency). Replace `CallTurnOut` with realtime tool schemas
+  (`report_offered_terms`, `request_family_decision`, `request_human_help`, `end_call`); still no
+  accept action. New settings: `REALTIME_MODEL`, `REALTIME_TRANSCRIBE_MODEL`, `REALTIME_VOICE`,
+  `AGENTS_TRACING`, `PHONE_CALLS_ENABLED`, `TWILIO_*`. Dependency: `openai-agents`.
+  — ADR-011, user request — affects A (AI client, proofs), B (conversation agent), D (call room).

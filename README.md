@@ -98,7 +98,7 @@ credential redaction stays active. Never put user text into event kinds or IDs.
 
 Python 3.13 + FastAPI, Postgres 17/SQLAlchemy/psycopg, OpenAI, direct Telegram,
 WhatsApp, Gmail and Calendar APIs, Jinja2/vanilla JS, ffmpeg and Fernet. AI proposes;
-code decides. The future call room is a simulated provider call, not telephony.
+code decides. The call room uses an OpenAI realtime voice agent in the browser; real phone calls are a stretch and are only claimed when made.
 Follow [honest claims](docs/AFTERWARD.md#11-safety-privacy-and-honest-claims).
 The optional fastn MCP integration is a time-boxed secondary calendar or status
 mirror task after the core demo passes. It is not installed or implemented here.

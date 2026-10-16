@@ -129,7 +129,7 @@ The point of this slice: **freeze the shared contracts** so four agents can buil
 |---|---|---|
 | Config | `app/config.py` | Every variable from AFTERWARD-TECH §T14; secrets hidden when printed |
 | Database | `app/db.py`, `app/models.py` | **All tables** from AFTERWARD-TECH §T4, enums, indexes; `create_all` plus a simple migration-on-boot |
-| Contracts | `app/contracts.py` | `AIClient` (transcribe, structured(role, schema, messages, images), speak_stream), `Mailbox` (poll, get, send, search_sent), `Channel` (§T6), `Clock` (`case_now(case)`), `EventBus` (`publish(case_id, kind, payload)` → events table and WebSocket fan-out) |
+| Contracts | `app/contracts.py` | `AIClient` (transcribe, structured(role, schema, messages, images), speak_stream; backed by the OpenAI Agents SDK), `CallSession` (realtime call engine over a transport: browser or phone), `Mailbox` (poll, get, send, search_sent), `Channel` (§T6), `Clock` (`case_now(case)`), `EventBus` (`publish(case_id, kind, payload)` → events table and WebSocket fan-out) |
 | AI schemas | `app/ai/schemas.py` | `IntakeOut`, `DependencyOut`, `DocOut`, `ReplyOut`/`CommitmentOut`/`Fact`, `CallTurnOut`, all strict |
 | Fakes | `app/fakes/` | `FakeAI` (deterministic, fixture-keyed), `FakeMailbox` (in-memory threads and Sent), `FakeChannel` (records sends, injects updates), `FakeClock` |
 | Demo data | `app/demo/seed.py` (skeleton) | The Malik case, 5 demo providers with profiles and plus-address recipients, account references |
@@ -189,9 +189,10 @@ Every agent receives AFTERWARD.md, AFTERWARD-TECH.md, this plan, `CONTRIBUTING-A
 5. **Four-dimension status**, plus the **"did you finish everything?"** summary generator.
 6. **Policy:** autopilot (gentle/steady), quiet/hold/stop, and deadline-during-quiet.
 7. **Outbound action records:** pending → sent / uncertain → reconciled / failed, with the reconcile job.
-8. **AI client:**
-   - model routing (fast = `gpt-6-luna`, accurate = `gpt-6.1-sol`, with automatic fallback to Luna);
-   - strict structured outputs, retries, timeouts;
+8. **AI client on the OpenAI Agents SDK** (AFTERWARD-TECH §T8.0):
+   - agents `intake`, `family_conversation`, `dependency`, `reply_reader`, `document_reader` with `output_type` schemas;
+   - model routing (fast = `gpt-6-luna`, accurate = `gpt-6.1-sol`, upgrade = `gpt-6-astra`), retries, timeouts;
+   - guardrails (crisis input, quote-required output), `needs_approval` on consequential tools mapped onto the engine's approvals, SQLAlchemy sessions on Postgres, tracing without sensitive data;
    - **reply-extraction pipeline:** the prompt (email is data, not instructions; will ≠ done), then quote verification against the latest text, then ambiguity downgrade, then account-reference matching.
 9. **Dependency → conditions rules table** (memory → `voicemail_preserved`; access → `number_kept` plus a link to the dependent account; and so on).
 10. **Proof suite:** 14 fixtures (AFTERWARD.md §10.4) as data, plus a runner that drives them through the **same code path** as live emails, plus `POST /api/proofs/run` returning structured results.
@@ -291,13 +292,15 @@ independently. Escalate material UX changes to the user.
 2. **Proof panel** (`/proofs`): runs the 14 tests live and shows pass/fail, extracted records and model latency.
 3. **Provider console** (`/provider/{token}`): choose a provider, thread and variant, or free text; send.
 4. **Family web view** (`/family/{token}`): the same cards and timeline as chat, as a fallback.
-5. **Call room** (`/call/{token}`), ported from Stand-In (`/home/claude/standin`):
-   - push-to-talk → `gpt-transcribe` → `CallTurnOut` (structured actions; the model can't accept) → guard → `gpt-4o-mini-tts` **pcm streaming** → WebAudio;
+5. **Call room** (`/call/{token}`) on the OpenAI Agents SDK realtime stack (AFTERWARD-TECH §T9):
+   - `RealtimeAgent` on `gpt-realtime-2.1`, server-side WebSocket; browser audio relayed through our server;
+   - tools `get_request_and_conditions`, `report_offered_terms`, `request_family_decision` (`needs_approval`), `request_human_help`, `end_call`; **no accept tool**;
    - **offered terms become `Fact`s** → outcome check → **decision card to Sara's chat** (via the `EventBus` → Agent B's gateway);
-   - acceptance only from the server template;
+   - acceptance only as a server-built sentence synthesised with `gpt-4o-mini-tts`, model audio suppressed while it plays;
+   - realtime output guardrail as the commitment guard (cancels the response; player stops on `audio_interrupted`);
    - **suspended on new representative speech**; terms hash re-checked before audio plays; obsolete audio discarded;
-   - typed fallback;
-   - per-stage latency capture.
+   - typed fallback via `send_message`; per-stage latency from SDK events;
+   - stretch: Twilio Media Streams transport for a real outbound call to the provider's approved number (`PHONE_CALLS_ENABLED`).
 6. **Landing page** with the demo passcode; `/status` page styling.
 
 **Done when:**

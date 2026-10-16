@@ -26,7 +26,7 @@
 
 ---
 
-Everything below was checked on 16 Oct 2026 against current docs: OpenAI models and speech guides, Telegram Bot API, WhatsApp Cloud API, Google OAuth, Twilio trials, and the Alternate Clouds CLI and deployment docs. Where something is not yet verified, it says so.
+Everything below was checked on 16 Oct 2026 against current docs (OpenAI voice, models and Agents SDK re-checked 16 Oct, 23:40 PKT): OpenAI models and speech guides, Telegram Bot API, WhatsApp Cloud API, Google OAuth, Twilio trials, and the Alternate Clouds CLI and deployment docs. Where something is not yet verified, it says so.
 
 ## T1. Stack at a glance
 
@@ -36,7 +36,7 @@ Everything below was checked on 16 Oct 2026 against current docs: OpenAI models 
 | Web framework | **FastAPI** + **uvicorn** | Async (webhooks, streaming audio, WebSockets), typed with Pydantic. |
 | Data | **PostgreSQL** (Alternate Clouds template), **SQLAlchemy 2.1** + **psycopg 3** | Durable state, job queue with `FOR UPDATE SKIP LOCKED`, JSONB for structured records. |
 | Validation and schemas | **Pydantic 2** | The same models are used as OpenAI strict structured-output schemas and API contracts. |
-| AI | **OpenAI** only (one provider, one key): `gpt-transcribe`, `gpt-6-luna`, `gpt-6.1-sol`, `gpt-4o-mini-tts` | See T2. |
+| AI | **OpenAI** only (one provider, one key), through the **OpenAI Agents SDK** (`openai-agents`) on the Responses API: `gpt-6-luna`, `gpt-6.1-sol`, `gpt-transcribe`, `gpt-4o-mini-tts`; calls on **`gpt-realtime-2.1`** via `RealtimeAgent` | See T2 and T8.0. |
 | Chat channels | **Telegram Bot API** and **WhatsApp Cloud API**, called directly with `httpx` | No heavy SDKs; full control of webhooks and verification. |
 | Email and calendar | **Gmail API** + **Google Calendar API** (`google-api-python-client`, `google-auth`) | Threads, labels, history-based polling, Sent search for reconciliation. |
 | Audio | **ffmpeg** (in the container) | Repackages `.ogg` voice notes to `.webm` for transcription (T8.1). |
@@ -45,7 +45,7 @@ Everything below was checked on 16 Oct 2026 against current docs: OpenAI models 
 | Hosting | **Alternate Clouds**: one Docker service (app + worker) + one Postgres service; optionally `--confidential` | A handbook requirement. |
 | CI | **GitHub Actions**: tests → build image → push a versioned tag to GHCR (public) | Alternate Clouds refuses the `latest` and `main` tags; versioned tags are required. |
 
-**Not used, on purpose:** n8n (custom code gives us the outcome-check logic and tests); fastn (the handbook doesn't require it; optional, see T19); a speech-to-speech realtime model (we keep transcription → reasoning → validation → speech so every word can be checked).
+**Not used, on purpose:** n8n (custom code gives us the outcome-check logic and tests); fastn (the handbook doesn't require it; optional, see T19); GPT-Live direct SIP for binding speech (its audio bypasses our server, so we couldn't guarantee approved wording; see T9 and T19).
 
 ---
 
@@ -53,15 +53,18 @@ Everything below was checked on 16 Oct 2026 against current docs: OpenAI models 
 
 | Job | Model | Settings | Why this one |
 |---|---|---|---|
-| Voice notes and call speech → text | **`gpt-transcribe`** | `languages=["en"]`; `keywords` = provider names, "voicemail", "probate", "certified copy"; `prompt` = short case context | OpenAI's recommended transcription model. Keywords improve recognition of domain terms. |
-| Call-turn reasoning (latency-critical) | **`gpt-6-luna`** | `reasoning.effort="none"`, strict structured output | Fastest and cheapest ($0.10 / $0.50 per 1M tokens); supports structured outputs and the `none` effort setting. |
-| Chat understanding, intake, discovery, digests | **`gpt-6-luna`** | `effort="low"` | High volume, short inputs. Accepts **image input**, so it also reads photos of bills, letters and certificates. |
-| **Commitment extraction from provider replies** (accuracy-critical) | **`gpt-6.1-sol`** | `effort="low"`, strict structured output | Correctness matters more than speed here; Sol is "near-Astra performance at lower cost" ($2 / $10). About 1–2 cents per email. *Structured-output support is to be confirmed by the probe script on first run; falls back to Luna with `effort="medium"` automatically.* |
-| Speech for calls (and optional voice replies to the family) | **`gpt-4o-mini-tts`** | voice `marin`; `pcm` for streaming in the call room; `opus` for Telegram voice replies | The recommended text-to-speech model. `pcm` streams lowest-latency audio; `opus` is what Telegram voice messages need. |
+| Voice notes → text | **`gpt-transcribe`** | `languages=["en"]`; `keywords` = provider names, "voicemail", "probate", "certified copy"; `prompt` = short case context | OpenAI's high-accuracy transcription model for files. |
+| Family conversation agent, intake, discovery, photos, digests | **`gpt-6-luna`** | effort `low`; strict structured output; image input for bills, letters and certificates | Fast and cheap ($0.10 / $0.50 per 1M tokens), structured outputs, vision. |
+| **Commitment extraction from provider replies** (accuracy-critical) | **`gpt-6.1-sol`** | effort `low`; strict structured output | "Near-Astra performance at lower cost" ($2 / $10). About 1–2 cents per email. **`gpt-6-astra`** ($10 / $50) is the drop-in upgrade if the proof suite shows misses. |
+| **Provider call agent** (voice, speech-to-speech) | **`gpt-realtime-2.1`** | Agents SDK `RealtimeAgent`; semantic VAD with interruption; input transcription `gpt-live-transcribe` (keywords: provider names, "voicemail") | Realtime reasoning model with tool use and native interruption handling. `gpt-realtime-2.1-mini` is the cheaper fallback. |
+| Call captions | **`gpt-live-transcribe`** | inside the realtime session | Low-latency live transcription for the desk and the transcript. |
+| Exact approved wording (call acceptance), optional voice replies to the family | **`gpt-4o-mini-tts`** | voice `marin`; `pcm` for the call relay; `opus` for Telegram | The current text-to-speech model. Used where the words must be exactly ours. |
+
+**Evaluated, not chosen for binding speech:** **`gpt-live-1`** (GPT-Live, full-duplex, delegates to our backend). It is OpenAI's recommended starting point for new voice apps, but its docs show no way to force verbatim speech, and its direct SIP calling sends audio straight to the phone network. We revisit it once verbatim control is verified (T19).
 
 Model IDs, prices and parameters come from OpenAI's developer docs as checked today. They are all configured by environment variables, so a model swap needs no code change.
 
-**Usage policy:** the call room and any spoken reply disclose that the voice is AI-generated, as OpenAI's TTS usage policy requires and as our product design already does.
+**Usage policy:** every call and any spoken reply discloses that the voice is AI-generated, as OpenAI's usage policies require and as our product design already does.
 
 ---
 
@@ -286,6 +289,26 @@ Because both are real Gmail accounts, every email in the demo really goes throug
 
 ## T8. AI pipelines and schemas
 
+### T8.0 Agents on the OpenAI Agents SDK
+
+All model work runs through the **OpenAI Agents SDK** (`openai-agents`, Python), which uses the Responses API. The SDK provides the loop, tools, handoffs, guardrails, approvals, sessions and tracing; **our engine still decides** (T5). No agent output grants a permission or adds a recipient.
+
+| Agent | Model | Output | Tools (all read-only or proposal-only) | Guardrails |
+|---|---|---|---|---|
+| `intake` | `gpt-6-luna` | `IntakeOut` (`output_type`) | none | input: crisis detection; output: every field carries a transcript quote |
+| `family_conversation` | `gpt-6-luna` | short reply + optional structured proposal | `get_case_status`, `get_account`, `propose_decision`, `record_dependency_answer` | input: crisis → care response and pause; off-topic → polite decline |
+| `dependency` (handoff target) | `gpt-6-luna` | `DependencyOut` | `get_account` | output: quote required |
+| `reply_reader` | `gpt-6.1-sol` | `ReplyOut` | none | output: quotes verified against the latest text (T8.2), else downgraded to ambiguous |
+| `document_reader` | `gpt-6-luna` (vision) | `DocOut` | none | a phone photo is always `photo` |
+| `call_agent` | `gpt-realtime-2.1` (`RealtimeAgent`) | speech + tool calls | `get_request_and_conditions`, `report_offered_terms`, `request_family_decision`, `request_human_help`, `end_call` — **no accept tool** | realtime output guardrail: commitment guard (T9) |
+
+- **Human approval:** tools with consequences (`propose_decision`, `request_family_decision`) set `needs_approval`. The run pauses with `interruptions`; the decision card goes to the family; their tap calls `approve`/`reject` and the run resumes from its saved `RunState`. **The SDK pause is the flow, not the authority:** the engine's approve endpoint still compare-and-sets the plan version and hash (409 when stale), and every job re-checks at execution.
+- **Memory:** per-member conversation history in the SDK's **SQLAlchemy session** on our Postgres; case facts always come from tools reading the database, never from model memory.
+- **Structured output:** `output_type` with our strict Pydantic schemas (`app/ai/schemas.py`).
+- **Tracing:** SDK tracing on, with sensitive data excluded from traces by default (matches `LOG_TRANSCRIPTS=false`); trace IDs are stored on `events` so the desk can link a decision to its trace.
+- **Probe:** `scripts/openai_probe.py` checks every configured model and the realtime session once at startup and on demand.
+- **To verify on first run** (not assumed): the installed SDK version's `needs_approval` / `RunState` serialization for approvals that wait hours, and realtime output-guardrail timing.
+
 ### T8.1 Voice notes
 ```
 download .ogg/opus
@@ -365,24 +388,28 @@ class ReplyOut(BaseModel):
 
 ---
 
-## T9. The call room
+## T9. The call room and phone calls
 
-**Reused from Stand-In:** push-to-talk, MediaRecorder `.webm` → `gpt-transcribe`, then a `gpt-6-luna` structured dialogue action, the validator and commitment guard, then `gpt-4o-mini-tts` streamed as `pcm` and played with WebAudio.
+**One call engine, two transports.** The provider call runs as an Agents SDK `RealtimeAgent` on **`gpt-realtime-2.1`**, connected from **our server** over the SDK's server-side WebSocket (`OpenAIRealtimeWebSocketModel`). All audio passes through our server in both directions, which is what lets code, not the model, control binding speech.
+
+| Transport | Path | Status |
+|---|---|---|
+| **Browser call room** (demo default) | browser mic ⇄ our WebSocket ⇄ realtime session | Build first. Labelled "browser call, not a phone call". |
+| **Real outbound phone call** (stretch) | Twilio REST creates the call → TwiML `<Connect><Stream>` → Twilio Media Streams ⇄ our server ⇄ realtime session (SDK example `examples/realtime/twilio`) | Only with a paid Twilio account and number that can reach the callee; destination **only** from the provider profile's approved phone number. Off unless `PHONE_CALLS_ENABLED=true`. |
 
 | Concern | Design |
 |---|---|
-| **Dialogue actions** | `ASK_CLARIFICATION`, `REQUEST_PLAN_OUTCOME`, `EXPLAIN_CONDITIONS`, `PRESENT_DECISION`, `REQUEST_HUMAN_HELP`, `ACCEPT_APPROVED_TERMS`, `END_CALL`. The model may never choose to accept. |
-| **Terms extraction** | Each representative turn extracts offered facts (the same `Fact` keys) with quotes, which are run through the outcome check. A changed term creates a new terms hash. |
-| **Decision pause** | `PRESENT_DECISION` → a server hold template ("Let me check with the family") and a decision card to the owner's chat. The approval is bound to the terms hash. |
-| **Acceptance** | A server template built from the approved terms. When the representative starts speaking (push-to-talk press), acceptance is **suspended**. The terms hash is re-checked immediately before audio plays; obsolete audio is discarded on the server and in the browser. |
-| **Guard** | A regex and phrase filter on free-form speech. It *reduces* the risk of implied commitments; it is not a guarantee. |
-| **Latency** | Measured per turn from push-to-talk release to the first audible sample: upload, transcription, reasoning, validation, time to first speech byte, and playback start. Shown on the desk. Reported, never claimed in advance. |
-| **Disclosure** | The first utterance: "I'm Afterward, an AI assistant calling on behalf of the Malik family…" |
+| **What the agent can do** | Tools: `get_request_and_conditions`, `report_offered_terms(facts with quotes)`, `request_family_decision`, `request_human_help`, `end_call`. There is **no accept tool**. |
+| **Terms** | `report_offered_terms` runs the offered facts through the outcome check. A changed term creates a new terms hash. |
+| **Decision pause** | `request_family_decision` (`needs_approval`) → the server plays a hold line ("Let me check with the family") and sends the decision card. The approval is bound to the terms hash. |
+| **Acceptance** | Never generated by the model. The server builds the sentence from the approved terms, synthesises it with `gpt-4o-mini-tts`, **suppresses model audio**, and plays the clip itself. If the representative starts speaking, the clip is **suspended**; the terms hash is re-checked immediately before playback; obsolete audio is discarded on the server and the client. |
+| **Commitment guard** | A realtime **output guardrail** on the agent's transcript (phrases like "we accept", "agreed", "go ahead"). When it trips, the SDK cancels the response (`response.cancel`) and the player stops on `audio_interrupted`. It *reduces* the risk of implied commitments; it is not a guarantee. |
+| **Interruptions** | Semantic VAD with `interrupt_response`; playback tracking so cut-off audio isn't counted as spoken. |
+| **Disclosure** | First utterance, always: "I'm Afterward, an AI assistant calling on behalf of the Malik family…" On phone calls also before any request is stated. |
+| **Latency** | Measured per turn (speech end → first audio byte → playback start), from SDK events. Shown on the desk; reported, never claimed in advance. |
+| **Typed fallback** | The judge can type a turn; it enters the same session with `send_message`. |
 
-**Real phone calls (decision recorded):**
-- Twilio trial accounts can call **only verified numbers (up to 5)**, and **voice calls are limited to the sign-up country. Pakistan is not on the supported trial list.**
-- Real telephony at the venue would therefore need a paid account with international calling, plus a streaming-audio bridge (Twilio Media Streams).
-- **Recommendation:** keep the browser call room (labelled "simulated provider call") and list telephony as the next step.
+**Phone calls, honestly:** Twilio trial accounts only call verified numbers in the sign-up country, and Pakistan isn't supported on trial, so a real call needs a paid account with international calling. **GPT-Live outbound SIP** (`POST /v1/live/sessions` with a SIP transport) is simpler but needs OpenAI to enable outbound SIP for the organisation, a TLS + SRTP + Opus trunk, and sends audio directly to the phone network, which bypasses the acceptance and guard controls above. We claim a real phone call only if one is made and verified; otherwise the demo says "browser call".
 
 ---
 
@@ -394,7 +421,7 @@ class ReplyOut(BaseModel):
 |---|---|---|
 | `/` | Judges and the team | Landing page: what Afterward is, links, demo passcode prompt. |
 | `/desk/{case}` | Judges (projector), owner | Plan, four-dimension board, live events (WebSocket), outcome side by side, call transcript, latency, case clock, proof panel. |
-| `/call/{token}` | Representative (judge) | Call room with push-to-talk and a typed fallback. |
+| `/call/{token}` | Representative (judge) | Call room: live voice over WebSocket (realtime agent), push-to-talk or open mic, typed fallback. |
 | `/provider/{token}` | Judge playing providers | Provider console: choose provider and thread, pick a response variant or write a reply, then send through the providers mailbox. |
 | `/family/{token}` | Family (web alternative) | The same cards and timeline as chat. |
 | `/proofs` | Judges | Run the proof suite live; history of runs. |
@@ -407,7 +434,7 @@ class ReplyOut(BaseModel):
   - `POST /api/cases/{id}/decisions/{d}`;
   - `POST /api/cases/{id}/control` (`quiet` / `hold` / `stop` / `resume`).
 - **Case clock** (demo only): `POST /api/cases/{id}/clock`, body `{advance_days}`.
-- **Calls:** `POST /api/calls/{id}/turn` (audio or text) and `WS /ws/calls/{id}`.
+- **Calls:** `WS /ws/calls/{id}` (audio and events relayed to the realtime session), `POST /api/calls/{id}/turn` (typed turn), `POST /api/calls/{id}/dial` (phone transport, demo-only and allowlisted), `POST /webhooks/twilio/voice` + `WS /ws/twilio/{call}` (Media Streams, when enabled).
 - **Provider console:** `POST /api/provider/send`.
 - **Proof panel:** `POST /api/proofs/run`.
 - **Health:** `GET /health` (liveness) and `GET /status` (models, channel modes, mailbox health, last poll; no secrets).
@@ -524,7 +551,11 @@ CMD ["uvicorn","app.main:app","--host","0.0.0.0","--port","8000","--proxy-header
 | `PUBLIC_BASE_URL` | `https://afterward-app.alternatefutures.ai` | For webhooks and links |
 | `DATABASE_URL` | from the Postgres service | `postgres://` normalised to `postgresql+psycopg://` |
 | `OPENAI_API_KEY` | secret | Server only |
-| `STT_MODEL` / `LLM_FAST_MODEL` / `LLM_ACCURATE_MODEL` / `TTS_MODEL` | `gpt-transcribe` / `gpt-6-luna` / `gpt-6.1-sol` / `gpt-4o-mini-tts` | |
+| `STT_MODEL` / `LLM_FAST_MODEL` / `LLM_ACCURATE_MODEL` / `TTS_MODEL` | `gpt-transcribe` / `gpt-6-luna` / `gpt-6.1-sol` / `gpt-4o-mini-tts` | `LLM_ACCURATE_MODEL=gpt-6-astra` is the upgrade path |
+| `REALTIME_MODEL` / `REALTIME_TRANSCRIBE_MODEL` / `REALTIME_VOICE` | `gpt-realtime-2.1` / `gpt-live-transcribe` / `marin` | Call agent |
+| `AGENTS_TRACING` | `true` | SDK tracing; sensitive data excluded |
+| `PHONE_CALLS_ENABLED` | `false` | Real outbound calls (stretch) |
+| `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, `TWILIO_CALLER_NUMBER` | secret, secret, E.164 | Only when phone calls are enabled |
 | `LLM_FAST_EFFORT` / `LLM_ACCURATE_EFFORT` | `none` / `low` | |
 | `TTS_VOICE` | `marin` | |
 | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_WEBHOOK_SECRET`, `TELEGRAM_MODE` | secret, secret, `webhook` | `polling` fallback |
@@ -555,9 +586,11 @@ afterward/
       policy.py          # autopilot, quiet/hold/stop
       actions.py         # outbound effects: pending/sent/uncertain/reconciled
     ai/
-      client.py          # OpenAI calls, model routing, retries, probe
+      client.py          # Agents SDK setup: models, Runner config, tracing, sessions, probe
+      agents.py          # intake, family_conversation, dependency, reply_reader, document_reader (T8.0)
       schemas.py         # Pydantic strict-output models (T8)
       prompts.py
+      guardrails.py      # crisis input guardrail, quote-required output guardrails
       verify.py          # quote verification, ambiguity downgrade
     channels/
       gateway.py, telegram.py, whatsapp.py, audio.py (ffmpeg repackaging)
@@ -565,7 +598,7 @@ afterward/
       gmail.py           # history poll, fetch, send, reconcile
       parse.py           # MIME decode, quoted-text stripping, matching, recipient check
       calendar.py
-    call/                # reused Stand-In voice engine (dialogue, guard, TTS streaming)
+    call/                # RealtimeAgent call_agent, browser relay, Twilio Media Streams bridge, guard, acceptance TTS
     conversation/        # intake, routing, decisions, crisis, digest
     web/                 # desk, call room, provider console, family view, proofs (HTML + JS)
     demo/
@@ -635,7 +668,7 @@ launches A/B/C/D. The original estimates below do not override those gates; see
 | Rule | Technical evidence |
 |---|---|
 | Hosted on Alternate Clouds | Service and deployment status screenshot from the dashboard; public `*-app.alternatefutures.ai` URL in the PDF. |
-| Built with custom code; list models, APIs, MCP | PDF: Python/FastAPI; OpenAI `gpt-transcribe`, `gpt-6-luna`, `gpt-6.1-sol`, `gpt-4o-mini-tts`; Telegram Bot API, WhatsApp Cloud API, Gmail API, Google Calendar API; MCP: none (or fastn if adopted, T19). |
+| Built with custom code; list models, APIs, MCP | PDF: Python/FastAPI; OpenAI Agents SDK on the Responses API and Realtime API; `gpt-transcribe`, `gpt-6-luna`, `gpt-6.1-sol`, `gpt-realtime-2.1`, `gpt-live-transcribe`, `gpt-4o-mini-tts`; Telegram Bot API, WhatsApp Cloud API, Gmail API, Google Calendar API; MCP: none (or fastn if adopted, T19). |
 | No keys in repo, video or screenshots | Environment variables only; gitleaks in CI; `.env.example`; screenshots reviewed before submission. |
 | Judge login | `DEMO_PASSCODE`, the bot link and console tokens in the PDF; demo accounts only. |
 | Credits | README credits: FastAPI, uvicorn, SQLAlchemy, psycopg, Pydantic, httpx, OpenAI SDK, Google API client, cryptography, ffmpeg (note its licence), plus our own earlier Stand-In code. |
@@ -649,9 +682,10 @@ launches A/B/C/D. The original estimates below do not override those gates; see
 | Decision | Chosen | Alternative | Why |
 |---|---|---|---|
 | Connectors | Direct Gmail and Calendar APIs | fastn MCP connectors | The handbook doesn't require fastn. Direct APIs give us threads, history polling and Sent search, which reconciliation needs. *Optional MCP angle (stretch, ~1 h):* expose Afterward's read-only case tools as an MCP server, so a family's own assistant can ask "what's still open?". |
-| Voice architecture | Transcription → reasoning → validation → speech | Realtime speech-to-speech | Every spoken word passes the validator and guard; acceptance is a template. |
+| AI framework | OpenAI Agents SDK on the Responses API | Hand-rolled Chat/Responses calls | Tools, handoffs, guardrails, approvals, sessions and tracing come built in; our engine stays the authority. |
+| Voice architecture | Realtime speech-to-speech (`gpt-realtime-2.1`, `RealtimeAgent`) relayed through our server | Chained transcription → LLM → TTS; GPT-Live (`gpt-live-1`) | Natural, interruptible speech with tool use. Relaying through our server keeps the output guardrail, server-played acceptance and discarding of obsolete audio. GPT-Live is the next step once verbatim control is proven. |
 | Live demo channel | Telegram primary, WhatsApp secondary | WhatsApp only | WhatsApp's 24-hour window and test-number limits make it fragile for a live demo; the same gateway serves both. |
-| Telephony | Browser call room (simulated provider) | Twilio phone calls | Twilio trials can't call Pakistan; it would need a paid account plus a streaming bridge. |
+| Telephony | Browser call room first; real outbound calls via Twilio Media Streams as a stretch | GPT-Live outbound SIP | Media Streams keeps audio on our server (guard and exact acceptance). GPT-Live SIP needs org enablement and a TLS/SRTP/Opus trunk, and bypasses those controls. |
 | Storage of documents | Encrypted in Postgres | Container volume | Survives redeploys regardless of the platform's volume behaviour. |
 | Google auth | Refresh tokens from a local script into env vars | In-app OAuth redirect | Fewer moving parts on the deployed URL tonight. |
 | Extraction model | `gpt-6.1-sol` (accuracy) | `gpt-6-luna` everywhere | The outcome check is our core claim; we spend a few cents per email for accuracy, and keep Luna where latency matters. |
@@ -666,6 +700,9 @@ launches A/B/C/D. The original estimates below do not override those gates; see
 - [OpenAI: Speech to text guide](https://developers.openai.com/api/docs/guides/speech-to-text)
 - [Google: Using OAuth 2.0 (refresh token expiration)](https://developers.google.com/identity/protocols/oauth2)
 - [Twilio: Trial account limits](https://www.twilio.com/docs/usage/trials)
+- [OpenAI: Audio and speech](https://developers.openai.com/api/docs/guides/audio), [Voice agents](https://developers.openai.com/api/docs/guides/voice-agents), [Models](https://developers.openai.com/api/docs/models)
+- [OpenAI: Telephony and SIP](https://developers.openai.com/api/docs/guides/realtime-sip), [GPT-Live delegation](https://developers.openai.com/api/docs/guides/live-delegation)
+- [OpenAI Agents SDK (Python)](https://openai.github.io/openai-agents-python/), [Realtime guide](https://openai.github.io/openai-agents-python/realtime/guide/), [Human-in-the-loop](https://openai.github.io/openai-agents-python/human_in_the_loop/)
 - [Alternate Futures: How a deployment works](https://docs.alternatefutures.ai/guides/how-deployments-work), [CLI commands](https://docs.alternatefutures.ai/cli/commands), [Quickstart](https://docs.alternatefutures.ai/guides/quickstart)
 - Agentika 2.0 Participant Handbook and Deployment & Troubleshooting Guide
 - [Meta: WhatsApp Cloud API, get started](https://developers.facebook.com/docs/whatsapp/cloud-api/get-started/)

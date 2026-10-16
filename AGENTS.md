@@ -6,8 +6,8 @@ Human dependency answers shape conditional plans and explicit approvals.
 AI proposes structured records; deterministic code controls permission and outcomes.
 Provider replies must satisfy the approved plan before an account is marked resolved.
 PostgreSQL holds durable jobs, versioned approvals, audit events and encrypted documents.
-Python 3.13/FastAPI serves HTML, JSON and the simulated browser call room.
-OpenAI provides transcription, reasoning, vision and speech behind shared interfaces.
+Python 3.13/FastAPI serves HTML, JSON and the call room (realtime voice agent).
+OpenAI via the Agents SDK: agents, realtime voice, transcription, vision and speech.
 Direct Gmail/Calendar APIs are baseline; optional fastn MCP is a secondary integration.
 Code freezes at 12:00 PKT on 17 Oct 2026; submission is 12:45 PKT that day.
 
@@ -23,7 +23,7 @@ Read fully: [product](docs/AFTERWARD.md), [technical design](docs/AFTERWARD-TECH
   the operator explicitly invokes scripts/make_secrets.py and transfers output privately.
 - AI proposes, code decides. Model output can never add recipients or widen permissions.
 - Honest claims only: follow AFTERWARD.md §11. No complete-discovery promise, certified
-  photo claim, perfect speech guard, exactly-once external delivery or real-phone-call claim.
+  photo claim, perfect speech guard, exactly-once external delivery, or phone-call claim unless a real call was made.
 - Never sign, move money or impersonate; never close/transfer without dependency checks.
 - English only. Never draft the LinkedIn post; the humans write it.
 - Never edit outside your owned directories; use the map below and the documented

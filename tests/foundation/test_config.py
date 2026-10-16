@@ -42,3 +42,11 @@ def test_postgres_schemes_normalise(scheme):
 def test_sqlite_is_rejected():
     with pytest.raises(ValueError, match="PostgreSQL"):
         postgres_url("sqlite://")
+
+
+def test_realtime_and_phone_defaults_are_safe() -> None:
+    settings = Settings.from_env({})
+    assert settings.phone_calls_enabled is False
+    assert settings.realtime_model == "gpt-realtime-2.1"
+    assert settings.agents_tracing is True
+    assert Settings.from_env({"PHONE_CALLS_ENABLED": "true"}).phone_calls_enabled is True

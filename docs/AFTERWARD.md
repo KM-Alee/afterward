@@ -246,8 +246,9 @@ Quote checking proves the words exist, not that the meaning was read correctly. 
 
 ### F11. Follow-ups and escalation calls
 - **Follow-ups:** a polite follow-up after the profile's response window, a second one after that, then escalation. Each quotes exactly what is still outstanding.
-- **Escalation call (simulated provider call):** a browser-based voice call in which a representative, played by a judge in the demo, talks to the AI agent. The agent opens by saying it is an AI acting for the family, states the request and conditions, and answers from the case record.
-  - **Honest boundary:** this demonstrates the conversation, not dialling a real company, navigating phone menus or waiting on hold. Real telephony is a later step.
+- **Escalation call:** a live voice call between the AI agent (OpenAI realtime speech, see [AFTERWARD-TECH.md §T9](AFTERWARD-TECH.md#t9-the-call-room-and-phone-calls)) and a representative, played by a judge in the demo. The agent opens by saying it is an AI acting for the family, states the request and conditions, and answers from the case record.
+  - **Two ways to connect:** a browser call room (the demo default), and a real outbound phone call to the provider's approved number as a stretch, when a calling account is set up.
+  - **Honest boundary:** we say "phone call" only when a real one was made. Neither mode navigates phone menus or waits on hold.
 - **No unapproved consequences:** the agent can't approve new terms. If the representative offers *"We can keep the number and voicemail, but the transfer starts a 12-month contract at $30"*, the call pauses, a decision card goes to Sara, and acceptance is spoken only from a server template built from her approved choice. If the representative changes the terms, her approval is void **before** any acceptance is spoken.
 
 ### F12. Money tracking with defensible statuses
@@ -384,8 +385,8 @@ flowchart LR
 | **Durable job queue** | Follow-ups, checks, reminders, digests and inbox polling as database rows with run-at time, lease, attempts and idempotency key. Every run re-checks permission and state. |
 | **Vault** | Encrypted documents with type, form and per-provider disclosure permission. |
 | **Connector layer** | Email (search, read, send in thread, label), calendar, and a status-only spreadsheet mirror. It sits behind an interface: either direct provider APIs or a connector platform, possibly over MCP. Decided in the technical pass. |
-| **AI services** | Speech-to-text; an LLM with strict structured output (intake, plan drafts, commitment extraction); vision for documents; text-to-speech for calls. |
-| **Call room** | Browser voice call with push-to-talk, structured dialogue actions, a commitment guard, server-template acceptance, and approvals bound to the current version of the terms. |
+| **AI services** | OpenAI Agents SDK: agents with strict structured output (intake, conversation, commitment extraction, documents), tools, guardrails and approvals; a realtime voice agent for calls; speech-to-text; text-to-speech for exact approved wording. |
+| **Call room** | Realtime voice agent relayed through our server (browser, or phone via Twilio), tools with no accept action, a guardrail that cuts off implied commitments, server-played acceptance, and approvals bound to the current version of the terms. |
 | **Desk view and proof panel** | Transparency for the family, and the stage view for judges. |
 | **PostgreSQL** | All durable state. |
 
@@ -567,7 +568,7 @@ The rubric asks whether *errors and edge cases are handled*. We show it with a l
 - That a photo is a certified copy.
 - That the free-form speech guard is perfect.
 - That deleting our data deletes what organisations received.
-- That the browser call room is a real phone call.
+- That a browser call is a phone call, or that the commitment guardrail is perfect.
 
 **Hard limits in code**
 - Never sign, never move money, never impersonate.
@@ -622,7 +623,7 @@ The rubric asks whether *errors and edge cases are handled*. We show it with a l
 8. **Outcome check** and decision cards, plus the correction request.
 9. **Provider profiles** for the demo providers (declared), and **vault requirement matching**.
 10. **Timers:** follow-up on silence, final-bill check, refund-evidence tracking.
-11. **Simulated provider call** (reusing the Stand-In voice engine) for a terms-changing offer, with approval voiding.
+11. **Provider call** with the realtime voice agent (browser call room; real phone call as stretch) for a terms-changing offer, with approval voiding.
 12. **Money statuses** with the service-period rule.
 13. **Desk view**, **case clock** and **proof panel** running tests 1–14.
 14. **Deployed on Alternate Clouds** with Postgres, plus a confidential-mode attempt.
@@ -713,7 +714,7 @@ The hour-by-hour plan for both teammates, mapped to code modules, is in [AFTERWA
 - *"When an organisation says done, how do you know?"* Its reply becomes structured commitments, checked against the family's approved plan and conditions. Done means completion evidence plus every condition holding.
 - *"Which countries does it work in?"* The engine is country-neutral. Provider profiles and rules packs are data added per country; the demo uses a fictional, labelled provider set.
 - *"How do you know you haven't missed an account?"* We don't, and we show it: coverage, unresolved candidates, and where else to look.
-- *"Is the call real?"* It's a simulated provider call in a browser. Real telephony is the next step.
+- *"Is the call real?"* The voice agent is real and live. In the browser call room the representative is a judge; when phone calling is enabled the agent dials a real number. We say which one you're seeing.
 - *"What about privacy?"* We show where data goes and what we can and can't delete. Confidential compute covers our side.
 
 ---
@@ -757,7 +758,7 @@ Checked against the Participant Handbook.
 2. **Mailbox:** which Google account is the family's demo mailbox; who controls the demo provider sender identities.
 3. **WhatsApp:** who sets up the Meta test number tonight, and which phones get verified.
 4. **Amina's phone:** which teammate's phone plays the second family member.
-5. **Telephony:** real phone calls are **not possible on a Twilio trial from Pakistan** (see [AFTERWARD-TECH.md §T9](AFTERWARD-TECH.md#t9-the-call-room)). Decide whether to stay with the browser call room (recommended) or pay for an upgraded account.
+5. **Telephony:** the agent can dial real phones via Twilio Media Streams, but **not on a Twilio trial from Pakistan** (see [AFTERWARD-TECH.md §T9](AFTERWARD-TECH.md#t9-the-call-room-and-phone-calls)). Decide whether to pay for an upgraded account with international calling, or keep the browser call room for the demo.
 
 ---
 
