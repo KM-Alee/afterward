@@ -7,7 +7,7 @@ output is never copied into approved recipients.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from typing import Literal
 from uuid import UUID
 
@@ -260,17 +260,64 @@ def _call_verify(verify: object | None, latest_text: str) -> object | None:
         return None
 
 
+def _commitment_views(rows: list[Commitment]) -> list[object]:
+    from app.engine.outcome import CommitmentView, FactView
+
+    views: list[object] = []
+    for row in rows:
+        facts = []
+        for fact in row.facts or []:
+            if isinstance(fact, dict):
+                facts.append(
+                    FactView(
+                        key=str(fact.get("key") or ""),
+                        value=str(fact.get("value") or ""),
+                        evidence_quote=str(fact.get("evidence_quote") or ""),
+                    )
+                )
+        action = row.action.value if hasattr(row.action, "value") else str(row.action)
+        status = row.status.value if hasattr(row.status, "value") else str(row.status)
+        interpretation = (
+            row.interpretation.value
+            if hasattr(row.interpretation, "value")
+            else str(row.interpretation)
+        )
+        views.append(
+            CommitmentView(
+                action=action,
+                status=status,
+                interpretation=interpretation,
+                facts=tuple(facts),
+                negated=bool(row.negated),
+                at=row.created_at or datetime.now(UTC),
+                evidence_quote=row.evidence_quote or "",
+            )
+        )
+    return views
+
+
+def _plan_view(plan: Plan) -> object:
+    from app.engine.outcome import PlanView, conditions_from
+
+    action = plan.action.value if hasattr(plan.action, "value") else str(plan.action)
+    return PlanView(
+        action=action,
+        conditions=conditions_from(list(plan.conditions or [])),
+        completion_evidence=(),
+    )
+
+
 def _call_outcome(
     outcome_check: object | None,
     plan: Plan | None,
     commitments: list[Commitment],
 ) -> tuple[str, dict[str, object]] | None:
-    if outcome_check is None:
+    if outcome_check is None or plan is None:
         return None
     try:
         result = outcome_check(plan, commitments)  # type: ignore[operator]
-    except TypeError:
-        return None
+    except (TypeError, AttributeError):
+        result = outcome_check(_plan_view(plan), _commitment_views(commitments))  # type: ignore[operator]
     return _verdict(result)
 
 

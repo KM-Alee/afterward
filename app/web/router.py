@@ -23,6 +23,34 @@ from app.web.state import (
 
 router = APIRouter()
 
+
+async def _send_fitlife_followup(surface: SurfaceState) -> None:
+    """One follow-up after the +14 day jump. FitLife's window is 10 business days."""
+    already = [
+        record
+        for record in surface.mailbox.sent
+        if "FL-5531" in record.text or "following up" in record.text.casefold()
+    ]
+    if already:
+        return
+    profile = PROVIDERS["fitlife"]
+    text = (
+        "Following up on membership FL-5531. "
+        "Please confirm the cancellation in writing.\n\n"
+        "Ref AW-1042-FL1"
+    )
+    await surface.mailbox.send(
+        SendRequest(
+            mailbox="family@demo.example",
+            to_addrs=[profile["recipient"]],
+            subject=profile["subject"],
+            text=text,
+            footer_ref="AW-1042-FL1",
+            from_name="Afterward",
+        )
+    )
+
+
 BOUNDARY_NOTE = (
     "Confidential compute protects our compute and storage. It does not extend to the "
     "AI provider, the chat platforms or the recipients, and we say so."
@@ -264,6 +292,8 @@ async def advance_clock(request: Request, case_id: UUID):
             status_code=403,
         )
     board.clock_case.clock_offset_s += days * 86400
+    if days == 14:
+        await _send_fitlife_followup(surface)
     surface.live.publish(
         case_id,
         "clock.advanced",

@@ -371,6 +371,7 @@ class Conversation:
             allowed_recipients=self.allowed_recipients,
         )
         self.state.plan = plan
+        self.state.approval_choice = None
         item = next(row for row in plan.items if row.action == "transfer")
         card = build_approval_card(
             recipient=item.recipient,

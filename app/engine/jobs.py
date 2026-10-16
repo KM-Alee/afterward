@@ -20,6 +20,8 @@ from app.models import (
     ApprovalStatus,
     Case,
     Commitment,
+    Decision,
+    DecisionStatus,
     Job,
     JobStatus,
     Member,
@@ -231,11 +233,37 @@ def schedule_followup(
     )
 
 
+def _ask_for_followup(session: Session, case: Case, job: Job) -> None:
+    """Gentle follow-ups ask the family. The job stays pending instead of vanishing."""
+    existing = session.scalar(
+        select(Decision.id).where(Decision.case_id == case.id, Decision.kind == "followup")
+    )
+    if existing is not None:
+        return
+    session.add(
+        Decision(
+            case_id=case.id,
+            kind="followup",
+            payload={"job_id": str(job.id)},
+            options=[
+                {"id": "send", "label": "Send follow-up"},
+                {"id": "not_now", "label": "Not now"},
+            ],
+            plan_hash=(job.payload or {}).get("plan_hash"),
+            status=DecisionStatus.open,
+        )
+    )
+
+
 def _flag(job: Job, name: str, default: bool) -> bool:
+    """Read a payload flag. A payload cannot turn a safety check off."""
     payload = job.payload or {}
-    if name in payload:
-        return bool(payload[name])
-    return default
+    if name not in payload:
+        return default
+    value = bool(payload[name])
+    if default and not value:
+        return True
+    return value
 
 
 def _consent_granted(session: Session, case_id: UUID) -> bool:
@@ -335,7 +363,9 @@ def preflight(session: Session, job: Job, *, wall: datetime | None = None) -> Pr
     if decision.effect == "deny":
         reason = decision.reason
     elif decision.effect == "ask" and job.kind == "followup":
-        reason = "approval_required"
+        _ask_for_followup(session, case, job)
+        session.flush()
+        return PreflightResult(False, "approval_required")
     elif not _consent_granted(session, case.id):
         reason = "consent_revoked"
     elif _flag(job, "requires_mailbox", job.kind in _MAILBOX_KINDS) and (

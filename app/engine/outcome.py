@@ -83,10 +83,14 @@ def _as_condition(raw: Condition | dict[str, object]) -> Condition:
     if isinstance(raw, Condition):
         return raw
     allowed = raw.get("allowed") or ()
+    kind = raw.get("type") or "bool"
+    value = raw.get("value")
+    if isinstance(value, bool):
+        value = "true" if value else "false"
     return Condition(
         key=str(raw["key"]),
-        type=raw["type"],  # type: ignore[arg-type]
-        value=str(raw["value"]),
+        type=kind,  # type: ignore[arg-type]
+        value=str(value),
         allowed=tuple(str(item) for item in allowed),  # type: ignore[union-attr]
     )
 

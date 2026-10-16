@@ -4,6 +4,8 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
+from app.conversation.case_link import mirror_controls
+
 
 @dataclass
 class Controls:
@@ -22,6 +24,7 @@ def apply_command(controls: Controls, name: str, now: datetime) -> str:
         controls.quiet_until = now + timedelta(hours=24)
         controls.monitoring = True
         controls.org_actions = True
+        mirror_controls(controls.control, controls.quiet_until)
         return (
             "I'll stay quiet for 24 hours. Monitoring continues, and I won't start new messages "
             "until then. Reply if you need me."
@@ -31,12 +34,14 @@ def apply_command(controls: Controls, name: str, now: datetime) -> str:
         controls.quiet_until = None
         controls.monitoring = True
         controls.org_actions = False
+        mirror_controls(controls.control, controls.quiet_until)
         return "I'll hold outgoing requests to organisations. Monitoring continues."
     if name == "stop":
         controls.control = "stopped"
         controls.quiet_until = None
         controls.monitoring = False
         controls.org_actions = False
+        mirror_controls(controls.control, controls.quiet_until)
         return (
             "I've stopped the case, including monitoring. Say resume when you want to continue. "
             "I can still hear resume and help."
@@ -46,6 +51,7 @@ def apply_command(controls: Controls, name: str, now: datetime) -> str:
         controls.quiet_until = None
         controls.monitoring = True
         controls.org_actions = True
+        mirror_controls(controls.control, controls.quiet_until)
         return "I'm active again. Monitoring is on."
     if name == "help":
         return (

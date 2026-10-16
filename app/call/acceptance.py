@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import time
 from dataclasses import dataclass, field
 
@@ -34,6 +35,22 @@ class Turn:
     text: str
     via: str = ""
     kind: str = ""
+
+
+def offered_terms_from_text(text: str, current: OfferedTerms | None) -> OfferedTerms | None:
+    """Read a months-and-price offer out of representative speech. Other lines stay turns."""
+    if current is None:
+        return None
+    months = re.search(r"(\d+)\s*month", text, re.IGNORECASE)
+    price = re.search(r"\$(\d+)", text)
+    if months is None or price is None:
+        return None
+    return OfferedTerms(
+        int(months.group(1)),
+        price.group(1),
+        current.number_kept,
+        current.voicemail_preserved,
+    )
 
 
 def hash_terms(terms: OfferedTerms) -> str:
@@ -105,8 +122,6 @@ class CallRoom:
         """Bind a family approval to the current hash. This does not play audio."""
         if self.terms is None or terms_hash != self.terms_hash:
             raise ValueError("Approval does not match the current terms")
-        if self.approval_status == "void":
-            raise ValueError("That approval is void")
         self.approved_hash = terms_hash
         self.approval_status = "approved"
         self.sentence = build_acceptance_sentence(self.terms)
@@ -208,6 +223,9 @@ class CallRoom:
         await self.on_representative_speech()
         await self.session.send_typed_turn(text)
         self.turns.append(Turn(who="rep", text=text, via="typed"))
+        offered = offered_terms_from_text(text, self.terms)
+        if offered is not None and hash_terms(offered) != self.terms_hash:
+            await self.report_offered_terms(offered)
         elapsed = max(0, round((time.monotonic() - started) * 1000))
         rep_turns = sum(1 for turn in self.turns if turn.who == "rep")
         self.latency.append({"turn": rep_turns, "client_total_ms": elapsed, "via": "typed"})

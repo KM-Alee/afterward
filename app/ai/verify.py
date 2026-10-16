@@ -14,6 +14,11 @@ from app.ai.schemas import (
 )
 
 _WILL = re.compile(r"\bwill\b", re.IGNORECASE)
+_FUTURE_DONE = re.compile(
+    r"\bwill\b(?:\s+\w+){0,4}\s+(?:be\s+)?"
+    r"(?:completed|complete|closed|transferred|issued|received|cancelled|canceled)\b",
+    re.IGNORECASE,
+)
 _SUBJECT_TO = re.compile(r"subject to", re.IGNORECASE)
 _COMPLETION = re.compile(
     r"\b(completed|complete|transferred|closed|issued|received|cancelled|canceled)\b",
@@ -63,7 +68,9 @@ def apply_wording_guards(commitment: CommitmentOut) -> CommitmentOut:
     """'will' is not done, and 'subject to' is conditional, even if the model says completed."""
     quote = commitment.evidence_quote
     status = commitment.status
-    if status == "completed" and _WILL.search(quote) and not _COMPLETION.search(quote):
+    if status == "completed" and (
+        _FUTURE_DONE.search(quote) or (_WILL.search(quote) and not _COMPLETION.search(quote))
+    ):
         status = "promised"
     if _SUBJECT_TO.search(quote) and status in {"completed", "promised", "acknowledged"}:
         status = "conditional"

@@ -673,3 +673,14 @@ class ProofRun(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     results: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+def _remember_new_cases() -> None:
+    from sqlalchemy import event as sa_event
+
+    from app.conversation.case_link import remember_case
+
+    sa_event.listen(Case, "init", lambda target, _args, _kwargs: remember_case(target))
+
+
+_remember_new_cases()

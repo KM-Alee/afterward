@@ -236,7 +236,7 @@ async def _send_email(
     action.attempts += 1
     try:
         sent = await mailbox.send(send)
-    except DeliveryUncertain:
+    except Exception:
         action.status = ActionStatus.uncertain
         _remember(action, footer_ref=footer_ref, mailbox=mailbox_name)
         return action
