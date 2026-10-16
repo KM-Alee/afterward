@@ -1,0 +1,40 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(make *)",
+      "Bash(uv *)",
+      "Bash(pytest *)",
+      "Bash(ruff *)",
+      "Bash(git *)",
+      "Bash(docker compose *)"
+    ],
+    "deny": [
+      "Read(.env*)",
+      "Read(client_secret*.json)",
+      "Read(**/.env*)",
+      "Read(private/**)",
+      "Read(**/private/**)",
+      "Read(**/client_secret*.json)",
+      "Bash(git *push *--force*)",
+      "Bash(git *push *-f*)",
+      "Bash(git *push *+*)",
+      "Bash(*.env*)",
+      "Bash(*private/*)",
+      "Bash(*client_secret*.json*)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$CLAUDE_PROJECT_DIR/scripts/format_edited_python.py\"",
+            "timeout": 30
+          }
+        ]
+      }
+    ]
+  }
+}

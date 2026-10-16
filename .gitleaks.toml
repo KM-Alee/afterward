@@ -1,0 +1,8 @@
+title = "Afterward secret scanning"
+[extend]
+useDefault = true
+
+[[rules]]
+id = "postgres-credentials"
+description = "PostgreSQL connection URL containing a password"
+regex = '(?i)postgres(?:ql)?(?:\+psycopg)?://[^\s:/]+:[^\s@]+@[^\s]+'

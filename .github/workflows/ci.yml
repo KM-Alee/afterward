@@ -1,0 +1,47 @@
+name: CI
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: afterward
+          POSTGRES_DB: afterward_test
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U afterward -d afterward_test"
+          --health-interval 2s --health-timeout 3s --health-retries 30
+    env:
+      DATABASE_URL_TEST: postgresql+psycopg://afterward@127.0.0.1:5432/afterward_test
+      UV_NO_ENV_FILE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.13"
+      - run: uv sync --frozen
+      - run: make ci
+      - name: Verify production requirements are current
+        run: |
+          make requirements
+          git diff --exit-code -- requirements.txt
+      - name: Scan tracked content and full history with gitleaks
+        run: |
+          mkdir -p "$RUNNER_TEMP/afterward-scan"
+          git archive HEAD | tar -x -C "$RUNNER_TEMP/afterward-scan"
+          docker run --rm -v "$RUNNER_TEMP/afterward-scan:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.30.1 dir /repo --config /repo/.gitleaks.toml --redact
+          docker run --rm --user "$(id -u):$(id -g)" -v "$PWD:/repo:ro" ghcr.io/gitleaks/gitleaks:v8.30.1 git /repo --config /repo/.gitleaks.toml --log-opts=--all --redact
