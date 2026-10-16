@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
@@ -72,6 +73,82 @@ class HeldDocument:
 
     doc_type: str
     form: str
+
+
+def _as_reply(raw: object) -> ReplyOut:
+    if isinstance(raw, ReplyOut):
+        return raw
+    payload = raw if isinstance(raw, dict) else raw.model_dump()  # type: ignore[union-attr]
+    return ReplyOut.model_validate(payload)
+
+
+def _needs_quote_retry(before: ReplyOut, after: ReplyOut) -> bool:
+    """True when a quote was dropped or a clear reading became ambiguous."""
+    for left, right in zip(before.commitments, after.commitments, strict=False):
+        if left.evidence_quote.strip() and not right.evidence_quote.strip():
+            return True
+        if left.interpretation == "clear" and right.interpretation == "ambiguous":
+            return True
+    return False
+
+
+_NAMES_A_NUMBER = re.compile(r"\d{3,}")
+
+
+def bind_thread_account(
+    reply: ReplyOut, account_refs: Sequence[str], thread_ref: str | None
+) -> ReplyOut:
+    """A reply on a thread code already routed to one account names that account.
+
+    Only a hint that names no account number is bound. A hint naming another number, or
+    several, is left alone and stays ambiguous after verification.
+    """
+    if not thread_ref or thread_ref not in account_refs:
+        return reply
+    bound = []
+    for commitment in reply.commitments:
+        hint = commitment.account_hint
+        if match_account_hint(hint, list(account_refs)) is None and not _NAMES_A_NUMBER.search(
+            hint
+        ):
+            commitment = commitment.model_copy(update={"account_hint": thread_ref})
+        bound.append(commitment)
+    return reply.model_copy(update={"commitments": bound})
+
+
+async def extract_verified_reply(
+    ai: Any,
+    latest: str,
+    account_refs: Sequence[str],
+    *,
+    thread_ref: str | None = None,
+) -> ReplyOut:
+    """Read a reply, then retry once if the quotes are not in the text."""
+    messages = extraction_messages(latest)
+    proposal = _as_reply(await ai.structured("reply_reader", ReplyOut, messages))
+    proposal = bind_thread_account(proposal, account_refs, thread_ref)
+    verified = verify_reply(proposal, latest, list(account_refs))
+    if not _needs_quote_retry(proposal, verified):
+        return verified
+    retry = [
+        *messages,
+        ChatMessage(
+            role="user",
+            content=(
+                "The evidence_quote values were not exact copies of the provider text. "
+                "Copy each evidence_quote as a contiguous substring of the text below. "
+                "will is not completed. A voicemail that will be reset "
+                "is voicemail_preserved=false. "
+                "A new contract length is contract_months.\n" + latest
+            ),
+        ),
+    ]
+    try:
+        second = _as_reply(await ai.structured("reply_reader", ReplyOut, retry))
+    except Exception:
+        return verified
+    second = bind_thread_account(second, account_refs, thread_ref)
+    return verify_reply(second, latest, list(account_refs))
 
 
 def extraction_messages(latest_text: str) -> list[ChatMessage]:
@@ -297,11 +374,7 @@ async def process_reply(
         }
         result.next_step = dict(account.next_step)
         return result
-    proposal = await ai.structured("reply_reader", ReplyOut, extraction_messages(latest))
-    if not isinstance(proposal, ReplyOut):
-        payload = proposal if isinstance(proposal, dict) else proposal.model_dump()
-        proposal = ReplyOut.model_validate(payload)
-    verified = verify_reply(proposal, latest, list(account_refs))
+    verified = await extract_verified_reply(ai, latest, account_refs)
     result.reply = verified
     message = _store_message(
         _Persist(

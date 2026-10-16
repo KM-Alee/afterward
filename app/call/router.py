@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+import logging
+
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 
-from app.call.acceptance import CallRoom
+from app.call.acceptance import CallRoom, Turn
+from app.call.live import agent_turn, speak_aloud
 from app.call.tools import bind_room, build_call_agent
 from app.contracts import CallTransport
 from app.web.render import render
 from app.web.router import _page, get_surface
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 SUGGESTED_LINES = (
     ("greet", "Say hello", "Hello, you're through to Northline bereavement."),
@@ -23,6 +27,28 @@ SUGGESTED_LINES = (
     ("change", "Change it to $35", "Sorry, that offer is now 12 months at $35 a month."),
     ("confirm", "Promise it in writing", "We will confirm the transfer in writing."),
 )
+
+
+def ask_family_once(room: CallRoom) -> bool:
+    """Code, not the model, asks Sara about each new offer exactly once."""
+    if room.terms is None or room.approval_status == "approved":
+        return False
+    if getattr(room, "asked_hash", None) == room.terms_hash:
+        return False
+    room.asked_hash = room.terms_hash  # type: ignore[attr-defined]
+    if room.approval_status == "none":
+        room.approval_status = "pending"
+    room.turns.append(
+        Turn(
+            who="system",
+            text=(
+                f"Sara was asked on the family card about {room.terms.months} months at "
+                f"${room.terms.price} a month. Nothing was accepted."
+            ),
+            kind="decision",
+        )
+    )
+    return True
 
 
 def _room_for(request: Request, token: str) -> CallRoom | None:
@@ -98,26 +124,33 @@ async def typed_turn(request: Request, token: str):
     await room.handle_typed_turn(text)
     surface = get_surface(request)
     case_id = surface.call_tokens[token]
+    asked = ask_family_once(room)
+    settings = getattr(request.app.state, "settings", None)
+    via = await agent_turn(settings, room, text)
+    if room.turns and room.turns[-1].who == "agent":
+        room.spoken_b64 = await speak_aloud(settings, room.turns[-1].text)
     surface.live.publish(
         case_id,
         "call.turn",
-        {"via": "typed", "summary": "Typed turn recorded"},
+        {"via": via, "summary": "Call turn recorded"},
         actor="call",
     )
-    return render(
-        request,
-        "call.html",
-        _page(
-            request,
-            "call",
-            room=room,
-            token=token,
-            board=surface.cases[case_id],
-            lines=SUGGESTED_LINES,
-            phone_calls_enabled=surface.phone_calls_enabled,
-            reveal=True,
-        ),
-    )
+    if asked and room.terms is not None:
+        from app.runtime import notify_owner
+        from app.web.router import _token_for
+
+        base = getattr(settings, "public_base_url", "") if settings is not None else ""
+        family = _token_for(surface.family_tokens, case_id)
+        try:
+            await notify_owner(
+                request.app,
+                f"On the call, Northline offered {room.terms.months} months at "
+                f"${room.terms.price} a month. Nothing is accepted unless you approve it: "
+                f"{base}/family/{family}",
+            )
+        except Exception:
+            logger.info("owner notice", extra={"kind": "channel.send", "ok": False})
+    return RedirectResponse(f"/call/{token}", status_code=303)
 
 
 @router.post("/api/calls/{token}/continue")
@@ -132,6 +165,10 @@ async def continue_acceptance(request: Request, token: str):
             status_code=404,
         )
     await room.try_play_acceptance()
+    if room.acceptance_played and room.sentence:
+        room.spoken_b64 = await speak_aloud(
+            getattr(request.app.state, "settings", None), room.sentence
+        )
     return RedirectResponse(f"/call/{token}", status_code=303)
 
 

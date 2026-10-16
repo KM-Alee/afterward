@@ -46,6 +46,7 @@ class Settings(BaseModel):
     twilio_account_sid: SecretStr = Field(default=SecretStr(""), repr=False)
     twilio_auth_token: SecretStr = Field(default=SecretStr(""), repr=False)
     twilio_caller_number: str = Field(default="", repr=False)
+    fastn_api_key: SecretStr = Field(default=SecretStr(""), repr=False)
     poll_seconds: int = Field(default=15, ge=1)
     log_transcripts: bool = False
 

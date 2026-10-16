@@ -17,6 +17,37 @@
       {% if board.monitoring == 'interrupted' %}
       <div class="banner banner--interrupted">{{ ui.icon('eye-off') }}<p class="banner__title">Mailbox disconnected</p><p class="banner__body">Replies aren't being read until it's back.</p></div>
       {% endif %}
+      {% if offer %}
+      <section class="needs" aria-labelledby="call-offer">
+        <div class="needs__card">
+          <article class="fcard{% if offer.approval_status != 'approved' and offer.approval_status != 'declined' %} fcard--active{% endif %}">
+            <p class="fcard__meta"><span class="sim-tag">{{ ui.icon('ring') }}Browser call, not a phone call</span></p>
+            <h3 class="fcard__title" id="call-offer">Northline offered {{ offer.terms.months }} months at ${{ offer.terms.price }} a month</h3>
+            <div class="fcard__body">
+              <ul class="checks" role="list">
+                <li><span>Number</span>{{ ui.chip('holding' if offer.terms.number_kept == 'kept' else 'unknown', offer.terms.number_kept) }}</li>
+                <li><span>Voicemail</span>{{ ui.chip('holding' if offer.terms.voicemail_preserved == 'kept' else 'unknown', offer.terms.voicemail_preserved) }}</li>
+              </ul>
+              {% if offer_error %}<p class="small" role="alert"><b>{{ offer_error }}</b></p>{% endif %}
+              {% if offer.approval_status == 'approved' %}
+              <p class="small">You approved this exact offer. If Northline changes it, your approval is void.</p>
+              {% elif offer.approval_status == 'declined' %}
+              <p class="small">You declined. Nothing was accepted.</p>
+              {% else %}
+              <p class="small">{% if offer.approval_status == 'void' %}The offer changed, so your earlier approval no longer counts. {% endif %}The agent cannot accept. Only you can.</p>
+              {% endif %}
+            </div>
+            {% if offer.approval_status != 'approved' and offer.approval_status != 'declined' %}
+            <form class="fcard__actions btn-row" method="post" action="/family/{{ token }}/call">
+              <input type="hidden" name="terms_hash" value="{{ offer.terms_hash }}">
+              <button class="btn btn--primary" type="submit" name="choice" value="approve">Approve this offer</button>
+              <button class="btn" type="submit" name="choice" value="decline">Decline</button>
+            </form>
+            {% endif %}
+          </article>
+        </div>
+      </section>
+      {% endif %}
       <section class="needs" aria-labelledby="needs-you">
         <div class="needs__head"><h2 class="h4" id="needs-you">{% if board.empty or board.family_choice %}Nothing needs you{% else %}Needs you{% endif %}</h2></div>
         {% if board.empty %}

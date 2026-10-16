@@ -251,6 +251,18 @@ def _callable(module_name: str, attr: str) -> object | None:
     return None
 
 
+def judge_reply(ai: object, latest_text: str, account_refs: list[str]) -> ReplyOut:
+    """Read one approved reply with the given client. Callers pass the live client explicitly."""
+    import asyncio
+
+    from app.engine.pipeline import extract_verified_reply
+
+    async def _run() -> ReplyOut:
+        return await extract_verified_reply(ai, latest_text, account_refs)
+
+    return asyncio.run(_run())
+
+
 def _call_verify(verify: object | None, latest_text: str) -> object | None:
     if verify is None:
         return None

@@ -141,8 +141,68 @@ def _needs_session(runner: Callable[..., Any]) -> bool:
     )
 
 
-def run_proof_panel() -> dict[str, object]:
+def _page_report(raw: dict[str, object]) -> dict[str, object] | None:
+    """Map the engine runner onto the 14 rows the page already shows."""
+    results = raw.get("results")
+    if not isinstance(results, list) or len(results) != len(PROOF_CASES):
+        return None
+    rows = []
+    for case, item in zip(PROOF_CASES, results, strict=True):
+        if not isinstance(item, dict):
+            return None
+        passed = bool(item.get("passed"))
+        rows.append(
+            {
+                "n": case["n"],
+                "input": case["input"],
+                "required": case["required"],
+                "expected": case["expected"],
+                "state": "pass" if passed else "fail",
+                "extracted": item.get("records"),
+                "latency_ms": item.get("latency_ms"),
+            }
+        )
+    failed = int(raw.get("failed") or 0)
+    passed_count = int(raw.get("passed") or 0)
+    return {
+        "status": "passed" if failed == 0 else "failed",
+        "reason": f"{passed_count} passed, {failed} failed.",
+        "results": rows,
+    }
+
+
+def _run_with_database() -> dict[str, object] | None:
+    from app.config import Settings
+    from app.db import make_engine
+
+    raw_url = Settings.from_env().database_url.get_secret_value()
+    if not raw_url:
+        return None
+    from sqlalchemy.orm import Session
+
+    engine = make_engine(raw_url)
+    try:
+        with Session(engine) as session:
+            report = _import_runner()
+            if report is None:
+                return None
+            raw = report(session)
+            session.commit()
+    except Exception:
+        return None
+    finally:
+        engine.dispose()
+    if not isinstance(raw, dict):
+        return None
+    return _page_report(raw)
+
+
+def run_proof_panel(*, live: bool = False) -> dict[str, object]:
     """Call the shared runner, or report that nothing was run."""
+    if live:
+        ran = _run_with_database()
+        if ran is not None:
+            return ran
     runner = _import_runner()
     if runner is None:
         return not_run_report()

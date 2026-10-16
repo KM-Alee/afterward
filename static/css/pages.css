@@ -18,7 +18,8 @@ body.fit > main > .wrap { flex: 1; min-height: 0; display: flex; flex-direction:
 
 .page-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); }
 .page-title { font-family: var(--font-serif); font-size: clamp(1.5rem, 1.2rem + 1vw, 2.1rem); font-weight: 500; line-height: 1.1; }
-.page-sub { color: var(--c-ink-3); font-size: var(--fs-sm); margin-top: 2px; }
+.page-sub { color: var(--c-ink-2); font-size: var(--fs-sm); margin-top: 4px; line-height: 1.45; max-width: 62ch; }
+.reality { margin: var(--s-3) 0 0; max-width: 68ch; padding: var(--s-3) var(--s-4); background: var(--c-sunken); border-radius: var(--r-md); color: var(--c-ink); font-size: var(--fs-sm); line-height: 1.5; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r-md); border: 0; background: transparent; color: var(--c-ink-2); cursor: pointer; }
 .icon-btn:hover { background: var(--c-sunken); color: var(--c-ink); }
@@ -118,7 +119,7 @@ body.fit > main > .wrap { flex: 1; min-height: 0; display: flex; flex-direction:
 .now .compare__col { padding: var(--s-4) var(--s-5); }
 .now .verdict { font-size: var(--fs-lg); }
 .now .checks li { padding: 6px 0; }
-.now .quote__text { font-size: var(--fs-base); }
+.now .quote__text, .quote__text { font-size: 1.05rem; line-height: 1.45; max-width: 62ch; }
 @container (max-width: 759.98px) { .now .compare { padding: var(--s-3); } }
 .requested-action { font-weight: 700; margin-bottom: var(--s-2); }
 .tiles-box { flex: 1; min-height: 0; }
@@ -180,7 +181,8 @@ body.fit > main > .wrap { flex: 1; min-height: 0; display: flex; flex-direction:
 .typed__row { display: flex; gap: var(--s-2); width: min(100%, 30rem); }
 .typed__row .input { flex: 1; min-width: 0; }
 .chat { list-style: none; padding: 0; margin: 0; display: grid; gap: var(--s-3); }
-.bubble { max-width: 92%; padding: var(--s-2) var(--s-3); border-radius: 14px; font-size: var(--fs-sm); line-height: 1.45; }
+.bubble { max-width: min(40rem, 92%); padding: var(--s-3) var(--s-4); border-radius: 14px; font-size: var(--fs-base, 1rem); line-height: 1.5; }
+.bubble__who { display: block; margin-bottom: 2px; font-size: var(--fs-xs); font-weight: 600; color: var(--c-ink-2); }
 .bubble__who { display: block; font-size: var(--fs-xs); font-weight: 700; color: var(--c-ink-3); margin-bottom: 2px; }
 .bubble--agent { background: var(--c-sunken); border-bottom-left-radius: 4px; }
 .bubble--rep { justify-self: end; background: var(--c-dusk-soft); border-bottom-right-radius: 4px; }

@@ -3,6 +3,9 @@
 The operator runs this locally and stores the token in the platform environment.
 This script does not write the token into the repository, and tests never start
 the browser flow.
+
+The browser returns to localhost. That redirect is only for minting the token.
+A deployed app uses the refresh token and does not serve this redirect.
 """
 
 from __future__ import annotations

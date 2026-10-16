@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import io
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 
@@ -27,6 +28,15 @@ from app.engine.errors import AIUnavailable, CrisisPaused
 FAST_MODEL = "gpt-6-luna"
 ACCURATE_MODEL = "gpt-6.1-sol"
 UPGRADE_MODEL = "gpt-6-astra"
+
+
+def _named_audio(audio: bytes, name: str) -> io.BytesIO:
+    """Give raw bytes a filename so the transcription API can see the type."""
+    handle = io.BytesIO(audio)
+    handle.name = name
+    return handle
+
+
 CARE_RESPONSE = (
     "I'm glad you said something. If you might be in crisis, please contact local "
     "emergency services or findahelpline.com. I will pause until you choose to continue."
@@ -238,8 +248,30 @@ class AgentsSDKClient:
         prompt: str = "",
         keywords: Sequence[str] = (),
     ) -> Transcript:
-        del audio, mime, prompt, keywords
-        raise AIUnavailable("no_api_key")
+        key = self._settings.openai_api_key.get_secret_value()
+        if not key:
+            raise AIUnavailable("no_api_key")
+        from openai import OpenAI
+
+        suffix = "webm" if "webm" in mime else "ogg"
+        file_obj = _named_audio(audio, f"note.{suffix}")
+        client = OpenAI(api_key=key, timeout=self.timeout_s)
+
+        def _call() -> object:
+            kwargs: dict[str, object] = {
+                "model": self._settings.stt_model,
+                "file": file_obj,
+                "languages": ["en"],
+            }
+            if prompt:
+                kwargs["prompt"] = prompt
+            if keywords:
+                kwargs["keywords"] = list(keywords)
+            return client.audio.transcriptions.create(**kwargs)  # type: ignore[arg-type]
+
+        raw = await asyncio.to_thread(_call)
+        text = raw if isinstance(raw, str) else str(getattr(raw, "text", "") or "")
+        return Transcript(text=text, language="en")
 
     async def structured(
         self,
@@ -284,9 +316,26 @@ class AgentsSDKClient:
         voice: str | None = None,
         audio_format: str = "pcm",
     ) -> AsyncIterator[SpeechChunk]:
-        del text, voice
-        raise AIUnavailable("no_api_key")
-        yield SpeechChunk(audio=b"", audio_format=audio_format)
+        key = self._settings.openai_api_key.get_secret_value()
+        if not key:
+            raise AIUnavailable("no_api_key")
+        from openai import OpenAI
+
+        chosen = "opus" if audio_format == "opus" else "pcm"
+        client = OpenAI(api_key=key, timeout=self.timeout_s)
+        spoken = voice or self._settings.tts_voice
+
+        def _call() -> bytes:
+            speech = client.audio.speech.create(
+                model=self._settings.tts_model,
+                voice=spoken,
+                input=text,
+                response_format=chosen,  # type: ignore[arg-type]
+            )
+            return speech.read()
+
+        audio = await asyncio.to_thread(_call)
+        yield SpeechChunk(audio=audio, audio_format=chosen)
 
     def conversation_session(self, session_id: str):
         """Build a Postgres SQLAlchemy session. Construction does not call OpenAI."""

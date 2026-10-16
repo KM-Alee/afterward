@@ -84,7 +84,12 @@
     socket.addEventListener("message", function (event) {
       var data;
       try { data = JSON.parse(event.data); } catch (err) { return; }
-      if (!data || data.kind === "stream.ready" || data.kind === "denied") return;
+      if (!data || data.kind === "stream.ready" || data.kind === "denied" || data.kind === "missing") return;
+      if (stream.hasAttribute("data-reload") || stream.querySelector(".tl")) {
+        window.setTimeout(function () {
+          if (!document.querySelector("dialog[open]") && document.activeElement.tagName !== "INPUT") location.reload();
+        }, 700);
+      }
       var list = stream.querySelector(".tl");
       if (!list) return;
       var item = document.createElement("li");

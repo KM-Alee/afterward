@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 from collections import defaultdict
 from collections.abc import Callable
 from uuid import UUID
@@ -19,6 +20,7 @@ class LiveHub:
         self._queues: dict[str, list[asyncio.Queue[dict[str, object]]]] = defaultdict(list)
         self._callbacks: dict[str, list[Subscriber]] = defaultdict(list)
         self._loop: asyncio.AbstractEventLoop | None = None
+        self.on_change: Callable[[], None] | None = None
 
     def attach(self, loop: asyncio.AbstractEventLoop) -> None:
         self._loop = loop
@@ -63,4 +65,7 @@ class LiveHub:
             loop.call_soon_threadsafe(_fanout)
         else:
             _fanout()
+        if self.on_change is not None:
+            with contextlib.suppress(Exception):
+                self.on_change()
         return message

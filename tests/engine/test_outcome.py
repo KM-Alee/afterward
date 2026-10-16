@@ -102,6 +102,11 @@ def test_bool_max_int_and_enum_conditions():
     assert violated.results["contract_months"] == "violated"
     assert violated.results["document_form"] == "violated"
     assert "new_contract" in violated.extras
+    worded = outcome_check(
+        plan,
+        [_commitment("transfer", "completed", (_fact("contract_months", "24 months"),))],
+    )
+    assert worded.results["contract_months"] == "violated"
 
 
 def test_missing_condition_and_missing_evidence_do_not_resolve():

@@ -663,6 +663,15 @@ class Latency(TimestampMixin, Base):
     client_total_ms: Mapped[int | None] = mapped_column(Integer)
 
 
+class DeskSnapshot(TimestampMixin, Base):
+    """One JSON snapshot of the demo desk. A restart reloads it."""
+
+    __tablename__ = "desk_snapshots"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+
+
 class ProofRun(TimestampMixin, Base):
     """Proof-panel history. Global: a run is not a single case row."""
 

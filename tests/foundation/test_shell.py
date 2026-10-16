@@ -24,13 +24,17 @@ def test_shell_routes_and_status(monkeypatch):
                 "realtime": "gpt-realtime-2.1",
             },
             "channels": {"telegram": "webhook", "whatsapp": "disabled"},
+            "mail": "disabled",
             "phone_calls": "disabled",
             "db_reachable": False,
         }
         assert "fixture-value-only" not in status.text
-        for path in ("/", "/docs", "/openapi.json", "/api/cases", "/proofs"):
-            assert client.get(path).status_code == 404
-    assert {route.path for route in app.routes} == {"/health", "/status"}
+        assert client.get("/").status_code == 200
+        assert client.get("/proofs").status_code == 401
+        assert client.get("/docs").status_code == 404
+        assert client.get("/openapi.json").status_code == 404
+    paths = {getattr(route, "path", "") for route in app.routes}
+    assert {"/health", "/status", "/webhooks/telegram"} <= paths
 
 
 def test_status_does_not_leak_database_error(monkeypatch):

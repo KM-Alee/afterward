@@ -72,6 +72,13 @@ Only the lead accepts ADR changes. Alternatives and reasons below come from AFTE
 - Sources: [fastn docs](https://docs.fastn.ai/),
   [fastn MCP](https://github.com/fastn-ai/fastn-mcp),
   [n8n MCP](https://n8n.io/mcp/).
+- Operator note, 2026-10-17: for this demo, Gmail and Calendar go through the
+  connected Fastn accounts. The demo mailbox is now `pabloman414@gmail.com`
+  on project `mehu-511820`, where Gmail API and Calendar API are enabled.
+  The local consent is done. Both mailbox fields hold that refresh token.
+  The Web client's `http://localhost:8765/` redirect is only for that
+  laptop consent. A deploy uses the refresh token and does not need that
+  redirect to be public.
 
 ## ADR-010: Frontend UX approval before parallel development
 

@@ -10,7 +10,12 @@ Quote only from the latest text. Do not quote earlier messages that the reply in
 forwarded or "On ... wrote:" marker.
 
 "will" is not "done". A future tense statement is promised or conditional, never completed.
-"subject to" means conditional. When unsure, use ambiguous.
+"subject to" means conditional.
+Use interpretation clear when you can quote the exact words that state the fact.
+Use ambiguous only when those words do not state the fact.
+A voicemail that will be reset is clear: voicemail_preserved is false,
+and that commitment is not completed.
+A stated contract length is contract_months as digits, for example 24.
 Never infer facts that are not stated. Every fact needs its own verbatim quote.
 """.strip()
 

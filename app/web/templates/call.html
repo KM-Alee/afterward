@@ -3,7 +3,7 @@
 {% block title %}Call room · Afterward{% endblock %}
 {% block context %}<span class="brand__context">Call room</span>{% endblock %}
 {% block main %}
-<div class="wrap" id="root">
+<div class="wrap" id="root" data-events="{{ board.id }}" data-reload>
   <div class="page-row">
     <div>
       <h1 class="page-title">Call with Northline</h1>
@@ -43,6 +43,10 @@
       <form method="post" action="/call/{{ token }}/join">
         <button class="btn btn--primary btn--lg" type="submit">{{ ui.icon('phone') }}Join the call</button>
       </form>
+      {% endif %}
+      {% if room.spoken_b64 %}
+      <audio controls autoplay src="data:audio/ogg;base64,{{ room.spoken_b64 }}">Spoken reply</audio>
+      <p class="small muted">Spoken in this browser. This is not a phone call.</p>
       {% endif %}
       {% if room.approval_status == 'approved' and not room.acceptance_played %}
       <form method="post" action="/api/calls/{{ token }}/continue">
@@ -88,7 +92,7 @@
         <ol class="chat" role="list">
           {% for turn in room.turns %}
           <li class="bubble bubble--{{ 'system' if turn.who == 'system' else turn.who }}{% if turn.kind == 'discarded' %} bubble--discarded{% endif %}">
-            {% if turn.who == 'agent' %}<span class="bubble__who">{% if turn.kind == 'template' %}Afterward (AI), approved wording{% else %}Afterward (AI){% endif %}</span>
+            {% if turn.who == 'agent' %}<span class="bubble__who">{% if turn.kind == 'template' %}Afterward (AI), approved wording{% elif turn.via == 'realtime' %}Afterward (AI), live realtime model, text{% elif turn.via == 'scripted' %}Afterward (AI), fixed fallback line{% else %}Afterward (AI){% endif %}</span>
             {% elif turn.who == 'rep' %}<span class="bubble__who">{% if turn.via == 'typed' %}You, typed{% else %}You{% endif %}</span>
             {% endif %}
             <span class="bubble__text">{{ turn.text }}</span>

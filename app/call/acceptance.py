@@ -39,18 +39,30 @@ class Turn:
 
 def offered_terms_from_text(text: str, current: OfferedTerms | None) -> OfferedTerms | None:
     """Read a months-and-price offer out of representative speech. Other lines stay turns."""
-    if current is None:
-        return None
     months = re.search(r"(\d+)\s*month", text, re.IGNORECASE)
     price = re.search(r"\$(\d+)", text)
     if months is None or price is None:
         return None
+    if current is None:
+        lost = _LOST.search(text) is not None
+        kept = _KEPT.search(text) is not None and not lost
+        number = "kept" if kept and re.search(r"\bnumber\b", text, re.IGNORECASE) else "not stated"
+        voicemail = (
+            "kept"
+            if kept and re.search(r"voicemail", text, re.IGNORECASE)
+            else ("not kept" if lost else "not stated")
+        )
+        return OfferedTerms(int(months.group(1)), price.group(1), number, voicemail)
     return OfferedTerms(
         int(months.group(1)),
         price.group(1),
         current.number_kept,
         current.voicemail_preserved,
     )
+
+
+_KEPT = re.compile(r"\b(keep|kept|keeping)\b", re.IGNORECASE)
+_LOST = re.compile(r"\b(reset|lose|lost|delete|deleted|wipe|wiped)\b", re.IGNORECASE)
 
 
 def hash_terms(terms: OfferedTerms) -> str:
@@ -70,10 +82,12 @@ def hash_terms(terms: OfferedTerms) -> str:
 
 def build_acceptance_sentence(terms: OfferedTerms) -> str:
     """Words the server will speak. The model does not write this sentence."""
-    return (
-        f"The Malik family accepts {terms.months} months at ${terms.price} a month, "
-        "keeping the number and the existing voicemail."
-    )
+    if terms.number_kept == "kept" and terms.voicemail_preserved == "kept":
+        return (
+            f"The Malik family accepts {terms.months} months at ${terms.price} a month, "
+            "keeping the number and the existing voicemail."
+        )
+    return f"The Malik family accepts {terms.months} months at ${terms.price} a month."
 
 
 @dataclass
@@ -91,6 +105,7 @@ class CallRoom:
     guard_trips: list[str] = field(default_factory=list)
     acceptance_played: bool = False
     status: str = "ready"
+    spoken_b64: str | None = None
 
     async def start(self) -> None:
         if self.session.started and not self.session.stopped:

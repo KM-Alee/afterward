@@ -29,6 +29,7 @@
     <div>
       <h1 class="page-title">{{ board.deceased }}</h1>
       <p class="page-sub">Died {{ board.died }}. {{ board.handler }}</p>
+      <p class="reality">What is real here: Gmail sends and reads mail, Telegram reaches this bot, and this call is in the browser, not on a phone. The 14 proofs use a stand-in model. A restart keeps this desk.</p>
     </div>
     <div class="toolbar">
       <span class="clock-pill" title="Demo clock. Only moves case time.">{{ ui.icon('clock') }}<span>{{ case_time }}</span>
@@ -40,6 +41,7 @@
       <button class="btn btn--sm" type="button" data-open="sum">{{ ui.icon('chat') }}Did we finish?</button>
       <button class="btn btn--sm" type="button" data-open="cov">{{ ui.icon('eye-off') }}Coverage</button>
       <button class="btn btn--sm" type="button" data-open="case">{{ ui.icon('user') }}Case</button>
+      <form method="post" action="/api/cases/{{ board.id }}/reset" style="display:inline"><button class="btn btn--sim btn--sm" type="submit" title="Start the demo story again">Reset demo</button></form>
       <button class="icon-btn" type="button" data-projector aria-pressed="false" title="Projector mode" aria-label="Projector mode">{{ ui.icon('projector') }}</button>
     </div>
   </div>

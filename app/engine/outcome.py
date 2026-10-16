@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -136,8 +137,9 @@ def evaluate(condition: Condition, latest: dict[str, CommitmentView]) -> Conditi
         actual = token in _TRUE
         return "matched" if actual is expected else "violated"
     if condition.type == "max_int":
+        digits = re.search(r"-?\d+", fact.value)
         try:
-            actual = int(fact.value)
+            actual = int(digits.group()) if digits else int(fact.value)
             limit = int(condition.value)
         except ValueError:
             return "missing"
