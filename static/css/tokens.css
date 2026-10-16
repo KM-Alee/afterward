@@ -1,0 +1,179 @@
+/* Afterward design tokens. Every colour, size and timing used by the prototype lives here.
+   Agent D: copy this file unchanged into static/css/ and keep the names. */
+
+@font-face { font-family: "Newsreader"; src: url("../fonts/newsreader-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Newsreader"; src: url("../fonts/newsreader-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Newsreader"; src: url("../fonts/newsreader-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
+@font-face { font-family: "Newsreader"; src: url("../fonts/newsreader-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("../fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("../fonts/atkinson-hyperlegible-next-latin-400-italic.woff2") format("woff2"); font-weight: 400; font-style: italic; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("../fonts/atkinson-hyperlegible-next-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("../fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("../fonts/atkinson-hyperlegible-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-style: normal; font-display: swap; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("../fonts/atkinson-hyperlegible-mono-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-style: normal; font-display: swap; }
+
+:root {
+  color-scheme: light;
+
+  /* Ground and ink: linen paper with pine ink. */
+  --c-paper: #F5F0E8;
+  --c-surface: #FFFCF7;
+  --c-sunken: #ECE5D9;
+  --c-line: #DCD2C3;
+  --c-line-strong: #80735F;
+  --c-ink: #1E2A2B;
+  --c-ink-2: #434E4C;
+  --c-ink-3: #5B6461;
+  --c-on-ink: #F5F0E8;
+
+  /* Dawn: the brand accent. Decorative fills and focus; text uses --c-dawn-ink. */
+  --c-dawn: #C8643B;
+  --c-dawn-ink: #94401F;
+  --c-dawn-soft: #F6DFCF;
+
+  /* Semantic status hues. Always paired with an icon and a word. */
+  --c-moss: #2C6644;        /* holding, matched, confirmed, received */
+  --c-moss-soft: #DCEADF;
+  --c-rust: #A1372A;        /* violated, unauthorised, failed */
+  --c-rust-soft: #F7DCD5;
+  --c-ochre: #7E570A;       /* needs review, not stated, waiting, uncertain */
+  --c-ochre-soft: #F4E7C6;
+  --c-dusk: #315781;        /* requested, acknowledged, in progress, information */
+  --c-dusk-soft: #DCE6F1;
+  --c-plum: #644878;        /* simulated, mock, prototype-only */
+  --c-plum-soft: #ECE3F1;
+
+  /* Type */
+  --font-serif: "Newsreader", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-sans: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "Atkinson Hyperlegible Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --fs-xs: 0.8125rem;   /* 13 */
+  --fs-sm: 0.9375rem;   /* 15 */
+  --fs-base: 1.0625rem; /* 17 */
+  --fs-md: 1.25rem;     /* 20 */
+  --fs-lg: 1.5rem;      /* 24 */
+  --fs-xl: 2rem;        /* 32 */
+  --fs-2xl: 2.75rem;    /* 44 */
+  --fs-3xl: 3.5rem;     /* 56 */
+  --lh-tight: 1.15;
+  --lh-snug: 1.3;
+  --lh-body: 1.55;
+  --measure: 38rem;
+
+  /* Space: 4 px base. */
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4rem;
+  --gutter: var(--s-4);
+
+  /* Shape and depth */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 16px;
+  --r-pill: 999px;
+  --rule: 1px solid var(--c-line);
+  --rule-strong: 1px solid var(--c-line-strong);
+  --shadow-1: 0 1px 0 rgb(30 42 43 / 0.04), 0 1px 3px rgb(30 42 43 / 0.06);
+  --shadow-2: 0 2px 4px rgb(30 42 43 / 0.05), 0 8px 24px rgb(30 42 43 / 0.08);
+  --shadow-3: 0 12px 48px rgb(30 42 43 / 0.18);
+
+  /* Focus: dawn ring, always visible. */
+  --focus-ring: 0 0 0 2px var(--c-paper), 0 0 0 5px var(--c-dawn);
+
+  /* Motion */
+  --t-fast: 120ms;
+  --t-base: 220ms;
+  --t-slow: 420ms;
+  --ease-out: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.6, 0, 0.3, 1);
+
+  /* Touch */
+  --tap: 44px;
+
+  /* Hatch used by every "simulated" marker. */
+  --hatch: repeating-linear-gradient(135deg, transparent 0 5px, rgb(100 72 120 / 0.10) 5px 7px);
+}
+
+@media (min-width: 64rem) {
+  :root { --gutter: var(--s-5); }
+}
+
+/* Dark: the same hues, lifted for a night ground. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --c-paper: #111716;
+    --c-surface: #19211F;
+    --c-sunken: #0C1110;
+    --c-line: #2E3A38;
+    --c-line-strong: #71807C;
+    --c-ink: #EFE9DE;
+    --c-ink-2: #C6BFB2;
+    --c-ink-3: #A49E93;
+    --c-on-ink: #111716;
+    --c-dawn: #E9875C;
+    --c-dawn-ink: #F2A47F;
+    --c-dawn-soft: #3A2418;
+    --c-moss: #8FCBA3;
+    --c-moss-soft: #1B3024;
+    --c-rust: #F3907E;
+    --c-rust-soft: #3B1E19;
+    --c-ochre: #E6BE63;
+    --c-ochre-soft: #372C12;
+    --c-dusk: #9CBCE3;
+    --c-dusk-soft: #1A2A3C;
+    --c-plum: #CDB0E0;
+    --c-plum-soft: #2C2236;
+    --shadow-1: 0 1px 0 rgb(0 0 0 / 0.3);
+    --shadow-2: 0 2px 4px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.35);
+    --shadow-3: 0 12px 48px rgb(0 0 0 / 0.55);
+    --hatch: repeating-linear-gradient(135deg, transparent 0 5px, rgb(205 176 224 / 0.10) 5px 7px);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --c-paper: #111716;
+  --c-surface: #19211F;
+  --c-sunken: #0C1110;
+  --c-line: #2E3A38;
+  --c-line-strong: #71807C;
+  --c-ink: #EFE9DE;
+  --c-ink-2: #C6BFB2;
+  --c-ink-3: #A49E93;
+  --c-on-ink: #111716;
+  --c-dawn: #E9875C;
+  --c-dawn-ink: #F2A47F;
+  --c-dawn-soft: #3A2418;
+  --c-moss: #8FCBA3;
+  --c-moss-soft: #1B3024;
+  --c-rust: #F3907E;
+  --c-rust-soft: #3B1E19;
+  --c-ochre: #E6BE63;
+  --c-ochre-soft: #372C12;
+  --c-dusk: #9CBCE3;
+  --c-dusk-soft: #1A2A3C;
+  --c-plum: #CDB0E0;
+  --c-plum-soft: #2C2236;
+  --shadow-1: 0 1px 0 rgb(0 0 0 / 0.3);
+  --shadow-2: 0 2px 4px rgb(0 0 0 / 0.3), 0 8px 24px rgb(0 0 0 / 0.35);
+  --shadow-3: 0 12px 48px rgb(0 0 0 / 0.55);
+  --hatch: repeating-linear-gradient(135deg, transparent 0 5px, rgb(205 176 224 / 0.10) 5px 7px);
+}
+
+/* Projector: bigger root, stronger ink and rules. Applied to <html> by the desk toggle. */
+:root.is-projector {
+  font-size: 20px;
+  --c-ink-2: var(--c-ink);
+  --c-line: var(--c-line-strong);
+  --rule: 2px solid var(--c-line-strong);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root { --t-fast: 0ms; --t-base: 0ms; --t-slow: 0ms; }
+}

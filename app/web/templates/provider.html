@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Provider console · Afterward{% endblock %}
+{% block context %}<span class="brand__context">Provider console</span>{% endblock %}
+{% block main %}
+<div class="wrap">
+  <div class="page-row">
+    <div>
+      <h1 class="page-title">Reply as a provider</h1>
+      <p class="page-sub">Pick an organisation and answer Afterward's email.</p>
+    </div>
+    <span class="sim-tag">{{ ui.icon('ring') }}Demo mailbox</span>
+  </div>
+  {% if board.empty %}
+  <div class="empty">
+    <p class="empty__title">Nothing to answer yet</p>
+    <p>Afterward writes to an organisation only after the family approves that request.</p>
+  </div>
+  {% else %}
+  {% if error %}
+  <div class="banner-line banner-line--alert" role="alert">{{ ui.icon('warning') }}<span><b>Couldn't send.</b> {{ error }}</span></div>
+  {% endif %}
+  {% if notice %}
+  <div class="banner-line banner-line--good" role="status">{{ ui.icon('check') }}<span><b>Sent.</b> {{ notice }} A real organisation was not contacted.</span></div>
+  {% endif %}
+  <form class="compose" method="post" action="/api/provider/send" novalidate aria-label="Your reply">
+    <input type="hidden" name="token" value="{{ token }}">
+    <label class="label" for="provider">Organisation</label>
+    <select class="input" id="provider" name="provider">
+      {% for key, profile in providers.items() %}
+      <option value="{{ key }}">{{ profile.name }}</option>
+      {% endfor %}
+    </select>
+    <label class="label" for="variant">Ready-made reply</label>
+    <select class="input" id="variant" name="variant">
+      <option value="">Write my own</option>
+      {% for key, variant in variants.items() %}
+      <option value="{{ key }}">{{ variant.label }} ({{ variant.provider }})</option>
+      {% endfor %}
+    </select>
+    <label class="label" for="reply-text">Reply</label>
+    <textarea class="textarea" id="reply-text" name="text" placeholder="Your reply"></textarea>
+    <div class="compose__foot">
+      <span class="small muted">This records a message in the demo mailbox. Status after a successful send: sent.</span>
+      <button class="btn btn--primary" type="submit">{{ ui.icon('send') }}Send reply</button>
+    </div>
+  </form>
+  <section class="panel-box" aria-labelledby="thread-title">
+    <div class="panel-box__head"><h2 class="panel-box__title" id="thread-title">Threads</h2></div>
+    <div class="panel-box__body scroll" tabindex="0">
+      {% if board.threads %}
+      {% for thread in board.threads.values() %}
+      <article class="email">
+        <div class="email__head"><b>Afterward, for the Malik family</b><span class="muted">{{ thread.subject }}</span></div>
+        <div class="email__body">{{ thread.request_body }}</div>
+      </article>
+      {% for reply in thread.replies %}
+      <article class="email email--reply">
+        <div class="email__head"><b>{{ providers[thread.provider].name }}</b><span class="status status--holding">{{ reply.status }}</span></div>
+        <div class="email__body">{{ reply.text }}</div>
+      </article>
+      {% endfor %}
+      {% endfor %}
+      {% else %}
+      <p class="muted">No emails yet.</p>
+      {% endif %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

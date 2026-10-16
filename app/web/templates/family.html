@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Family · Afterward{% endblock %}
+{% block body_class %} fit-always{% endblock %}
+{% block context %}<span class="brand__context">Family</span>{% endblock %}
+{% block main %}
+<div class="wrap">
+  <div class="family">
+    <section class="phone" aria-labelledby="persona-name">
+      <div class="persona">
+        <span class="avatar avatar--sara" aria-hidden="true">S</span>
+        <div>
+          <h1 class="persona__name" id="persona-name">Sara Malik</h1>
+          <p class="persona__role">Handling the estate (stated)</p>
+        </div>
+      </div>
+      {% if board.monitoring == 'interrupted' %}
+      <div class="banner banner--interrupted">{{ ui.icon('eye-off') }}<p class="banner__title">Mailbox disconnected</p><p class="banner__body">Replies aren't being read until it's back.</p></div>
+      {% endif %}
+      <section class="needs" aria-labelledby="needs-you">
+        <div class="needs__head"><h2 class="h4" id="needs-you">{% if board.empty or board.family_choice %}Nothing needs you{% else %}Needs you{% endif %}</h2></div>
+        {% if board.empty %}
+        <div class="calm"><p>Nothing needs you right now. I'll tell you when something does.</p></div>
+        {% elif board.family_choice %}
+        <div class="needs__card">
+          <article class="fcard">
+            <h3 class="fcard__title">Recorded.</h3>
+            <div class="fcard__body"><p>Your choice is on the case. Nothing was sent because of this tap alone.</p></div>
+          </article>
+        </div>
+        {% elif board.outcome %}
+        <div class="needs__card">
+          <article class="fcard fcard--active">
+            <p class="fcard__meta"><span>{{ board.outcome.quote_at }}</span><span title="Also sent in chat">{{ ui.icon('chat') }}<span class="visually-hidden">Also sent in chat</span></span></p>
+            <h3 class="fcard__title">Northline says it's done. It isn't.</h3>
+            <div class="fcard__body">
+              <figure class="quote"><blockquote class="quote__text">{{ board.outcome.quote }}</blockquote><figcaption class="quote__source">{{ ui.evidence('writing') }}</figcaption></figure>
+              <ul class="checks" role="list">
+                {% for check in board.outcome.checks %}
+                <li><span>{{ check.label }}</span>{{ ui.chip(check.chip_kind, check.chip_text) }}</li>
+                {% endfor %}
+              </ul>
+            </div>
+            <form class="fcard__actions btn-row btn-row--stack decision-btns" method="post" action="/family/{{ token }}/decision">
+              {% for value, label, detail in options %}
+              <button class="btn{% if loop.first %} btn--primary{% endif %}" type="submit" name="choice" value="{{ value }}"><span>{{ label }}<span class="option-desc">{{ detail }}</span></span></button>
+              {% endfor %}
+            </form>
+          </article>
+        </div>
+        {% else %}
+        <div class="calm"><p>Nothing needs you right now.</p></div>
+        {% endif %}
+      </section>
+      <nav class="dock" aria-label="More">
+        <button type="button" data-open="earlier">{{ ui.icon('clock') }}Earlier</button>
+      </nav>
+    </section>
+    <aside class="side-note" aria-label="About this view">
+      <section class="card stack stack-sm">
+        <h2 class="h4">Same cards as chat</h2>
+        <p class="small secondary">These are the cards Sara would see in Telegram or WhatsApp. This page is the web fallback.</p>
+      </section>
+    </aside>
+  </div>
+</div>
+<dialog class="drawer drawer--bottom" id="earlier" aria-labelledby="earlier-title">
+  <div class="drawer__head"><h2 class="drawer__title" id="earlier-title">Earlier</h2><button class="icon-btn" type="button" data-close aria-label="Close">{{ ui.icon('close') }}</button></div>
+  <div class="drawer__body" tabindex="0">
+    {% if board.events %}
+    <ol class="tl" role="list">
+      {% for event in board.events | reverse %}
+      <li>
+        <p class="tl__text">{{ event.text }}</p>
+        <p class="tl__meta"><span>{{ event.at }}</span>{{ ui.evidence(event.evidence) }}</p>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="muted">No earlier messages.</p>
+    {% endif %}
+  </div>
+</dialog>
+{% endblock %}

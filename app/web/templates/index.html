@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Afterward{% endblock %}
+{% block description %}Afterward is a bereavement administration case manager. You tell it once. It tells the organisations, and it checks they did what the family approved.{% endblock %}
+{% block main %}
+<div class="wrap">
+  <div class="entry">
+    <svg class="entry__lockup" viewBox="0 0 633.45 94" role="img" aria-label="Afterward"><use href="/static/brand/afterward-lockup-tokens.svg#lockup"></use></svg>
+    <div>
+      <h1 class="entry__tag">You tell it once. We'll tell everyone else.</h1>
+      <p class="entry__sub">After someone dies, Afterward writes to every organisation for the family, follows up for months, and checks each "done" against what the family actually asked for.</p>
+    </div>
+    {% if not signed_in %}
+    <form class="pass" method="post" action="/access" novalidate aria-label="Demo access">
+      <label class="visually-hidden" for="passcode">Demo passcode</label>
+      <input class="input" id="passcode" name="passcode" type="password" autocomplete="off" placeholder="Demo passcode" aria-describedby="pass-status"{% if error %} aria-invalid="true"{% endif %}>
+      <button class="btn btn--primary" type="submit">Enter</button>
+    </form>
+    <p class="pass-status small" id="pass-status" role="status">{{ error }}</p>
+    {% else %}
+    <p class="pass-status small" id="pass-status" role="status">You're in. Pick where to go.</p>
+    {% endif %}
+    {% if doors %}
+    <nav class="doors" aria-label="Where to go">
+      {% for door in doors %}
+      <a class="door" href="{{ door.href }}">{{ ui.icon(door.icon) }}<span><b>{{ door.title }}</b><small>{{ door.detail }}</small></span></a>
+      {% endfor %}
+    </nav>
+    {% endif %}
+    <p class="entry__foot">Fictional Malik demo. A browser call is not a phone call. The speech check is not a guarantee.</p>
+  </div>
+</div>
+{% endblock %}
