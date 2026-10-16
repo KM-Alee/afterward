@@ -1,0 +1,16 @@
+{% macro icon(name) -%}
+<svg class="icon" aria-hidden="true" focusable="false"><use href="/static/icons/sprite.svg#i-{{ name }}"></use></svg>
+{%- endmacro %}
+
+{% macro chip(kind, text) -%}
+<span class="status status--{{ kind }}">{{ icon('dot') }}{{ text }}</span>
+{%- endmacro %}
+
+{% macro evidence(kind) -%}
+{% if kind == 'writing' %}<span class="ev ev--writing">{{ icon('mail') }}Provider confirmed in writing</span>
+{% elif kind == 'family' %}<span class="ev ev--family">{{ icon('user') }}Family confirmed</span>
+{% elif kind == 'statement' %}<span class="ev ev--statement">{{ icon('money') }}Observed on a statement</span>
+{% elif kind == 'spoken' %}<span class="ev ev--spoken">{{ icon('phone') }}Said on a call, not in writing</span>
+{% elif kind == 'unverified' %}<span class="ev ev--unverified">{{ icon('question') }}Unverified</span>
+{% endif %}
+{%- endmacro %}

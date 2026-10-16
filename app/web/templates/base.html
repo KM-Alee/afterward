@@ -1,0 +1,47 @@
+{% import "_macros.html" as ui %}
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Afterward{% endblock %}</title>
+  <meta name="description" content="{% block description %}Afterward writes to organisations for a family and checks each reply against the approved plan.{% endblock %}">
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="/static/favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="/static/brand/png/apple-touch-icon-180.png">
+  <link rel="manifest" href="/static/site.webmanifest">
+  <link rel="preload" href="/static/fonts/newsreader-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="/static/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="/static/css/tokens.css">
+  <link rel="stylesheet" href="/static/css/base.css">
+  <link rel="stylesheet" href="/static/css/components.css">
+  <link rel="stylesheet" href="/static/css/pages.css">
+  <script>try { if (localStorage.getItem("afterward.projector") === "on") document.documentElement.classList.add("is-projector"); var theme = localStorage.getItem("afterward.theme"); if (theme && theme !== "auto") document.documentElement.setAttribute("data-theme", theme); } catch (e) {}</script>
+</head>
+<body data-page="{{ page }}" class="fit{% block body_class %}{% endblock %}">
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="wrap{% block wrap_mod %}{% endblock %} site-header__inner">
+      <a class="brand" href="/" aria-label="Afterward, start page">
+        <svg class="brand__lockup" viewBox="0 0 633.45 94" role="img" aria-label="Afterward"><use href="/static/brand/afterward-lockup-tokens.svg#lockup"></use></svg>
+      </a>
+      {% block context %}{% endblock %}
+      <button class="btn btn--quiet btn--sm nav__toggle" type="button" aria-expanded="false" aria-controls="site-nav">{{ ui.icon('chevron-down') }}Menu</button>
+      <nav class="nav" id="site-nav" aria-label="Surfaces">
+        {% for item in nav | default([]) %}
+        <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ ui.icon(item.icon) }}{{ item.label }}</a>
+        {% endfor %}
+      </nav>
+      <div class="protobar__theme" role="group" aria-label="Colour theme">
+        <button type="button" data-theme-set="auto" title="Auto theme"><span class="visually-hidden">Auto theme</span>{{ ui.icon('contrast') }}</button>
+        <button type="button" data-theme-set="light" title="Light theme"><span class="visually-hidden">Light theme</span>{{ ui.icon('sun') }}</button>
+        <button type="button" data-theme-set="dark" title="Dark theme"><span class="visually-hidden">Dark theme</span>{{ ui.icon('moon') }}</button>
+      </div>
+    </div>
+  </header>
+  <main id="main" tabindex="-1">
+    {% block main %}{% endblock %}
+  </main>
+  <script src="/static/js/app.js"></script>
+</body>
+</html>

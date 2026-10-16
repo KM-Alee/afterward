@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Proofs · Afterward{% endblock %}
+{% block context %}<span class="brand__context">Proofs</span>{% endblock %}
+{% block main %}
+<div class="wrap">
+  <div class="page-row">
+    <div>
+      <h1 class="page-title">Proofs</h1>
+      <p class="page-sub">14 cases the system must handle. {% if report %}{{ report.reason }}{% else %}Nothing has been run.{% endif %}</p>
+    </div>
+    <form method="post" action="/api/proofs/run">
+      <button class="btn btn--primary" type="submit">{{ ui.icon('fast-forward') }}Run proofs</button>
+    </form>
+  </div>
+  <section class="panel-box" aria-label="Cases">
+    <div class="panel-box__body scroll">
+      <ol class="proof-list" role="list">
+        {% set rows = report.results if report else none %}
+        {% if rows %}
+          {% for row in rows %}
+          <li>
+            <div class="proof__row">
+              <span class="proof__n" aria-hidden="true">{{ row.n }}</span>
+              <span>
+                <span class="proof__input">{{ row.input }}</span>
+                <span class="proof__req" style="display:block">{{ row.required }}</span>
+                {% if row.latency_ms is not none %}<span class="xsmall muted">Model latency {{ row.latency_ms }} ms</span>{% endif %}
+                {% if row.extracted %}<pre class="fixture">{{ row.extracted }}</pre>{% endif %}
+              </span>
+              {{ ui.chip('neutral' if row.state == 'not_run' else ('holding' if row.state == 'pass' else ('violated' if row.state == 'fail' else 'review')), 'Not run' if row.state == 'not_run' else row.state) }}
+            </div>
+          </li>
+          {% endfor %}
+        {% else %}
+          {% for case in proof_cases %}
+          <li>
+            <div class="proof__row">
+              <span class="proof__n" aria-hidden="true">{{ case.n }}</span>
+              <span>
+                <span class="proof__input">{{ case.input }}</span>
+                <span class="proof__req" style="display:block">{{ case.required }}</span>
+              </span>
+              {{ ui.chip('neutral', 'Not run') }}
+            </div>
+          </li>
+          {% endfor %}
+        {% endif %}
+      </ol>
+    </div>
+  </section>
+</div>
+{% endblock %}

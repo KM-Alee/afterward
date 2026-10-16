@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% import "_macros.html" as ui %}
+{% block title %}Status · Afterward{% endblock %}
+{% block main %}
+<div class="wrap">
+  <div class="page-row">
+    <div>
+      <h1 class="page-title">Status</h1>
+      <p class="page-sub">What this process is using. No credentials are shown.</p>
+    </div>
+  </div>
+  <section class="panel-box" aria-label="Runtime status">
+    <div class="panel-box__body stack">
+      <p>{{ ui.chip('neutral', 'Phone calls: ' ~ phone_calls) }}</p>
+      <p class="small">A browser call is not a phone call. Phone calls stay off unless an operator turns them on.</p>
+      <ul class="facts" role="list">
+        <li>{{ ui.icon('waves') }}<span>Speech to text: {{ models.stt }}</span></li>
+        <li>{{ ui.icon('chat') }}<span>Fast model: {{ models.fast }}</span></li>
+        <li>{{ ui.icon('chat') }}<span>Accurate model: {{ models.accurate }}</span></li>
+        <li>{{ ui.icon('speaker') }}<span>Speech: {{ models.tts }}</span></li>
+        <li>{{ ui.icon('phone') }}<span>Realtime: {{ models.realtime }}</span></li>
+      </ul>
+      <p class="small">Telegram: {{ channels.telegram }}. WhatsApp: {{ channels.whatsapp }}.</p>
+      <p class="small">Database reachable: {{ 'yes' if db_reachable else 'no' }}.</p>
+      <p class="small muted">{{ boundary_note }}</p>
+    </div>
+  </section>
+</div>
+{% endblock %}

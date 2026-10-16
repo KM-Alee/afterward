@@ -12,5 +12,5 @@ Parallel slices A–D start from that revision. See FRONTEND-FIRST.md and CONTRA
 | A Engine & Truth | Agent A | done | slice/engine-truth | 2026-10-17 00:16 PKT | None. Lead mounts `POST /api/proofs/run`; live model calls stay behind an API key |
 | B Channels & Conversation | Agent B | done | slice/channels-conversation | 2026-10-17 00:13 PKT | None. Malik script passes on fakes; live Telegram, WhatsApp and OpenAI were not called |
 | C Mail & Integrations | Agent C | done | slice/mail-integrations | 2026-10-17 00:14 PKT | Live Google consent is still an operator checkpoint. Extraction runs when Agent A's functions exist. |
-| D Web/Desk/Call room | Unassigned | todo | slice/web-desk-call | 2026-10-16 20:27 PKT | User-approved frontend first; contract revision 1 and fakes; Stand-In source /home/claude/standin absent here |
+| D Web/Desk/Call room | Agent D | done | slice/web-desk-call | 2026-10-17 00:06 PKT | None for this slice. Lead mounts the routers in Phase 3. Proof runner and live realtime audio are not in this slice. |
 | QA | Unassigned | todo | slice/qa-adversary | 2026-10-16 20:27 PKT | Integrated A → C → B → D result |
