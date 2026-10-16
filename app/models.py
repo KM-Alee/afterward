@@ -678,9 +678,9 @@ class ProofRun(TimestampMixin, Base):
 def _remember_new_cases() -> None:
     from sqlalchemy import event as sa_event
 
-    from app.conversation.case_link import remember_case
+    from app.case_registry import remember
 
-    sa_event.listen(Case, "init", lambda target, _args, _kwargs: remember_case(target))
+    sa_event.listen(Case, "init", lambda target, _args, _kwargs: remember(target))
 
 
 _remember_new_cases()
