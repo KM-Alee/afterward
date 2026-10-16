@@ -223,7 +223,7 @@ Postgres tables (JSONB where structure is nested). Every table has `case_id` and
 | Revision | Date | Author | Change |
 |---|---|---|---|
 | 0 | 2026-10-16 | Foundation | Recorded source interfaces, AI requirements and all 19 tables; Python implementation is a prerequisite for Phase 2. |
-| 1 | 2026-10-16 | Foundation | Accepted CR-lead-1. Published models, protocols, strict schemas, fakes, Malik seed skeleton and Agents SDK constructors. Implementation commit recorded below. |
+| 1 | 2026-10-16 | Foundation | Accepted CR-lead-1. Published models, protocols, strict schemas, fakes, Malik seed skeleton and Agents SDK constructors. Implementation commit `a1991101cc6b7210d67e67928b5a91f2c1b8c2b9`. |
 
 ## Change requests (append-only proposals)
 
@@ -242,4 +242,4 @@ Only the lead may accept, edit the frozen sections and increment revision.
   — ADR-011, user request — affects A (AI client, proofs), B (conversation agent), D (call room).
 - Accepted — 2026-10-16 — CR-lead-1 — revision 1. `openai-agents` is a dependency.
   SQLAlchemy asyncio support (greenlet) is included so `SQLAlchemySession` imports.
-  No asyncpg driver. Implementation commit: see the revision 1 row after publish.
+  No asyncpg driver. Implementation commit `a1991101cc6b7210d67e67928b5a91f2c1b8c2b9`.
