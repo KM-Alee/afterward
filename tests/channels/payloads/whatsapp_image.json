@@ -1,0 +1,1 @@
+{"object": "whatsapp_business_account", "entry": [{"id": "DEMO", "changes": [{"field": "messages", "value": {"messages": [{"from": "15550001111", "id": "wamid.demo.image", "timestamp": "1710000003", "type": "image", "image": {"id": "media-photo-1", "mime_type": "image/jpeg", "caption": "FICTIONAL DEMO bill"}}]}}]}]}
