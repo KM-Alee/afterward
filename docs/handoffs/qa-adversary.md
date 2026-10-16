@@ -2,7 +2,7 @@
 
 Owner: QA adversary
 Branch: slice/qa-adversary
-Commit: branch tip (tests and this handoff)
+Commit: 5304180e1de90ca739aeb000da0f9414225e320f
 Updated: 2026-10-17 00:46 PKT
 
 ## What works
