@@ -9,7 +9,7 @@ the lead publishes shared Python contract revision 1. See FRONTEND-FIRST.md.
 | Slice | Owner | State | Branch | Last update | Blockers |
 |---|---|---|---|---|---|
 | Foundation | Codex setup | done | main | 2026-10-16 20:42 PKT | None for workflow; user-approved mock UX and lead product contracts gate parallel launch |
-| Frontend UX | Claude (not started) | todo | slice/frontend-mockup | 2026-10-16 20:41 PKT | Build standalone mock pages and obtain explicit user UX approval |
+| Frontend UX | Claude | done | slice/frontend-mockup | 2026-10-16 22:53 PKT | None. Approved by the user and merged; D implements it after contract revision 1 |
 | A Engine & Truth | Unassigned | todo | slice/engine-truth | 2026-10-16 20:27 PKT | User-approved frontend first; lead shared models, contracts, schemas and fakes |
 | B Channels & Conversation | Unassigned | todo | slice/channels-conversation | 2026-10-16 20:27 PKT | User-approved frontend first; contract revision 1 and fakes |
 | C Mail & Integrations | Unassigned | todo | slice/mail-integrations | 2026-10-16 20:27 PKT | User-approved frontend first; contract revision 1 and fakes; live Google consent at checkpoint |

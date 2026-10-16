@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Afterward (prototype)</title>
+  <meta name="description" content="Afterward is a bereavement admin case manager: you tell it once, it tells everyone else, and it checks they did what you approved. Interactive prototype with fictional data.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/brand/png/apple-touch-icon-180.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="assets/fonts/newsreader-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+</head>
+<body data-page="index">
+  <main id="main" tabindex="-1">
+    <div class="wrap">
+      <div class="entry">
+        <svg class="entry__lockup" viewBox="0 0 633.45 94" role="img" aria-label="Afterward"><use href="assets/brand/afterward-lockup-tokens.svg#lockup"></use></svg>
+        <div>
+          <h1 class="entry__tag">You tell it once. We'll tell everyone else.</h1>
+          <p class="entry__sub">After someone dies, Afterward writes to every organisation for the family, follows up for months, and checks each "done" against what the family actually asked for.</p>
+        </div>
+        <form class="pass" id="access" novalidate aria-label="Demo access">
+          <label class="visually-hidden" for="passcode">Demo passcode</label>
+          <input class="input" id="passcode" type="password" autocomplete="off" placeholder="Demo passcode" aria-describedby="pass-status">
+          <button class="btn btn--primary" type="submit" id="access-submit">Enter</button>
+        </form>
+        <p class="pass-status small" id="pass-status" role="status"></p>
+        <nav class="doors" id="doors" aria-label="Where to go"></nav>
+        <div class="btn-row btn-row--inline"><button class="btn btn--primary" type="button" id="start-story">Start the story</button><button class="btn" type="button" data-open-guide>Jump to a moment</button></div>
+        <p class="entry__foot">A prototype with a fictional family. Nothing is sent and no AI runs.</p>
+      </div>
+    </div>
+  </main>
+  <script src="fixtures/case.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/index.js"></script>
+</body>
+</html>

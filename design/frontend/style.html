@@ -1,0 +1,241 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Style guide · Afterward (prototype)</title>
+  <meta name="description" content="Afterward identity and design system: logo, tokens, type, components and states, with live contrast checks.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/brand/png/apple-touch-icon-180.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="assets/fonts/newsreader-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <style>.is-hover-demo{--btn-bg:var(--c-sunken)} .btn--primary.is-hover-demo{--btn-bg:color-mix(in srgb,var(--c-ink) 86%,var(--c-dawn))} .is-focus-demo{box-shadow:var(--focus-ring)} .input.is-focus-demo{border-color:var(--c-ink)}</style>
+</head>
+<body data-page="style">
+  <main id="main" tabindex="-1">
+    <div class="wrap">
+      <div class="page-row"><div><h1 class="page-title">Style guide</h1><p class="page-sub">The brand and components, using the real CSS.</p></div></div>
+      <div class="sg-tabs" role="tablist" aria-label="Sections" id="sg-tabs"></div>
+      <div class="sg-panels scroll" id="sg-panels" tabindex="0">
+
+      <section class="sg-section" id="brand" aria-labelledby="brand-h">
+        <h2 class="h2" id="brand-h">Brand concept: first light</h2>
+        <div class="split" style="--aside:26rem;margin-top:var(--s-4)">
+          <div class="prose">
+            <p>The symbol is a low half-disc resting on a horizon line, with one whole arc and one arc in three parts above it.</p>
+            <ul>
+              <li><b>The horizon</b> is the steady line Afterward keeps: the plan, the record, the ledger every reply is held against. It's also the text baseline in the lockup.</li>
+              <li><b>The half-disc</b> is the family's one voice note, said once, warm and low. It reads as first light rather than sunset: the time after.</li>
+              <li><b>The arcs</b> are that message carried outward. The outer arc breaks into three because it reaches many organisations, and each one is followed separately.</li>
+            </ul>
+            <p>Calm, not cheerful. The dawn colour is used sparingly: the disc, focus rings and the current step. Everything else is ink on linen.</p>
+          </div>
+          <div class="card stack" style="display:grid;place-items:center;min-height:14rem">
+            <svg viewBox="0 0 633.45 94" role="img" aria-label="Afterward lockup" style="width:100%;max-width:22rem"><use href="assets/brand/afterward-lockup-tokens.svg#lockup"></use></svg>
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-section" id="logo" aria-labelledby="logo-h">
+        <h2 class="h2" id="logo-h">Logo usage</h2>
+        <p class="secondary prose">Hand-drawn SVG masters; the wordmark is Newsreader Medium converted to outlines, so masters don't depend on installed fonts. Use the colour version on linen or white, the dark version on ink, and mono versions on photos or single-colour print.</p>
+        <div class="sg-grid" style="--min:16rem">
+          <figure><div class="logo-tile logo-tile--light"><img src="assets/brand/afterward-lockup.svg" alt="Colour lockup on linen"></div><figcaption class="figure-caption">afterward-lockup.svg · on linen</figcaption></figure>
+          <figure><div class="logo-tile logo-tile--dark"><img src="assets/brand/afterward-lockup-dark.svg" alt="Dark-ground lockup on ink"></div><figcaption class="figure-caption">afterward-lockup-dark.svg · on ink</figcaption></figure>
+          <figure><div class="logo-tile logo-tile--white"><img src="assets/brand/afterward-lockup-mono-black.svg" alt="Black mono lockup on white"></div><figcaption class="figure-caption">afterward-lockup-mono-black.svg</figcaption></figure>
+          <figure><div class="logo-tile logo-tile--photo"><img src="assets/brand/afterward-lockup-mono-white.svg" alt="White mono lockup on a photographic background"></div><figcaption class="figure-caption">afterward-lockup-mono-white.svg · on imagery</figcaption></figure>
+          <figure><div class="logo-tile logo-tile--light"><img src="assets/brand/afterward-lockup-stacked.svg" alt="Stacked lockup" style="max-height:8rem"></div><figcaption class="figure-caption">afterward-lockup-stacked.svg · square spaces</figcaption></figure>
+          <figure><div class="logo-tile logo-tile--dawn"><img src="assets/brand/afterward-symbol-mono-white.svg" alt="White symbol on dawn"></div><figcaption class="figure-caption">Symbol, white on dawn: social and stickers only</figcaption></figure>
+        </div>
+        <h3 class="h3" style="margin-top:var(--s-6)">Compact mark and icons at real size</h3>
+        <div class="cluster" style="margin-top:var(--s-3);--cluster:var(--s-5)">
+          <figure><div class="cluster cluster--tight"><img src="assets/brand/png/favicon-16.png" width="16" height="16" alt="Favicon 16 pixels"><img src="assets/brand/png/favicon-32.png" width="32" height="32" alt="Favicon 32 pixels"><img src="assets/brand/png/favicon-48.png" width="48" height="48" alt="Favicon 48 pixels"></div><figcaption class="figure-caption">Favicon 16 / 32 / 48</figcaption></figure>
+          <figure><div class="cluster cluster--tight"><img src="assets/brand/afterward-mark-compact.svg" width="16" height="16" alt="Compact mark 16 pixels"><img src="assets/brand/afterward-mark-compact.svg" width="24" height="24" alt="Compact mark 24 pixels"><img src="assets/brand/afterward-mark-compact.svg" width="32" height="32" alt="Compact mark 32 pixels"></div><figcaption class="figure-caption">Compact mark: horizon, disc, inner arc</figcaption></figure>
+          <figure><div class="cluster cluster--tight" style="background:#111716;padding:var(--s-2);border-radius:var(--r-sm)"><img src="assets/brand/afterward-mark-compact-dark.svg" width="16" height="16" alt="Dark compact mark 16 pixels"><img src="assets/brand/afterward-mark-compact-dark.svg" width="32" height="32" alt="Dark compact mark 32 pixels"></div><figcaption class="figure-caption">Compact mark on ink</figcaption></figure>
+          <figure><img src="assets/brand/png/app-icon-192.png" width="96" height="96" alt="App icon"><figcaption class="figure-caption">App icon (192 shown at 96)</figcaption></figure>
+          <figure><img src="assets/brand/png/apple-touch-icon-180.png" width="60" height="60" alt="Apple touch icon" style="border-radius:14px"><figcaption class="figure-caption">Touch icon, masked</figcaption></figure>
+        </div>
+        <div class="split" style="margin-top:var(--s-6);--aside:1fr">
+          <div class="card card--flat stack stack-sm"><h3 class="h4"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg> Do</h3><ul class="small secondary" style="padding-left:1.1rem"><li>Keep clear space equal to the disc's height on every side.</li><li>Use the full symbol at 32 px and above; the compact mark below that.</li><li>Minimum lockup width: 96 px on screen.</li><li>Align the symbol's horizon with the type baseline (built into the lockup).</li></ul></div>
+          <div class="card card--flat stack stack-sm"><h3 class="h4"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-cross"></use></svg> Don't</h3><ul class="small secondary" style="padding-left:1.1rem"><li>Recolour the disc red or green: it's not a status.</li><li>Add a sun's rays, a halo, a heart or a dove.</li><li>Animate the logo in the header. Motion belongs to the call room's agent state.</li><li>Set the wordmark in another typeface or in capitals.</li></ul></div>
+        </div>
+      </section>
+
+      <section class="sg-section" id="voice" aria-labelledby="voice-h">
+        <h2 class="h2" id="voice-h">Voice</h2>
+        <div class="sg-grid" style="--min:20rem">
+          <div class="card card--flat stack stack-sm"><h3 class="h4">Warm, plain, brief</h3><p class="small secondary">One idea per sentence. Use names: "Yusuf", "Amina". Never "the deceased" or "the user".</p><p class="small"><span class="status status--holding"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg>Say</span> "I'm so sorry, Sara. I'll handle the emails so you don't have to explain this again."</p><p class="small"><span class="status status--violated"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-cross"></use></svg>Avoid</span> "Your case has been successfully created! 🎉"</p></div>
+          <div class="card card--flat stack stack-sm"><h3 class="h4">Honest about what's known</h3><p class="small secondary">Separate said, promised and evidenced. Name what wasn't searched.</p><p class="small"><span class="status status--holding"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg>Say</span> "Refund issued. Waiting for it to show on a statement."</p><p class="small"><span class="status status--violated"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-cross"></use></svg>Avoid</span> "Refund complete." (when only promised)</p></div>
+          <div class="card card--flat stack stack-sm"><h3 class="h4">Roles are stated</h3><p class="small secondary">Afterward records what people say about themselves and never upgrades it.</p><p class="small"><span class="status status--holding"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg>Say</span> "Handling the estate (as you've told me)"</p><p class="small"><span class="status status--violated"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-cross"></use></svg>Avoid</span> "Executor: Sara Malik"</p></div>
+          <div class="card card--flat stack stack-sm"><h3 class="h4">Simulation is always labelled</h3><p class="small secondary">Anywhere data, sends, calls or timings are fake, the hatched label says so.</p><p class="small"><span class="sim-tag"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-ring"></use></svg>Simulated provider call</span> <span class="sim-tag"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-ring"></use></svg>Simulated timing, not a measurement</span></p></div>
+        </div>
+      </section>
+
+      <section class="sg-section" id="color" aria-labelledby="color-h">
+        <h2 class="h2" id="color-h">Colour</h2>
+        <p class="secondary prose">Linen paper, pine ink, one warm accent and five status hues. Status hues always come with an icon and a word. Swatches below read the live tokens, so switch the theme in the prototype bar to see dark values.</p>
+        <div class="sg-grid" id="swatches" style="--min:11rem"></div>
+        <h3 class="h3" style="margin-top:var(--s-6)">Contrast checks (computed live)</h3>
+        <p class="small secondary">WCAG 2.2 relative luminance, from the current theme's tokens. Text needs 4.5:1 (AA); boundaries and large text need 3:1.</p>
+        <div style="overflow-x:auto;margin-top:var(--s-3)" tabindex="0" role="region" aria-label="Contrast checks table"><table class="contrast-table" id="contrast"><caption class="visually-hidden">Contrast ratios for token pairs</caption><thead><tr><th scope="col">Foreground</th><th scope="col">Background</th><th scope="col">Sample</th><th scope="col" class="num">Ratio</th><th scope="col">Use</th><th scope="col">Result</th></tr></thead><tbody></tbody></table></div>
+      </section>
+
+      <section class="sg-section" id="type" aria-labelledby="type-h">
+        <h2 class="h2" id="type-h">Typography</h2>
+        <p class="secondary prose"><b>Newsreader</b> (serif) for headings and for anything quoted: voice notes and providers' words. <b>Atkinson Hyperlegible Next</b> for the interface, chosen for older readers like Amina and for projectors; its slashed zero keeps references unambiguous. <b>Atkinson Hyperlegible Mono</b> for references and hashes.</p>
+        <div class="type-specimen" style="margin-top:var(--s-5)">
+          <div><span class="small muted">Display · 56</span><span class="display">You tell it once.</span></div>
+          <div><span class="small muted">H1 · 44</span><span class="h1">Yusuf Malik</span></div>
+          <div><span class="small muted">H2 · 32</span><span class="h2">Northline Mobile · line ending 4417</span></div>
+          <div><span class="small muted">Card title · 24</span><span class="card__title">Amina's answer changed the plan</span></div>
+          <div><span class="small muted">H3 · 20 bold</span><span class="h3">Terms on the table</span></div>
+          <div><span class="small muted">Lede · 20</span><span class="lede">Afterward handles the admin after someone dies.</span></div>
+          <div><span class="small muted">Body · 17</span><span>I'll handle the emails and follow-ups so you don't have to explain this again.</span></div>
+          <div><span class="small muted">Quote · 20 serif</span><span class="quote__text">“Request complete. Line transferred to Mrs Malik on a new 24-month plan.”</span></div>
+          <div><span class="small muted">Small · 15</span><span class="small">Approved by Sara · plan v2</span></div>
+          <div><span class="small muted">Eyebrow · 13 caps</span><span class="eyebrow">Afterward concludes</span></div>
+          <div><span class="small muted">Mono · 13</span><span class="ref">AW-1042-NL1 · #fb5fcd · 0O1lI</span></div>
+        </div>
+      </section>
+
+      <section class="sg-section" id="space" aria-labelledby="space-h">
+        <h2 class="h2" id="space-h">Space, grid and breakpoints</h2>
+        <div class="split" style="--aside:1fr;margin-top:var(--s-4)">
+          <div class="stack stack-sm" id="space-scale"></div>
+          <div class="stack stack-sm small">
+            <table class="contrast-table"><thead><tr><th scope="col">Width</th><th scope="col">Behaviour</th></tr></thead><tbody>
+              <tr><td>&lt; 480 px</td><td>Phone: one column, 16 px gutter, stacked full-width buttons, 44–48 px targets. Ledger rows become cards.</td></tr>
+              <tr><td>480–1023 px</td><td>One column with a wider measure.</td></tr>
+              <tr><td>1024–1599 px</td><td>Desk: spine + main. Family: phone column + context.</td></tr>
+              <tr><td>≥ 1600 px</td><td>Desk: spine, main and timeline as three columns.</td></tr>
+              <tr><td>Projector mode</td><td>Root 20 px, stronger ink and rules, secondary metadata hidden.</td></tr>
+            </tbody></table>
+            <p class="secondary">Radius: 6 (chips, small buttons), 10 (buttons, inputs, banners), 16 (cards). Max content width 78rem; desk 112rem. Reading measure 38rem.</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-section" id="controls" aria-labelledby="controls-h">
+        <h2 class="h2" id="controls-h">Controls</h2>
+        <h3 class="h3" style="margin-top:var(--s-4)">Buttons</h3>
+        <div class="stack" style="margin-top:var(--s-3)">
+          <div class="cluster"><button class="btn btn--primary" type="button">Approve</button><button class="btn" type="button">Change</button><button class="btn btn--quiet" type="button">Not now</button><button class="btn btn--danger" type="button"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-stop"></use></svg>Stop the case</button><button class="btn btn--sim" type="button"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-fast-forward"></use></svg>+14 days</button></div>
+          <div class="cluster"><span class="xsmall muted" style="width:5rem">Hover</span><button class="btn btn--primary is-hover-demo" type="button" tabindex="-1">Approve</button><button class="btn is-hover-demo" type="button" tabindex="-1">Change</button>
+            <span class="xsmall muted" style="width:5rem">Focus</span><button class="btn btn--primary is-focus-demo" type="button" tabindex="-1">Approve</button><button class="btn is-focus-demo" type="button" tabindex="-1">Change</button></div>
+          <div class="cluster"><span class="xsmall muted" style="width:5rem">Disabled</span><button class="btn" type="button" disabled>Accept 12 months at $30</button><span class="xsmall muted" style="width:5rem">Loading</span><button class="btn btn--primary" type="button" aria-busy="true" disabled>Checking…</button></div>
+          <div class="cluster"><button class="btn btn--sm" type="button">Small</button><button class="btn btn--lg btn--primary" type="button"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-send"></use></svg>Large</button></div>
+          <div style="max-width:24rem" class="btn-row btn-row--stack decision-btns"><button class="btn btn--primary" type="button"><span>Ask them to keep the voicemail, no contract<span class="option-desc">I'll email a correction quoting what's outstanding</span></span></button><button class="btn" type="button"><span>Call them for me<span class="option-desc">Simulated call. I'll pause and ask you first</span></span></button><button class="btn" type="button"><span>Accept anyway<span class="option-desc">Keeps the 24-month plan and lets the voicemail reset</span></span></button></div>
+          <p class="small secondary">Decision buttons: at most three, consequence in the description. The first option is never pre-selected.</p>
+        </div>
+        <h3 class="h3" style="margin-top:var(--s-6)">Inputs</h3>
+        <div class="sg-grid" style="--min:16rem">
+          <div class="field"><label class="label" for="sg-1">Default</label><input class="input" id="sg-1" placeholder="Type what you'd say"><span class="hint">Hint text sits below.</span></div>
+          <div class="field"><label class="label" for="sg-2">Focus</label><input class="input is-focus-demo" id="sg-2" value="Focused" tabindex="-1"></div>
+          <div class="field"><label class="label" for="sg-3">Error</label><input class="input" id="sg-3" aria-invalid="true" aria-describedby="sg-3e" value="wrong"><p class="error-text" id="sg-3e"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-warning"></use></svg><span>That passcode didn't work.</span></p></div>
+          <div class="field"><label class="label" for="sg-4">Disabled</label><input class="input" id="sg-4" disabled value="Not available yet"></div>
+        </div>
+        <div class="sg-grid" style="--min:18rem">
+          <div class="stack stack-sm"><p class="label">Segmented control</p><div class="segmented" role="group" aria-label="Autopilot example"><button type="button" aria-pressed="true">Gentle</button><button type="button" aria-pressed="false">Steady</button></div></div>
+          <div class="choice-list"><label class="choice"><input type="radio" name="sg-c" checked><span class="choice__title">Offer new terms</span><span class="choice__meta">“We can keep the number and the voicemail…”</span></label><label class="choice"><input type="radio" name="sg-c" disabled><span class="choice__title">Written confirmation</span><span class="choice__meta">Available after the call</span></label></div>
+        </div>
+        <h3 class="h3" style="margin-top:var(--s-6)">Navigation</h3>
+        <p class="small secondary">Header with the lockup and surface links; the current page carries a dawn underline and <code>aria-current="page"</code>. Under 768 px the links fold behind a Menu button. The hatched prototype bar exists only in the mock.</p>
+      </section>
+
+      <section class="sg-section" id="status" aria-labelledby="status-h">
+        <h2 class="h2" id="status-h">Status, evidence and simulation labels</h2>
+        <h3 class="h3" style="margin-top:var(--s-4)">Status chips (icon + word)</h3>
+        <div class="cluster" style="margin-top:var(--s-3)"><span class="status status--holding"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg>Holding</span><span class="status status--violated"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-cross"></use></svg>Violated</span><span class="status status--unauthorised"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-plus"></use></svg>Unauthorised change</span><span class="status status--unknown"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-question"></use></svg>Not stated</span><span class="status status--review"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-bang"></use></svg>Needs review</span><span class="status status--waiting"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-clock"></use></svg>Issued, awaiting receipt</span><span class="status status--progress"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-arrow-right"></use></svg>Requested: transfer</span><span class="status status--info"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-dot"></use></svg>Acknowledged</span><span class="status status--neutral"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-dash"></use></svg>None</span><span class="status status--void"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-slash"></use></svg>Void</span><span class="status status--sim"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-ring"></use></svg>Simulated</span></div>
+        <h3 class="h3" style="margin-top:var(--s-5)">Evidence labels (F17)</h3>
+        <div class="cluster" style="margin-top:var(--s-3)"><span class="ev ev--writing"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-mail"></use></svg>Provider confirmed in writing</span><span class="ev ev--family"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-user"></use></svg>Family confirmed</span><span class="ev ev--statement"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-money"></use></svg>Observed on a statement</span><span class="ev ev--spoken"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-phone"></use></svg>Said on a call, not in writing</span><span class="ev ev--unverified"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-question"></use></svg>Unverified</span><span class="sim-tag"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-ring"></use></svg>Simulated</span></div>
+        <p class="small secondary" style="margin-top:var(--s-3)">Each label has its own border style (solid, double, dashed) so the distinction survives greyscale printing and colour-blindness.</p>
+        <h3 class="h3" style="margin-top:var(--s-5)">Four-dimension account status</h3>
+        <div class="ledger-wrap" style="margin-top:var(--s-3)"><table class="ledger"><caption class="visually-hidden">Example ledger row</caption><thead><tr><th scope="col">Account</th><th scope="col">Service</th><th scope="col">Money</th><th scope="col">Documents</th><th scope="col">Next step</th><th scope="col">Conditions</th></tr></thead><tbody>
+          <tr class="is-focus"><td><span class="acct__name">Northline Mobile</span><br><span class="small">Mobile line ending 4417</span><br><span class="acct__ref">NL-…4417 · forwarded email</span></td><td><span class="dim-label">Service</span><span class="status status--review"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-bang"></use></svg>Reported transferred: not accepted</span></td><td><span class="dim-label">Money</span><span class="status status--unauthorised"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-plus"></use></svg>Unapproved 24-month plan</span></td><td><span class="dim-label">Documents</span><span class="status status--info"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-dot"></use></svg>Sent: death certificate (photo)</span></td><td><span class="dim-label">Next step</span><span class="next"><span class="next__owner">Family</span><span>Decide: correction, call, or accept</span></span></td><td><span class="dim-label">Conditions</span><span class="cluster cluster--tight"><span class="status status--unknown"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-question"></use></svg>Not stated</span><span class="status status--violated"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-cross"></use></svg>Violated</span><span class="status status--unauthorised"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-plus"></use></svg>Unauthorised change</span></span></td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section class="sg-section" id="patterns" aria-labelledby="patterns-h">
+        <h2 class="h2" id="patterns-h">Patterns</h2>
+        <div class="sg-grid" style="--min:24rem">
+          <div class="stack stack-sm"><p class="label">Evidence quote</p>
+            <figure class="quote"><blockquote class="quote__text">Request complete. <mark class="hl-holding">Line transferred to Mrs Malik</mark> on a <mark class="hl-violated">new 24-month plan</mark>. <mark class="hl-violated">Voicemail will be reset</mark> during migration.</blockquote><figcaption class="quote__source"><span class="verified"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg>Quote found in the message</span><span class="ev ev--writing"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-mail"></use></svg>Provider confirmed in writing</span><span>Latest text only</span></figcaption></figure>
+            <p class="small secondary">Highlights carry an underline as well as a tint. Quotes are never truncated in their primary place.</p>
+          </div>
+          <div class="stack stack-sm"><p class="label">Approval card (abridged)</p>
+            <div class="approval"><div class="approval__head"><div><p class="eyebrow">Approval needed · one request</p><p class="fcard__title">Transfer the 4417 line to Amina</p></div><span class="approval__binding">plan v2 · #3f9a1c</span></div>
+              <div class="approval__body"><dl class="deflist"><dt>To</dt><dd><span class="ref">bereavement@northline.example</span></dd><dt>Request</dt><dd><b>Transfer to Amina Malik</b></dd><dt>Conditions</dt><dd>Keep number · keep voicemail · no new contract</dd><dt>Documents</dt><dd>Death certificate (photo)</dd><dt>Consequence</dt><dd>Account holder changes; Yusuf's login may stop working</dd><dt>If not met</dt><dd>Hold and ask</dd></dl></div>
+              <div class="approval__foot"><div class="btn-row"><button class="btn btn--primary" type="button">Approve</button><button class="btn" type="button">Change</button><button class="btn" type="button">Not now</button></div></div></div>
+          </div>
+          <div class="stack stack-sm"><p class="label">Banners</p>
+            <div class="banner banner--interrupted"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-eye-off"></use></svg><p class="banner__title">Monitoring interrupted</p><p class="banner__body">Replies aren't being read until the mailbox is reconnected.</p></div>
+            <div class="banner banner--uncertain"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-question"></use></svg><p class="banner__title">Delivery uncertain</p><p class="banner__body">May have been sent. Checking the Sent folder; no blind retry.</p></div>
+            <div class="banner banner--success"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg><p class="banner__title">Reconciled</p><p class="banner__body">Found in the Sent folder. Sent once.</p></div>
+            <div class="banner"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-info"></use></svg><p class="banner__title">Information</p><p class="banner__body">Paper post and cash payments haven't been searched.</p></div>
+            <div class="banner banner--sim"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-ring"></use></svg><p class="banner__title">Simulated</p><p class="banner__body">Preview data, not results.</p></div>
+          </div>
+          <div class="stack stack-sm"><p class="label">Plan change</p>
+            <div class="diff"><div class="diff__row diff__row--old"><span class="diff__v">v1</span><span class="diff__text">Hold: check with the household first</span></div><div class="diff__row diff__row--new"><span class="diff__v">v2</span><span class="diff__text"><b>Transfer to Amina</b>, only if the number and voicemail are kept</span></div></div>
+            <p class="label" style="margin-top:var(--s-4)">Verdicts</p>
+            <p class="verdict verdict--notdone"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-cross"></use></svg>Not done</p><p class="verdict verdict--open"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-clock"></use></svg>Agreed, not done</p><p class="verdict verdict--resolved"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg>Resolved</p>
+          </div>
+        </div>
+      </section>
+
+      <section class="sg-section" id="states" aria-labelledby="states-h">
+        <h2 class="h2" id="states-h">Loading, empty, error, retry, blocked, stale</h2>
+        <div class="demo-states" style="margin-top:var(--s-4)">
+          <div class="card stack stack-sm"><p class="label">Loading</p><div class="skeleton" role="status" aria-label="Loading example"><div class="skeleton__line"></div><div class="skeleton__line"></div><div class="skeleton__line"></div></div><p class="xsmall muted">Skeleton with a status label, never a bare spinner.</p></div>
+          <div class="card"><div class="empty" style="padding:var(--s-3)"><svg class="empty__art" viewBox="0 0 96 56" aria-hidden="true"><path d="M8 48H88" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M34 48A14 14 0 0 1 62 48" fill="currentColor"/><path d="M24 40A24 24 0 0 1 72 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><p class="empty__title">Nothing here yet</p><p class="small">Empty states say what will appear and when.</p></div></div>
+          <div class="card stack stack-sm"><p class="label">Error with retry</p><div class="banner banner--error"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-warning"></use></svg><p class="banner__title">Couldn't send (simulated)</p><p class="banner__body">Nothing was sent, so there's nothing to reconcile.</p><div class="banner__actions"><button class="btn btn--sm" type="button"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-retry"></use></svg>Try again</button></div></div></div>
+          <div class="card stack stack-sm"><p class="label">Blocked</p><div class="banner banner--warning"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-hand"></use></svg><p class="banner__title">Nothing to reply to yet</p><p class="banner__body">Sara approves the request first.</p></div></div>
+          <div class="card stack stack-sm fcard--void"><p class="label">Stale</p><p class="fcard__title" style="text-decoration:line-through;color:var(--c-ink-3)">Northline offers new terms</p><div class="banner banner--warning"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-warning"></use></svg><p class="banner__title">This changed. Here's why.</p><p class="banner__body">The terms changed before I accepted. This approval no longer applies.</p></div><button class="btn" type="button" disabled>Accept 12 months at $30</button></div>
+          <div class="card stack stack-sm"><p class="label">Success, only with evidence</p><p class="verdict verdict--resolved"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-check"></use></svg>Resolved</p><span class="ev ev--writing"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-mail"></use></svg>Provider confirmed in writing</span></div>
+        </div>
+      </section>
+
+      <section class="sg-section" id="icons" aria-labelledby="icons-h">
+        <h2 class="h2" id="icons-h">Icons</h2>
+        <p class="secondary prose">One original stroke set on a 20 px grid, 1.75 stroke, round caps to match the logo. Decorative icons are <code>aria-hidden</code>; meaning always comes from adjacent text.</p>
+        <div class="icon-grid" id="icon-grid" style="margin-top:var(--s-4)"></div>
+      </section>
+
+      <section class="sg-section" id="motion" aria-labelledby="motion-h">
+        <h2 class="h2" id="motion-h">Motion</h2>
+        <div class="split" style="--aside:12rem;margin-top:var(--s-4)">
+          <div class="prose small secondary">
+            <p>Motion is slow, small and functional: 120 ms for hover, 220 ms for state changes, 420 ms for content settling into place (a 6 px rise and fade). Nothing bounces.</p>
+            <p>The only continuous motion is the call room's agent state: arcs pulse while the agent speaks and dash while it reviews. Loading skeletons shimmer gently.</p>
+            <p><b>Reduced motion:</b> with <code>prefers-reduced-motion: reduce</code>, every duration drops to zero, the agent's arcs hold still and the state is carried by its text label. Preview runs in the proof panel complete faster.</p>
+          </div>
+          <div class="agent-orb motion-demo" data-state="speaking" aria-hidden="true"><svg viewBox="0 0 64 64"><path class="arc arc--2" d="M11.69 30.3A24.5 24.5 0 0 1 52.31 30.3"/><path class="arc arc--1" d="M16.03 38.19A17 17 0 0 1 47.97 38.19"/><path class="disc" d="M21 44A11 11 0 0 1 43 44Z"/><path class="base" d="M8 44H56"/></svg></div>
+        </div>
+      </section>
+
+      <section class="sg-section" id="assets" aria-labelledby="assets-h">
+        <h2 class="h2" id="assets-h">Assets and licences</h2>
+        <div style="overflow-x:auto;margin-top:var(--s-4)" tabindex="0" role="region" aria-label="Assets and licences table"><table class="contrast-table small"><thead><tr><th scope="col">Asset</th><th scope="col">Files</th><th scope="col">Source and licence</th></tr></thead><tbody>
+          <tr><td>Logo masters</td><td><code>assets/brand/*.svg</code></td><td>Original, drawn for Afterward in this branch. SVG masters are editable vectors.</td></tr>
+          <tr><td>Logo exports</td><td><code>assets/brand/png/*.png</code>, <code>favicon.ico</code>, <code>favicon.svg</code></td><td>Rendered from the SVG masters with rsvg-convert.</td></tr>
+          <tr><td>Icons</td><td><code>assets/icons/sprite.svg</code></td><td>Original stroke set for Afterward.</td></tr>
+          <tr><td>Newsreader</td><td><code>assets/fonts/newsreader-*.woff2</code></td><td>Production Type, SIL Open Font License 1.1 (OFL-Newsreader.txt). Latin subset via Fontsource 5.3.0.</td></tr>
+          <tr><td>Atkinson Hyperlegible Next / Mono</td><td><code>assets/fonts/atkinson-*.woff2</code></td><td>The Atkinson Hyperlegible Next / Mono Project Authors (originally commissioned by Braille Institute), SIL OFL 1.1. Latin subset via Fontsource 5.3.0.</td></tr>
+          <tr><td>Wordmark outlines</td><td>inside the lockup SVGs</td><td>Newsreader Medium converted to paths; permitted by the OFL for logos.</td></tr>
+        </tbody></table></div>
+        <p class="small secondary" style="margin-top:var(--s-3)">No remote fonts, scripts or images are loaded. No generated raster artwork is used.</p>
+      </section>
+      </div>
+    </div>
+  </main>
+  <script src="fixtures/case.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/style.js"></script>
+</body>
+</html>
