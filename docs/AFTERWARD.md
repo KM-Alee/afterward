@@ -643,6 +643,11 @@ The rubric asks whether *errors and edge cases are handled*. We show it with a l
 
 ### Build order
 
+**Frontend-first gate (team update):** Claude creates and demonstrates polished
+mock frontend flows on a dedicated branch; the user explicitly approves the UX
+before parallel feature development starts. See [FRONTEND-FIRST.md](FRONTEND-FIRST.md).
+The lead then completes shared product contracts before launching the four slices.
+
 The hour-by-hour plan for both teammates, mapped to code modules, is in [AFTERWARD-TECH.md §T16](AFTERWARD-TECH.md#t16-build-plan-mapped-to-modules). Deployment is de-risked in the **first hour**, not at the end.
 
 ---

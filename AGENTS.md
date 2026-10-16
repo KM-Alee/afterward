@@ -32,14 +32,15 @@ Read fully: [product](docs/AFTERWARD.md), [technical design](docs/AFTERWARD-TECH
   only the lead edits interfaces, AI schemas, DB tables and shared fakes.
 - Never force-push main. Do not force-push other branches either; hand off locally
   rebased work to the lead. Never bypass a failed quality gate.
-- No product work in the setup scaffold. Wait for lead-published Python contract
-  revision 1 before launching parallel feature implementation.
+- No product work in the setup scaffold. Complete the frontend-first review in docs/FRONTEND-FIRST.md. Launch parallel
+  feature work only after explicit user UX approval AND lead-published Python contract revision 1.
 
 ## Ownership map
 
 | Slice | Owned paths | Branch |
 |---|---|---|
 | Foundation / lead | root tooling/docs, .github/, .claude/, scripts except C's scripts, app/main.py, app/config.py, app/logging.py, app/db.py, app/models.py, app/contracts.py, app/ai/schemas.py, app/fakes/, app/demo/seed.py, tests/conftest.py, tests/foundation/ | main; optional slice/foundation |
+| Frontend UX (before Phase 2) | design/frontend/ only; own handoff, STATUS row and DEVLOG append | slice/frontend-mockup |
 | A Engine & Truth | app/engine/, app/ai/verify.py, app/ai/prompts.py (extraction), app/ai/client.py, app/demo/fixtures/, tests/engine/, tests/proofs/ | slice/engine-truth |
 | B Channels & Conversation | app/channels/, app/conversation/, app/discovery/, tests/channels/, tests/conversation/ | slice/channels-conversation |
 | C Mail & Integrations | app/mail/, app/integrations/, app/demo/provider_variants.py, scripts/google_auth.py, tests/mail/ | slice/mail-integrations |
@@ -49,6 +50,17 @@ Read fully: [product](docs/AFTERWARD.md), [technical design](docs/AFTERWARD-TECH
 
 Exceptions and shared-file requests are detailed in CONTRIBUTING-AGENTS.md.
 Only update your own STATUS row and handoff; append DEVLOG and contract proposals.
+
+## Frontend-first start gate
+
+Before A/B/C/D: follow [the branch guide](docs/FRONTEND-FIRST.md). One Claude
+session owns design/frontend/ on slice/frontend-mockup, builds polished standalone
+mock flows with no live integrations, and stops for explicit user review. Only the
+lead records user approval in docs/FRONTEND-APPROVAL.md. After approval, the lead
+publishes shared Python contracts/models/schemas/fakes revision 1. Only then launch
+parallel slices. D implements the approved design; material UX changes go to the user.
+This prototype stage is permitted before Python product contracts exist; it must
+not invent or modify backend contracts. No mock pages are built in workflow setup.
 
 ## Commands
 
@@ -60,6 +72,7 @@ Only update your own STATUS row and handoff; append DEVLOG and contract proposal
 - `make lint` / `make fmt`: Ruff checks / fixes and formatting.
 - `make proof`: clearly labelled placeholder until Agent A supplies the real proof runner.
 - `make ci`: lint and all non-live tests; requires reachable DATABASE_URL_TEST.
+- `make worktree SLICE=frontend-mockup`: create the required first UX prototype branch.
 - `make worktree SLICE=engine-truth`: create ../afterward-engine-truth on slice/engine-truth.
 - `make merge SLICE=engine-truth`: lead only; rebase, setup and CI before --no-ff merge.
 - `uv run --frozen pre-commit run --all-files`: formatting, hygiene and secret scan.

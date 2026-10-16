@@ -2,8 +2,8 @@
 set -euo pipefail
 slice="${1:-}"
 case "$slice" in
-  foundation|engine-truth|channels-conversation|mail-integrations|web-desk-call|qa-adversary) ;;
-  *) echo "Usage: $0 <foundation|engine-truth|channels-conversation|mail-integrations|web-desk-call|qa-adversary>" >&2; exit 2 ;;
+  foundation|frontend-mockup|engine-truth|channels-conversation|mail-integrations|web-desk-call|qa-adversary) ;;
+  *) echo "Usage: $0 <foundation|frontend-mockup|engine-truth|channels-conversation|mail-integrations|web-desk-call|qa-adversary>" >&2; exit 2 ;;
 esac
 root="$(git rev-parse --show-toplevel)"
 cd "$root"

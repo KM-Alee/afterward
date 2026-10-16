@@ -5,6 +5,8 @@ IMPLEMENTATION Phase 1. This file freezes the boundaries and required semantics;
 it does not claim the Python protocols, tables, fakes or schemas are implemented.
 `app/contracts.py`, `app/models.py`, `app/ai/schemas.py` and `app/fakes/` are stubs.
 The lead must implement and publish their exact Python types before Phase 2 starts.
+The user must also approve the dedicated frontend mock first (FRONTEND-FIRST.md).
+The standalone prototype does not define or change backend contracts.
 Agents may read any public tracked source; they edit only their owned paths.
 
 Only the lead changes frozen sections. A slice may append a proposal under

@@ -1,8 +1,8 @@
-# Initial scaffold files
+# Workflow scaffold files
 
 README.md was updated. The supplied product, technical and implementation documents
-were relocated into docs/; IMPLEMENTATION.md also received the authorized fastn
-planning addendum. No real credential files were read or copied.
+were relocated into docs/. The authorized fastn plan and mandatory frontend-first
+sequence were added to planning/instruction files; no mock pages were built. No real credential files were read or copied.
 
 Created or relocated paths:
 
@@ -112,3 +112,7 @@ Created or relocated paths:
 - `tests/qa/.gitkeep`
 - `tests/web/.gitkeep`
 - `uv.lock`
+- `.claude/commands/frontend-first.md`
+- `docs/FRONTEND-FIRST.md`
+- `docs/FRONTEND-APPROVAL.md`
+- `docs/handoffs/frontend-mockup.md`

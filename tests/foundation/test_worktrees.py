@@ -35,16 +35,17 @@ def repo(tmp_path):
     return path
 
 
-def test_worktree_copies_no_ignored_files_and_validates_name(repo):
+@pytest.mark.parametrize("slice_name", ["engine-truth", "frontend-mockup"])
+def test_worktree_copies_no_ignored_files_and_validates_name(repo, slice_name):
     (repo / "private").mkdir()
     (repo / "private" / "fixture.txt").write_text("non-secret ignored fixture")
     invalid = run(repo, "bash", "scripts/agent_worktree.sh", "../bad", check=False)
     assert invalid.returncode == 2
-    run(repo, "bash", "scripts/agent_worktree.sh", "engine-truth")
-    worktree = repo.parent / "afterward-engine-truth"
+    run(repo, "bash", "scripts/agent_worktree.sh", slice_name)
+    worktree = repo.parent / f"afterward-{slice_name}"
     assert not (worktree / "private").exists()
-    assert run(worktree, "git", "branch", "--show-current").stdout.strip() == "slice/engine-truth"
-    assert run(repo, "bash", "scripts/agent_worktree.sh", "engine-truth", check=False).returncode
+    assert run(worktree, "git", "branch", "--show-current").stdout.strip() == f"slice/{slice_name}"
+    assert run(repo, "bash", "scripts/agent_worktree.sh", slice_name, check=False).returncode
 
 
 def test_failed_ci_refuses_merge_then_green_creates_merge_commit(repo):

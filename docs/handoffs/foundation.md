@@ -13,6 +13,10 @@ and merge scripts; agent instructions/briefs, ownership, logs and ADRs.
 
 ## What is stubbed
 
+Frontend-first sequence is now required: one Claude mock branch, explicit user UX
+approval, then shared Python contract revision 1, then A/B/C/D. No mock pages or
+new worktrees were created by setup. See docs/FRONTEND-FIRST.md.
+
 All product features, tables, Python protocols, AI schemas, fakes, demo data,
 OAuth/model/webhook/e2e helpers and the proof runner. Contract revision 0 documents
 source boundaries; lead implementation/revision 1 is required before Phase 2.
@@ -20,8 +24,8 @@ The optional fastn integration is planned only, no credentials or SDK configured
 
 ## How to test it
 
-- make setup && make db-up && make ci: passed, 31 tests (real PostgreSQL).
-- make test-fast: passed, 28 tests, 3 DB tests deselected.
+- make setup && make db-up && make ci: passed, 32 tests (real PostgreSQL).
+- make test-fast: passed, 29 tests, 3 DB tests deselected.
 - uv run --frozen pre-commit run --all-files: all hooks passed.
 - gitleaks dir on staged tracked-tree export and git --all history: no leaks.
 - git grep --cached for credential-like patterns: no matches.
@@ -34,8 +38,10 @@ The optional fastn integration is planned only, no credentials or SDK configured
 
 ## Known risks
 
-GitHub CI/image publication is inspected after the initial push/tag; see the final
-operator report and repository Actions for remote status. No Alternate Clouds
+The initial main/tag CI runs and v0.0.1 test/publish workflow succeeded:
+https://github.com/KM-Alee/afterward/actions/runs/38925400952 and
+https://github.com/KM-Alee/afterward/actions/runs/38925401202.
+The frontend-first planning follow-up is a separate main commit; v0.0.1 is retained. No Alternate Clouds
 service was deployed by this setup task. GHCR package visibility must be public
 before that platform pulls it. External APIs/model availability are not probed.
 The planned Stand-In source at /home/claude/standin is absent on this machine.
@@ -47,5 +53,6 @@ frozen safety requirements. No product agents were launched in this setup task.
 
 ## Files touched
 
-See docs/FILES-CREATED.md for the full initial file list. README.md was updated;
+See docs/FILES-CREATED.md for the file list, including the subsequent frontend-first
+guide, approval record, command and empty handoff. README.md was updated;
 source specs were relocated under docs/, with the authorized fastn plan appended.

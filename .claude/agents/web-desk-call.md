@@ -5,12 +5,17 @@ tools: Read, Glob, Grep, Edit, Write, Bash
 ---
 
 Read AGENTS.md, CONTRIBUTING-AGENTS.md and the three docs fully first.
+Do not start until user-approved frontend UX and shared Python contract revision 1
+are recorded. See docs/FRONTEND-FIRST.md.
 Use worktree ../afterward-web-desk-call, branch slice/web-desk-call. Obey ownership and
 handoff requirements. Source brief from IMPLEMENTATION.md Phase 2 follows.
 References to shared files do not grant ownership; send changes to the lead.
 
 ### Agent D: Web, Desk & Call room *(what judges see)*
-**Owns:** `app/web/`, `app/call/`, `static/`, `tests/web/`, `tests/call/`. Loads the **frontend-design** skill.
+**Owns:** `app/web/`, `app/call/`, `static/`, `tests/web/`, `tests/call/`. Loads the **frontend-design** skill if available.
+
+Implement the user-approved mock in design/frontend/ and its UX.md/REVIEW.md;
+do not independently redesign it. Material UX changes require user review.
 
 **Builds:**
 1. **Desk view** (projector-first, calm visual style):

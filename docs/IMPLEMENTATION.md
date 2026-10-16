@@ -2,21 +2,36 @@
 
 *Companion to [AFTERWARD.md](AFTERWARD.md) (what we build) and [AFTERWARD-TECH.md](AFTERWARD-TECH.md) (how it's built).*
 
-**Shape of the plan:** one setup phase for you, then a short foundation slice by me, then **four large parallel agent slices**, each delivering a whole working feature area with its own tests, then integration, hardening and a live rehearsal. No swarm of tiny tasks.
+**Shape of the plan (updated by the team):** workflow setup → **one Claude
+frontend mock branch and explicit user UX approval** → lead product foundation
+and frozen Python contracts → **four large parallel agent slices** → integration,
+independent QA and rehearsal. The frontend-first gate is mandatory.
 
 ```
-Phase 0  YOU: accounts, keys, phones (≈60–75 min)        ┐ in parallel
-Phase 1  LEAD: foundation + shared contracts (≈60 min)   ┘
-Phase 2  FOUR AGENTS IN PARALLEL (≈4.5 h)
-         A Engine & Truth · B Channels & Conversation · C Mail & Integrations · D Web, Desk & Call room
-Phase 3  LEAD: integration + first real deploy (≈2 h)      ← checkpoint with you
-Phase 4  QA AGENT (fresh eyes) + LEAD fixes (≈2 h)
-Phase 5  REHEARSAL on the deployed URL, freeze 12:00, submit 12:45
+Setup    workflow scaffold on main (complete)
+UX       CLAUDE: slice/frontend-mockup, polished standalone mock pages
+Review   USER: review actual flows and explicitly approve before parallel work
+Phase 0  YOU: accounts, keys, phones (can run alongside UX work)
+Phase 1  LEAD: shared product foundation + Python contract revision 1
+Phase 2  A / B / C / D IN PARALLEL, only after UX approval + contract gate
+Phase 3  LEAD: integrate A → C → B → D and deploy       ← checkpoint with you
+Phase 4  QA reports failing tests; LEAD fixes
+Phase 5  Rehearse; freeze 12:00 PKT, submit 12:45 PKT on 17 Oct 2026
 ```
+
+Read [the dedicated branch/UX guide](FRONTEND-FIRST.md). The approval record is
+[FRONTEND-APPROVAL.md](FRONTEND-APPROVAL.md). Do not start A/B/C/D on the strength
+of scaffold completion alone. D builds the approved frontend rather than creating
+a different design during parallel implementation.
 
 ---
 
 ## Timeline at a glance (PKT)
+
+The overnight times below are the original estimates, not permission to skip a
+gate. Insert the frontend-first prototype and user review **before Phase 1/2**;
+recalculate the remaining work after approval. Aim for a 45–60 minute first UX pass;
+cut optional scope if needed. Freeze/submission remain fixed.
 
 | Time | You (and teammate) | Me (lead) | Agents |
 |---|---|---|---|
@@ -141,7 +156,11 @@ acc attest <serviceId> --verify
 
 ---
 
-## Phase 2: four agents in parallel (≈21:15–01:45)
+## Phase 2: four agents in parallel (original estimate ≈21:15–01:45)
+
+**Start gate:** user-approved frontend mock merged from slice/frontend-mockup,
+approval recorded by the lead, shared product foundation implemented and Python
+contract revision 1 published. Until both gates pass, do not launch these slices.
 
 Each agent:
 - works in its **own git worktree and branch**;
@@ -252,7 +271,11 @@ Every agent receives AFTERWARD.md, AFTERWARD-TECH.md, this plan, `CONTRIBUTING-A
 ---
 
 ### Agent D: Web, Desk & Call room *(what judges see)*
-**Owns:** `app/web/`, `app/call/`, `static/`, `tests/web/`, `tests/call/`. Loads the **frontend-design** skill.
+**Owns:** `app/web/`, `app/call/`, `static/`, `tests/web/`, `tests/call/`. Loads the **frontend-design** skill if available.
+
+**Design input:** the user-approved mock in `design/frontend/`, its UX.md/REVIEW.md,
+and the lead's FRONTEND-APPROVAL record. Implement that design; do not redesign it
+independently. Escalate material UX changes to the user.
 
 **Builds:**
 1. **Desk view** (projector-first, calm visual style):

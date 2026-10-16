@@ -6,6 +6,7 @@ fully before starting. Freeze: **2026-10-17 12:00 PKT**. Submission: **12:45 PKT
 | Slice | Owned paths | Branch |
 |---|---|---|
 | Foundation / lead | root tooling/docs, .github/, .claude/, scripts except C's scripts, app/main.py, app/config.py, app/logging.py, app/db.py, app/models.py, app/contracts.py, app/ai/schemas.py, app/fakes/, app/demo/seed.py, tests/conftest.py, tests/foundation/ | main; optional slice/foundation |
+| Frontend UX (before Phase 2) | design/frontend/ only; own handoff, STATUS row and DEVLOG append | slice/frontend-mockup |
 | A Engine & Truth | app/engine/, app/ai/verify.py, app/ai/prompts.py (extraction), app/ai/client.py, app/demo/fixtures/, tests/engine/, tests/proofs/ | slice/engine-truth |
 | B Channels & Conversation | app/channels/, app/conversation/, app/discovery/, tests/channels/, tests/conversation/ | slice/channels-conversation |
 | C Mail & Integrations | app/mail/, app/integrations/, app/demo/provider_variants.py, scripts/google_auth.py, tests/mail/ | slice/mail-integrations |
@@ -25,7 +26,9 @@ provides the implementation proposal or content in its handoff; the lead applies
 shared changes. Runtime routes are registered centrally in Phase 3. Never edit
 app/main.py from a feature slice.
 
-Before launch: the lead completes Python contracts, models, schemas and fakes,
+Before launch: Claude builds the frontend mock on slice/frontend-mockup per
+docs/FRONTEND-FIRST.md; the user explicitly approves and the lead records it in
+docs/FRONTEND-APPROVAL.md. The lead then completes Python contracts, models, schemas and fakes,
 then publishes revision 1 and a foundation commit SHA. Scaffold completion is not
 that start signal. Each agent uses make worktree and make setup in its own checkout.
 Use the dependency fakes; no production accounts or real personal data in tests.

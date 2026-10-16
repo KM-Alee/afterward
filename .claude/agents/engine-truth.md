@@ -5,6 +5,8 @@ tools: Read, Glob, Grep, Edit, Write, Bash
 ---
 
 Read AGENTS.md, CONTRIBUTING-AGENTS.md and the three docs fully first.
+Do not start until user-approved frontend UX and shared Python contract revision 1
+are recorded. See docs/FRONTEND-FIRST.md.
 Use worktree ../afterward-engine-truth, branch slice/engine-truth. Obey ownership and
 handoff requirements. Source brief from IMPLEMENTATION.md Phase 2 follows.
 References to shared files do not grant ownership; send changes to the lead.

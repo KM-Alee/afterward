@@ -41,9 +41,12 @@ not assumed from the planning document.
 ## Start sequence
 
 1. Run make setup, make db-up and make ci. Check health/status locally.
-2. The lead completes Phase 1 shared models/contracts/schemas/fakes and publishes
-   contract revision 1 with a commit SHA. Current stubs are not enough for parallel work.
-3. Launch A/B/C/D in separate worktrees with their .claude/agents briefs. Feature
+2. Start one Claude frontend session on slice/frontend-mockup using FRONTEND-FIRST.md.
+   Review the polished mock pages and their connected flows. The user explicitly
+   approves; only the lead records approval in FRONTEND-APPROVAL.md. No A/B/C/D yet.
+3. After UX approval, the lead completes Phase 1 shared models/contracts/schemas/fakes
+   and publishes contract revision 1 with a commit SHA. Current stubs are not enough.
+   Only then launch A/B/C/D in separate worktrees with their .claude/agents briefs. Feature
    owners stay inside CONTRIBUTING-AGENTS.md. No auto-launch is performed by setup.
 4. Hello checkpoint: publish v0.0.1 image, make package public, deploy on Alternate
    Clouds, verify health/status and record the real attestation outcome.

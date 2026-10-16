@@ -583,6 +583,12 @@ afterward/
 
 ## T16. Build plan mapped to modules
 
+**Kickoff sequence updated by the team:** before parallel feature development,
+Claude builds the standalone frontend mock on `slice/frontend-mockup` and the user
+explicitly approves its UX. Then the lead completes shared product contracts and
+launches A/B/C/D. The original estimates below do not override those gates; see
+[FRONTEND-FIRST.md](FRONTEND-FIRST.md) and the updated IMPLEMENTATION.md.
+
 | Time (PKT) | Person A (engine and AI) | Person B (channels, web, demo) |
 |---|---|---|
 | 19:45–20:45 | **Deploy hello image + Postgres + confidential attempt** (T13 first hour); `openai_probe.py` checks all four models | Telegram bot, Meta app and test number; Google project and refresh tokens for both mailboxes |

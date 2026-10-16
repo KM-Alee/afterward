@@ -72,3 +72,14 @@ Only the lead accepts ADR changes. Alternatives and reasons below come from AFTE
 - Sources: [fastn docs](https://docs.fastn.ai/),
   [fastn MCP](https://github.com/fastn-ai/fastn-mcp),
   [n8n MCP](https://n8n.io/mcp/).
+
+## ADR-010: Frontend UX approval before parallel development
+
+- Date: 2026-10-16
+- Decision: Claude creates polished standalone mock pages on slice/frontend-mockup;
+  user reviews and explicitly approves the UX before shared-foundation completion
+  and launch of A/B/C/D. Lead records approval; D implements the approved design.
+- Alternatives: Design during D's parallel slice; launch backend slices before UX review.
+- Reason: The user wants the experience considered and reviewed before implementation
+  fans out. Separate mock data and local interactions keep review independent of
+  live integrations and do not implement backend features during workflow setup.

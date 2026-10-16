@@ -41,9 +41,18 @@ in your shell to the same port. Compose always uses --env-file /dev/null.
 
 ## Parallel agents
 
-**Start gate:** the lead implements the shared Python contracts, DB tables, strict AI
-schemas and deterministic fakes, then publishes docs/CONTRACTS.md revision 1 and a
-commit SHA. Workflow Foundation done does not mean product Phase 1 is implemented.
+**Required first stage:** one Claude session builds polished standalone mock pages
+on slice/frontend-mockup. Follow [the frontend branch guide](docs/FRONTEND-FIRST.md).
+The user reviews and explicitly approves the actual UX; the lead records approval.
+Then the lead implements shared Python contracts, DB tables, strict AI schemas
+and deterministic fakes, publishing contract revision 1. Only after both gates
+pass may A/B/C/D start. D implements the approved design. Scaffold completion
+alone does not authorize parallel product development.
+
+```sh
+make worktree SLICE=frontend-mockup
+# Then open Claude in ../afterward-frontend-mockup and use the guide's brief.
+```
 
 ```sh
 make worktree SLICE=engine-truth
@@ -52,7 +61,7 @@ make setup
 make test-fast
 ```
 
-Canonical slices: foundation, engine-truth, channels-conversation, mail-integrations,
+Canonical slices: foundation, frontend-mockup, engine-truth, channels-conversation, mail-integrations,
 web-desk-call, qa-adversary. Worktrees copy tracked files only, no secrets. Every
 worktree needs its own uv environment and hooks installed through make setup.
 The lead integrates A → C → B → D from clean main:
