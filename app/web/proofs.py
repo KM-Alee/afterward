@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib
+import inspect
 from collections.abc import Callable
 from typing import Any
 
@@ -127,11 +128,31 @@ def not_run_report() -> dict[str, object]:
     }
 
 
+def _needs_session(runner: Callable[..., Any]) -> bool:
+    try:
+        parameters = inspect.signature(runner).parameters.values()
+    except (TypeError, ValueError):
+        return False
+    return any(
+        parameter.default is inspect.Parameter.empty
+        and parameter.kind
+        in {inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD}
+        for parameter in parameters
+    )
+
+
 def run_proof_panel() -> dict[str, object]:
     """Call the shared runner, or report that nothing was run."""
     runner = _import_runner()
     if runner is None:
         return not_run_report()
+    if _needs_session(runner):
+        report = not_run_report()
+        report["reason"] = (
+            "The proof runner needs a database session. "
+            "These 14 cases have not been run from this page."
+        )
+        return report
     raw = runner()
     if not isinstance(raw, dict):
         report = not_run_report()
