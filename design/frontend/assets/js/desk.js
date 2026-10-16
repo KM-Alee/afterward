@@ -22,11 +22,6 @@
     const auto = s.autopilot === "gentle" ? "Gentle: reads and classifies replies automatically; asks before every outbound action." : "Steady: also sends follow-ups and identical routine notices; still asks for closures, transfers and decisions.";
     const fuCount = Object.values(s.followups).reduce((a, b) => a + b, 0);
     spine.innerHTML = `
-      <section class="spine__case stack stack-sm">
-        <p class="eyebrow">Case ${esc(F.case.ref)} · demo case</p>
-        <h1 class="h1">${esc(F.case.deceased)}</h1>
-        <p class="spine__died">Died ${esc(F.case.dateOfDeath)}</p>
-      </section>
       <section class="stack stack-sm" aria-labelledby="sp-people">
         <h2 class="eyebrow" id="sp-people">People</h2>
         <ul class="spine__people" role="list">
@@ -74,7 +69,7 @@
         <h2 class="eyebrow" id="sp-health">Health</h2>
         <p>${s.monitoring === "ok" ? chip("holding", "Mailbox monitoring on") : chip("violated", "Monitoring interrupted")}</p>
         <p class="control-note">Last check: ${s.monitoring === "ok" ? "under a minute ago" : "failed: access expired"} <span class="sim-tag">Simulated</span></p>
-        <p>${chip("neutral", "Confidential compute: not attempted")}</p>
+        <p>${chip("neutral", "Confidential compute: not attempted", "status--wrap")}</p>
         <p class="control-note">The prototype has no deployment. When attested, the desk shows it here with its boundary: it covers our compute and storage, not the AI provider, chat platforms or recipients.</p>
       </section>
       <section class="shortcut stack stack-sm" aria-labelledby="sp-sim">
@@ -144,7 +139,7 @@
         <div><p class="eyebrow">Now</p><h2 class="now__title" id="now-title">Northline Mobile · line ending 4417</h2></div>
         <div class="cluster cluster--tight">${decision}<span class="status status--neutral">${icon("doc")}Plan v${v}</span></div>
       </div>
-      <div class="compare">
+      <div class="compare-wrap"><div class="compare">
         <div class="compare__col">
           <div class="compare__label"><span class="num-badge" aria-hidden="true">1</span><h3 class="eyebrow">Requested</h3></div>
           <p class="requested-action">${esc(c.plan.action)}</p>
@@ -164,7 +159,7 @@
             ${c.conditions.map((x) => `<li><span>${esc(x.label)}</span>${condChip(x)}<span class="checks__why">${esc(x.why)}</span></li>`).join("")}
           </ul>
         </div>
-      </div>
+      </div></div>
       <div class="now__foot"><span><b>Next:</b> ${esc(d.next.owner)} · ${esc(d.next.action)}${d.next.due ? ` · due ${esc(d.next.due)}` : ""}</span><span>Done means completion evidence plus every condition holding.</span></div>
     </section>`;
   }
@@ -174,16 +169,16 @@
     const rows = AW.accounts().map((a) => `<tr class="${a.focus ? "is-focus" : ""}">
         <td><span class="acct__name">${esc(a.name)}</span><br><span class="small">${esc(a.label)}</span><br><span class="acct__ref">${esc(a.ref)} · ${esc(a.origin)}${a.profile ? "" : " · no declared profile"}</span>${a.plan ? `<br><span class="xsmall muted">Plan v${a.plan.v}: ${esc(a.plan.action)}</span>` : ""}</td>
         <td><span class="dim-label">Service</span>${status(a.service)}</td>
-        <td><span class="dim-label">Money</span>${status(a.money)}</td>
+        <td><span class="dim-label">Money</span><span class="cluster cluster--tight">${status(a.money)}${(a.moneyExtra || []).map((m) => status(m)).join("")}</span></td>
         <td><span class="dim-label">Documents</span>${status(a.docs)}</td>
         <td><span class="dim-label">Next step</span><span class="next"><span class="next__owner">${esc(a.next.owner)}</span><span>${esc(a.next.action)}</span>${a.next.due ? `<span class="xsmall muted">Due ${esc(a.next.due)}</span>` : ""}</span></td>
         <td><span class="dim-label">Conditions</span>${a.conditions.length ? `<span class="cluster cluster--tight">${a.conditions.map((c) => `<span title="${esc(c.label)}">${condChip(c)}</span>`).join("")}</span>` : `<span class="muted small">None</span>`}</td>
       </tr>`).join("");
     return `<section class="desk-section desk-section--ledger" aria-labelledby="led-title">
       <div class="panel__head"><h2 class="section-title" id="led-title">Accounts</h2><span class="small muted">Four dimensions per account. "Done" needs all of them resolved.</span></div>
-      <table class="ledger"><caption class="visually-hidden">Accounts with service, money, documents, next step and conditions</caption>
+      <div class="ledger-wrap"><table class="ledger"><caption class="visually-hidden">Accounts with service, money, documents, next step and conditions</caption>
         <thead><tr><th scope="col">Account</th><th scope="col">Service</th><th scope="col">Money</th><th scope="col">Documents</th><th scope="col">Next step</th><th scope="col">Conditions</th></tr></thead>
-        <tbody>${rows}</tbody></table></section>`;
+        <tbody>${rows}</tbody></table></div></section>`;
   }
 
   function coverage(s) {
@@ -248,7 +243,7 @@
       <div class="panel__head"><h2 class="section-title" id="call-title">Call</h2>${simTag("Simulated provider call")}</div>
       <ol class="transcript" role="list">${turns}</ol>
       <p style="margin-top:var(--s-3)"><a href="call.html">Open the call room</a></p>
-      ${c.latency.length ? `<hr><table class="latency"><caption class="cluster cluster--tight"><span class="h4">Per-turn timing</span>${simTag("Simulated timing, not a measurement")}</caption><thead><tr><th scope="col">Turn</th><th scope="col">Stages</th><th scope="col">Total</th></tr></thead><tbody>${lat}</tbody></table>
+      ${c.latency.length ? `<hr><div style="overflow-x:auto"><table class="latency"><caption class="cluster cluster--tight"><span class="h4">Per-turn timing</span>${simTag("Simulated timing, not a measurement")}</caption><thead><tr><th scope="col">Turn</th><th scope="col">Stages</th><th scope="col">Total</th></tr></thead><tbody>${lat}</tbody></table></div></div>
       <p class="xsmall muted" style="margin-top:var(--s-2)">Stages: upload, transcription, reasoning, validation, first speech byte, playback start. The deployed desk reports measured values only.</p>` : ""}
     </section>`;
   }
@@ -264,10 +259,11 @@
     renderSpine(s);
     const proj = document.documentElement.classList.contains("is-projector");
     main.innerHTML = `
-      <div class="desk-toolbar">
-        <p class="small muted">Case time ${esc(AW.fmtTime(s.now))} · updates live from other tabs</p>
-        <button class="btn btn--sm" type="button" data-projector aria-pressed="${proj}">${icon("projector")}Projector mode${proj ? ": on" : ""}</button>
-      </div>
+      <header class="desk-toolbar">
+        <div class="spine__case"><p class="eyebrow">Case ${esc(F.case.ref)} · demo case</p><h1 class="h1">${esc(F.case.deceased)}</h1><p class="spine__died">Died ${esc(F.case.dateOfDeath)}</p></div>
+        <div class="desk-toolbar__tools"><p class="small muted">Case time ${esc(AW.fmtTime(s.now))}<span class="hide-on-projector"> · updates live from other tabs</span></p>
+        <button class="btn btn--sm" type="button" data-projector aria-pressed="${proj}">${icon("projector")}Projector mode${proj ? ": on" : ""}</button></div>
+      </header>
       ${banners(s)}
       ${nowPanel(s)}
       ${ledger(s)}

@@ -152,7 +152,8 @@
 .status--plain { background: none; padding-inline: 0; }
 
 /* Simulated marker: the hatch says "not real" wherever it appears. */
-.sim-tag { display: inline-flex; align-items: center; gap: 0.35em; padding: 0.05em 0.5em; border: 1px dashed var(--c-plum); border-radius: var(--r-sm); color: var(--c-plum); background: var(--c-plum-soft); background-image: var(--hatch); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; }
+.sim-tag { display: inline-flex; align-items: center; gap: 0.35em; padding: 0.05em 0.5em; border: 1px dashed var(--c-plum); border-radius: var(--r-sm); color: var(--c-plum); background: var(--c-plum-soft); background-image: var(--hatch); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; max-width: 100%; }
+.sim-tag { white-space: normal; }
 
 /* Evidence labels (F17): who or what supports a claim. */
 .ev { display: inline-flex; align-items: center; gap: 0.35em; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.02em; color: var(--c-ink-2); padding: 0.1em 0.5em; border: 1px solid var(--c-line-strong); border-radius: var(--r-sm); background: var(--c-surface); white-space: nowrap; }
@@ -232,12 +233,14 @@
 .approval--void .approval__body { opacity: 0.75; }
 .approval--approved { border-color: var(--c-moss); }
 
-/* ---------- Three-column comparison: requested / provider says / Afterward concludes ---------- */
-.compare { display: grid; gap: var(--s-4); }
-@media (min-width: 64rem) { .compare { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1.1fr); gap: 0; } }
+/* ---------- Three-column comparison: requested / provider says / Afterward concludes ----------
+   Lays out by the width of its .compare-wrap container, not the viewport. */
+.compare-wrap { container-type: inline-size; }
+.compare { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+@container (min-width: 760px) { .compare { grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr) minmax(0, 1.1fr); gap: 0; } }
 .compare__col { padding: var(--s-4) var(--s-5); }
-@media (min-width: 64rem) { .compare__col + .compare__col { border-left: var(--rule); } }
-@media (max-width: 63.99rem) { .compare__col { background: var(--c-surface); border: var(--rule); border-radius: var(--r-md); } }
+@container (min-width: 760px) { .compare__col + .compare__col { border-left: var(--rule); } }
+@container (max-width: 759.98px) { .compare__col { background: var(--c-surface); border: var(--rule); border-radius: var(--r-md); } }
 .compare__label { display: flex; align-items: center; gap: var(--s-2); margin-bottom: var(--s-3); }
 .compare__label .num-badge { display: inline-grid; place-items: center; width: 1.6rem; height: 1.6rem; border-radius: 50%; background: var(--c-ink); color: var(--c-on-ink); font-size: var(--fs-xs); font-weight: 700; }
 .verdict { display: flex; align-items: center; gap: var(--s-3); font-family: var(--font-serif); font-size: var(--fs-xl); font-weight: 500; line-height: 1.1; }
@@ -249,7 +252,7 @@
 .verdict--resolved { color: var(--c-moss); }
 .verdict--resolved .icon { background: var(--c-moss-soft); }
 .checks { display: grid; gap: var(--s-2); margin-top: var(--s-3); list-style: none; padding: 0; }
-.checks li { display: grid; grid-template-columns: 1fr auto; gap: var(--s-1) var(--s-3); align-items: center; padding: var(--s-2) 0; border-bottom: 1px dashed var(--c-line); }
+.checks li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s-1) var(--s-3); align-items: center; padding: var(--s-2) 0; border-bottom: 1px dashed var(--c-line); }
 .checks li:last-child { border-bottom: 0; }
 .checks__why { grid-column: 1 / -1; font-size: var(--fs-sm); color: var(--c-ink-3); }
 
@@ -266,7 +269,9 @@
 .dim-label { display: none; }
 .next { display: grid; gap: 2px; }
 .next__owner { font-size: var(--fs-xs); font-weight: 700; color: var(--c-ink-3); text-transform: uppercase; letter-spacing: 0.05em; }
-@media (max-width: 63.99rem) {
+/* The ledger reflows by its own width (container query), so projector mode and narrow columns both get cards. */
+.ledger-wrap { container-type: inline-size; }
+@container (max-width: 880px) {
   .ledger, .ledger tbody, .ledger tr, .ledger td { display: block; }
   .ledger thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
   .ledger tr { background: var(--c-surface); border: var(--rule); border-radius: var(--r-md); margin-bottom: var(--s-3); padding: var(--s-2) 0; }
@@ -274,7 +279,7 @@
   .ledger td:first-child { display: block; padding-bottom: var(--s-3); border-bottom: var(--rule); margin-bottom: var(--s-2); }
   .dim-label { display: block; font-size: var(--fs-xs); font-weight: 700; color: var(--c-ink-3); text-transform: uppercase; letter-spacing: 0.05em; padding-top: 0.2rem; }
 }
-@media (max-width: 29.99rem) { .ledger td { grid-template-columns: 1fr; gap: var(--s-1); } }
+@container (max-width: 420px) { .ledger td { grid-template-columns: 1fr; gap: var(--s-1); } }
 
 /* ---------- Timeline ---------- */
 .timeline { list-style: none; padding: 0; margin: 0; position: relative; }

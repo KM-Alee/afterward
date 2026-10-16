@@ -461,6 +461,12 @@
         d.next = { owner: "Family", action: "Confirm whose account this is", due: "" };
         d.bucket = "unconfirmed";
       }
+      if (d.ownership === "other") {
+        d.service = st("neutral", "Not his (Sara said): no action", ICON.neutral);
+        d.next = { owner: "—", action: "Nothing. It stays listed in case that changes", due: "" };
+        d.bucket = "not_theirs";
+        out.push(d); continue;
+      }
       switch (a.id) {
         case "nl4417": nl(s, d, nlT); break;
         case "cb0932":
@@ -505,8 +511,9 @@
       if (s.cpBill === "review") { d.money = st("review", "Needs review: $61.40 for Feb service", ICON.review); d.bucket = "review"; d.next = { owner: "Family", action: "Review the February invoice", due: "30 Apr" }; }
       if (s.cpBill === "reviewed") d.money = st("neutral", "Balance owed $61.40: Sara paying", ICON.neutral);
       if (s.cpBill === "asked") d.money = st("review", "Needs review: asked City Power", ICON.review);
-      if (s.cpRefund === "issued") { d.money = st("waiting", "Refund issued $42: awaiting receipt", ICON.waiting); if (d.bucket !== "review") d.bucket = "promised"; d.next = { owner: "Family", action: "Look for $42 on a statement", due: "" }; }
-      if (s.cpRefund === "received") d.money = st("holding", "Refund received $42 (statement)", ICON.holding);
+      const refund = s.cpRefund === "issued" ? st("waiting", "Refund issued $42: awaiting receipt", ICON.waiting) : s.cpRefund === "received" ? st("holding", "Refund received $42 (statement)", ICON.holding) : null;
+      if (refund) { if (s.cpBill) d.moneyExtra = [refund]; else d.money = refund; }
+      if (s.cpRefund === "issued") { if (d.bucket !== "review") d.bucket = "promised"; if (s.cpBill !== "review") d.next = { owner: "Family", action: "Look for $42 on a statement", due: "" }; }
     }
   }
 
@@ -574,7 +581,9 @@
     const lines = [];
     if (s.intake !== "confirmed") return { at: s.now, headline: "Not yet: the case hasn't started.", lines, caveat: "Nothing has been discovered, sent or checked yet." };
     if (n("confirmed")) lines.push({ k: "confirmed", tone: "holding", text: `${n("confirmed")} confirmed with written evidence`, who: names("confirmed") });
-    if (n("promised")) lines.push({ k: "promised", tone: "waiting", text: `${n("promised")} promised but not yet evidenced`, who: names("promised") });
+    const extra = acc.filter((a) => a.bucket !== "promised" && (a.moneyExtra || []).some((m) => m.kind === "waiting"));
+    const promised = n("promised") + extra.length;
+    if (promised) lines.push({ k: "promised", tone: "waiting", text: `${promised} promised but not yet evidenced`, who: (b.promised || []).map((a) => a.name).concat(extra.map((a) => `${a.name} refund`)).join(", ") });
     if (n("review")) lines.push({ k: "review", tone: "review", text: `${n("review")} needs your review`, who: names("review") });
     if (n("decision")) lines.push({ k: "decision", tone: "review", text: `${n("decision")} waiting for a family decision`, who: names("decision") });
     if (n("waiting")) lines.push({ k: "waiting", tone: "progress", text: `${n("waiting")} waiting on the organisation`, who: names("waiting") });
@@ -582,6 +591,7 @@
     if (n("handed")) lines.push({ k: "handed", tone: "info", text: `${n("handed")} handed to you`, who: names("handed") });
     if (n("kept")) lines.push({ k: "kept", tone: "neutral", text: `${n("kept")} kept on purpose`, who: names("kept") });
     if (n("unconfirmed")) lines.push({ k: "unconfirmed", tone: "unknown", text: `${n("unconfirmed")} candidate account${n("unconfirmed") > 1 ? "s" : ""} still unconfirmed`, who: names("unconfirmed") });
+    if (n("not_theirs")) lines.push({ k: "not_theirs", tone: "neutral", text: `${n("not_theirs")} marked as not his`, who: names("not_theirs") });
     if (n("not_started")) lines.push({ k: "not_started", tone: "neutral", text: `${n("not_started")} not started`, who: names("not_started") });
     const done = n("confirmed");
     const headline = s.intake !== "confirmed" ? "Not yet: the case hasn't started." : done === acc.length ? "Everything on the list has written evidence." : "Not everything. Here's exactly where things stand.";

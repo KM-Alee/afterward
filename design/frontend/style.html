@@ -84,7 +84,7 @@
         <div class="sg-grid" id="swatches" style="--min:11rem"></div>
         <h3 class="h3" style="margin-top:var(--s-6)">Contrast checks (computed live)</h3>
         <p class="small secondary">WCAG 2.2 relative luminance, from the current theme's tokens. Text needs 4.5:1 (AA); boundaries and large text need 3:1.</p>
-        <div style="overflow-x:auto;margin-top:var(--s-3)"><table class="contrast-table" id="contrast"><caption class="visually-hidden">Contrast ratios for token pairs</caption><thead><tr><th scope="col">Foreground</th><th scope="col">Background</th><th scope="col">Sample</th><th scope="col" class="num">Ratio</th><th scope="col">Use</th><th scope="col">Result</th></tr></thead><tbody></tbody></table></div>
+        <div style="overflow-x:auto;margin-top:var(--s-3)" tabindex="0" role="region" aria-label="Contrast checks table"><table class="contrast-table" id="contrast"><caption class="visually-hidden">Contrast ratios for token pairs</caption><thead><tr><th scope="col">Foreground</th><th scope="col">Background</th><th scope="col">Sample</th><th scope="col" class="num">Ratio</th><th scope="col">Use</th><th scope="col">Result</th></tr></thead><tbody></tbody></table></div>
       </section>
 
       <section class="sg-section" id="type" aria-labelledby="type-h">
@@ -157,9 +157,9 @@
         <div class="cluster" style="margin-top:var(--s-3)"><span class="ev ev--writing"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-mail"></use></svg>Provider confirmed in writing</span><span class="ev ev--family"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-user"></use></svg>Family confirmed</span><span class="ev ev--statement"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-money"></use></svg>Observed on a statement</span><span class="ev ev--spoken"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-phone"></use></svg>Said on a call, not in writing</span><span class="ev ev--unverified"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-question"></use></svg>Unverified</span><span class="sim-tag"><svg class="icon icon--sm" aria-hidden="true"><use href="assets/icons/sprite.svg#i-ring"></use></svg>Simulated</span></div>
         <p class="small secondary" style="margin-top:var(--s-3)">Each label has its own border style (solid, double, dashed) so the distinction survives greyscale printing and colour-blindness.</p>
         <h3 class="h3" style="margin-top:var(--s-5)">Four-dimension account status</h3>
-        <table class="ledger" style="margin-top:var(--s-3)"><caption class="visually-hidden">Example ledger row</caption><thead><tr><th scope="col">Account</th><th scope="col">Service</th><th scope="col">Money</th><th scope="col">Documents</th><th scope="col">Next step</th><th scope="col">Conditions</th></tr></thead><tbody>
+        <div class="ledger-wrap" style="margin-top:var(--s-3)"><table class="ledger"><caption class="visually-hidden">Example ledger row</caption><thead><tr><th scope="col">Account</th><th scope="col">Service</th><th scope="col">Money</th><th scope="col">Documents</th><th scope="col">Next step</th><th scope="col">Conditions</th></tr></thead><tbody>
           <tr class="is-focus"><td><span class="acct__name">Northline Mobile</span><br><span class="small">Mobile line ending 4417</span><br><span class="acct__ref">NL-…4417 · forwarded email</span></td><td><span class="dim-label">Service</span><span class="status status--review"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-bang"></use></svg>Reported transferred: not accepted</span></td><td><span class="dim-label">Money</span><span class="status status--unauthorised"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-plus"></use></svg>Unapproved 24-month plan</span></td><td><span class="dim-label">Documents</span><span class="status status--info"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-dot"></use></svg>Sent: death certificate (photo)</span></td><td><span class="dim-label">Next step</span><span class="next"><span class="next__owner">Family</span><span>Decide: correction, call, or accept</span></span></td><td><span class="dim-label">Conditions</span><span class="cluster cluster--tight"><span class="status status--unknown"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-question"></use></svg>Not stated</span><span class="status status--violated"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-cross"></use></svg>Violated</span><span class="status status--unauthorised"><svg class="icon " aria-hidden="true"><use href="assets/icons/sprite.svg#i-plus"></use></svg>Unauthorised change</span></span></td></tr>
-        </tbody></table>
+        </tbody></table></div>
       </section>
 
       <section class="sg-section" id="patterns" aria-labelledby="patterns-h">
@@ -221,14 +221,14 @@
 
       <section class="sg-section" id="assets" aria-labelledby="assets-h">
         <h2 class="h2" id="assets-h">Assets and licences</h2>
-        <table class="contrast-table small" style="margin-top:var(--s-4)"><thead><tr><th scope="col">Asset</th><th scope="col">Files</th><th scope="col">Source and licence</th></tr></thead><tbody>
+        <div style="overflow-x:auto;margin-top:var(--s-4)" tabindex="0" role="region" aria-label="Assets and licences table"><table class="contrast-table small"><thead><tr><th scope="col">Asset</th><th scope="col">Files</th><th scope="col">Source and licence</th></tr></thead><tbody>
           <tr><td>Logo masters</td><td><code>assets/brand/*.svg</code></td><td>Original, drawn for Afterward in this branch. SVG masters are editable vectors.</td></tr>
           <tr><td>Logo exports</td><td><code>assets/brand/png/*.png</code>, <code>favicon.ico</code>, <code>favicon.svg</code></td><td>Rendered from the SVG masters with rsvg-convert.</td></tr>
           <tr><td>Icons</td><td><code>assets/icons/sprite.svg</code></td><td>Original stroke set for Afterward.</td></tr>
           <tr><td>Newsreader</td><td><code>assets/fonts/newsreader-*.woff2</code></td><td>Production Type, SIL Open Font License 1.1 (OFL-Newsreader.txt). Latin subset via Fontsource 5.3.0.</td></tr>
           <tr><td>Atkinson Hyperlegible Next / Mono</td><td><code>assets/fonts/atkinson-*.woff2</code></td><td>The Atkinson Hyperlegible Next / Mono Project Authors (originally commissioned by Braille Institute), SIL OFL 1.1. Latin subset via Fontsource 5.3.0.</td></tr>
           <tr><td>Wordmark outlines</td><td>inside the lockup SVGs</td><td>Newsreader Medium converted to paths; permitted by the OFL for logos.</td></tr>
-        </tbody></table>
+        </tbody></table></div>
         <p class="small secondary" style="margin-top:var(--s-3)">No remote fonts, scripts or images are loaded. No generated raster artwork is used.</p>
       </section>
     </div>

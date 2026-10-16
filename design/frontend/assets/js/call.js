@@ -82,13 +82,13 @@
     </section>`;
 
     const terms = c.terms.length ? `<section class="card card--flat stack stack-sm" aria-labelledby="terms-title"><h2 class="h4" id="terms-title">Terms on the table</h2>
-      <table class="terms-table"><thead><tr><th scope="col">Terms</th><th scope="col">Offer</th><th scope="col">Status</th></tr></thead><tbody>
+      <div style="overflow-x:auto" tabindex="0" role="region" aria-label="Terms table"><table class="terms-table"><thead><tr><th scope="col">Terms</th><th scope="col">Offer</th><th scope="col">Status</th></tr></thead><tbody>
       ${c.terms.map((t) => { const [k, l] = TERM[t.status]; return `<tr><td><span class="ref">${esc(t.id)} · #${esc(t.hash)}</span></td><td>Keep number and voicemail · ${t.months} months at $${t.price}/month</td><td>${chip(k, l)}</td></tr>`; }).join("")}
-      </tbody></table><p class="xsmall muted">The agent never chooses to accept. Acceptance is spoken only from a server template, only for the terms Sara approved.</p></section>` : "";
+      </tbody></table></div><p class="xsmall muted">The agent never chooses to accept. Acceptance is spoken only from a server template, only for the terms Sara approved.</p></section>` : "";
 
     const lat = c.latency.length ? `<section class="card card--flat stack stack-sm" aria-labelledby="lat-title"><div class="cluster cluster--between"><h2 class="h4" id="lat-title">Per-turn timing</h2>${simTag("Simulated, not measured")}</div>
-      <table class="latency"><thead><tr><th scope="col">Turn</th><th scope="col">Upload</th><th scope="col">Transcribe</th><th scope="col">Reason</th><th scope="col">Check</th><th scope="col">First byte</th><th scope="col">Total</th></tr></thead><tbody>
-      ${c.latency.slice(-6).map((l) => `<tr><td>${l.turn}</td><td>${l.stages.upload}</td><td>${l.stages.transcribe}</td><td>${l.stages.reason}</td><td>${l.stages.validate}</td><td>${l.stages.firstByte}</td><td><b>${l.total}</b></td></tr>`).join("")}</tbody></table>
+      <div style="overflow-x:auto" tabindex="0" role="region" aria-label="Per-turn timing table"><table class="latency"><thead><tr><th scope="col">Turn</th><th scope="col">Upload</th><th scope="col">Transcribe</th><th scope="col">Reason</th><th scope="col">Check</th><th scope="col">First byte</th><th scope="col">Total</th></tr></thead><tbody>
+      ${c.latency.slice(-6).map((l) => `<tr><td>${l.turn}</td><td>${l.stages.upload}</td><td>${l.stages.transcribe}</td><td>${l.stages.reason}</td><td>${l.stages.validate}</td><td>${l.stages.firstByte}</td><td><b>${l.total}</b></td></tr>`).join("")}</tbody></table></div>
       <p class="xsmall muted">Milliseconds, from releasing talk to the first audible sample. The deployed call room reports measured values only.</p></section>` : "";
 
     const pending = c.terms.find((t) => t.status === "pending");

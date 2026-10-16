@@ -239,14 +239,8 @@
     };
     const statusLine = active.length ? `${chip("review", `${active.length} need${active.length === 1 ? "s" : ""} you`)}` : `${chip("holding", "Nothing needs you right now")}`;
     phone.innerHTML = `
-      <div class="persona"><span class="avatar avatar--${persona}" aria-hidden="true">${P.initial}</span><div><p class="persona__name" id="persona-name">${esc(P.name)}</p><p class="persona__role">${esc(P.role)}</p></div></div>
+      <div class="persona"><span class="avatar avatar--${persona}" aria-hidden="true">${P.initial}</span><div><h1 class="persona__name" id="persona-name">${esc(P.name)}</h1><p class="persona__role">${esc(P.role)}</p></div></div>
       <p class="statusline" role="status">${statusLine}<span class="muted">· case time ${esc(AW.fmtTime(s.now))}</span></p>
-      ${persona === "sara" && s.monitoring === "interrupted" ? `<div class="banner banner--interrupted">${icon("eye-off")}<p class="banner__title">Monitoring interrupted</p><p class="banner__body">Replies aren't being read until the mailbox is reconnected.</p></div>` : ""}
-      ${persona === "sara" && s.control !== "active" ? `<div class="banner banner--hold">${icon(s.control === "quiet" ? "moon" : s.control === "hold" ? "hand" : "stop")}<p class="banner__title">${{ quiet: "Quiet for 24 hours", hold: "Case on hold", stopped: "Case stopped" }[s.control]}</p><p class="banner__body">${{ quiet: "No messages to you. Monitoring and approved routine work continue.", hold: "Nothing goes out to organisations. Monitoring continues.", stopped: "Everything has stopped, including monitoring." }[s.control]}</p></div>` : ""}
-      ${active.length ? `<section class="feed" aria-labelledby="needs-you" id="active"><h2 class="feed-head h4" id="needs-you">Needs you <span class="pill-count">${active.length}</span></h2>${active.map((c) => cardHtml(c, true)).join("")}</section>` : ""}
-      <section class="feed" aria-labelledby="earlier"><h2 class="horizon" id="earlier">${active.length ? "Earlier" : "Latest"}</h2>
-        ${rest.length ? rest.map((c) => cardHtml(c, false)).join("") : `<div class="empty"><svg class="empty__art" viewBox="0 0 96 56" aria-hidden="true"><path d="M8 48H88" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M34 48A14 14 0 0 1 62 48" fill="currentColor"/><path d="M24 40A24 24 0 0 1 72 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><p class="empty__title">Nothing here yet</p><p>${persona === "amina" ? "Afterward will only message you when there's something only you can answer." : "Your updates will appear here."}</p></div>`}
-      </section>
       ${persona === "sara" ? `<div class="composer">
         ${btn("Did you finish everything?", "finished", { icon: "chat", disabled: s.intake !== "confirmed" })}
         <button class="btn" type="button" data-act="controls" aria-expanded="${showControls}" aria-controls="controls-panel">${icon("pause")}Pause<span class="visually-hidden"> or stop</span></button>
@@ -259,7 +253,14 @@
           ${btn(s.control === "hold" ? "Hold is on: resume" : "Hold", "control", { data: { v: s.control === "hold" ? "active" : "hold" }, icon: "hand", desc: "Nothing goes out to organisations. Monitoring continues." })}
           ${btn(s.control === "stopped" ? "Restart the case (prototype)" : "Stop the case", "control", { data: { v: s.control === "stopped" ? "active" : "stopped" }, icon: "stop", cls: s.control === "stopped" ? "" : "btn--danger", desc: "Everything stops, including monitoring. Export and delete offered." })}
         </div>
-      </div>` : ""}`;
+      </div>` : ""}
+      ${persona === "sara" && s.monitoring === "interrupted" ? `<div class="banner banner--interrupted">${icon("eye-off")}<p class="banner__title">Monitoring interrupted</p><p class="banner__body">Replies aren't being read until the mailbox is reconnected.</p></div>` : ""}
+      ${persona === "sara" && s.control !== "active" ? `<div class="banner banner--hold">${icon(s.control === "quiet" ? "moon" : s.control === "hold" ? "hand" : "stop")}<p class="banner__title">${{ quiet: "Quiet for 24 hours", hold: "Case on hold", stopped: "Case stopped" }[s.control]}</p><p class="banner__body">${{ quiet: "No messages to you. Monitoring and approved routine work continue.", hold: "Nothing goes out to organisations. Monitoring continues.", stopped: "Everything has stopped, including monitoring." }[s.control]}</p></div>` : ""}
+      ${active.length ? `<section class="feed" aria-labelledby="needs-you" id="active"><h2 class="feed-head h4" id="needs-you">Needs you <span class="pill-count">${active.length}</span></h2>${active.map((c) => cardHtml(c, true)).join("")}</section>` : ""}
+      <section class="feed" aria-labelledby="earlier"><h2 class="horizon" id="earlier">${active.length ? "Earlier" : "Latest"}</h2>
+        ${rest.length ? rest.map((c) => cardHtml(c, false)).join("") : `<div class="empty"><svg class="empty__art" viewBox="0 0 96 56" aria-hidden="true"><path d="M8 48H88" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M34 48A14 14 0 0 1 62 48" fill="currentColor"/><path d="M24 40A24 24 0 0 1 72 40" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg><p class="empty__title">Nothing here yet</p><p>${persona === "amina" ? "Afterward will only message you when there's something only you can answer." : "Your updates will appear here."}</p></div>`}
+      </section>
+`;
 
     ctx.innerHTML = `
       <section class="card card--sim stack stack-sm" aria-labelledby="persona-switch">
