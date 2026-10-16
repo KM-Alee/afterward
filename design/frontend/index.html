@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Afterward (prototype)</title>
+  <meta name="description" content="Afterward is a bereavement admin case manager: you tell it once, it tells everyone else, and it checks they did what you approved. Interactive prototype with fictional data.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/brand/png/apple-touch-icon-180.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="assets/fonts/newsreader-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+</head>
+<body data-page="index">
+  <main id="main" tabindex="-1">
+    <div class="wrap">
+      <section class="entry-hero" aria-labelledby="hero-title">
+        <div>
+          <svg class="entry-hero__lockup" viewBox="0 0 633.45 94" role="img" aria-label="Afterward"><use href="assets/brand/afterward-lockup-tokens.svg#lockup"></use></svg>
+          <h1 class="display" id="hero-title">You tell it once. We'll tell everyone else.</h1>
+          <p class="lede">Afterward handles the admin after someone dies. The family says what they want once, in a voice note. Afterward turns it into a plan with conditions, writes to each organisation, and follows through for months.</p>
+          <div class="entry-hero__claim"><svg class="icon icon--lg" aria-hidden="true" style="color:var(--c-dawn)"><use href="assets/icons/sprite.svg#i-horizon"></use></svg><p>When an organisation says "done", Afterward checks it matches what the family approved.</p></div>
+        </div>
+        <div class="access">
+          <form class="card card--focus stack" id="access" novalidate aria-labelledby="access-title">
+            <div><p class="eyebrow">Demo access</p><h2 class="h2" id="access-title">Enter the demo passcode</h2></div>
+            <p class="small secondary">Judges find the passcode in the submission PDF. The desk and proof panel sit behind it.</p>
+            <div class="field" id="pass-field">
+              <label class="label" for="passcode">Passcode</label>
+              <input class="input" id="passcode" name="passcode" type="password" autocomplete="off" aria-describedby="pass-hint pass-error">
+              <span class="hint" id="pass-hint">Prototype: nothing is checked. Type <span class="kbd">wrong</span> or <span class="kbd">offline</span> to see the error states.</span>
+              <p class="error-text" id="pass-error" hidden></p>
+            </div>
+            <div id="access-retry" hidden></div>
+            <button class="btn btn--primary btn--lg btn--block" type="submit" id="access-submit">Enter</button>
+            <p class="xsmall muted" id="access-status" role="status"></p>
+          </form>
+        </div>
+      </section>
+
+      <section class="stack" aria-labelledby="surfaces-title" style="--stack:var(--s-4)">
+        <div class="horizon" id="surfaces-title" tabindex="-1">Open a surface</div>
+        <div class="surfaces" id="surfaces"></div>
+      </section>
+
+      <section class="stack" aria-labelledby="story-title" style="margin-top:var(--s-7);--stack:var(--s-4)">
+        <div class="horizon" id="story-title">Follow the story</div>
+        <div class="split" style="--aside:24rem">
+          <div class="card stack">
+            <h2 class="h2">The Malik family</h2>
+            <p class="secondary">Yusuf Malik died on 3 March 2026. His daughter <b>Sara</b> says she's handling the estate. His wife <b>Amina</b> lives in the family home and uses his old phone number. Everyone and every organisation here is fictional.</p>
+            <ol class="steps" role="list" id="story-steps"></ol>
+            <div class="btn-row"><button class="btn btn--primary" type="button" id="start-story">Start from the beginning</button><button class="btn" type="button" data-open-guide>Open the Story guide</button></div>
+          </div>
+          <div class="card card--flat stack stack-sm">
+            <h2 class="h4">What this prototype is</h2>
+            <div class="honest">
+              <ul>
+                <li>Standalone pages with fictional data and local, simulated interactions.</li>
+                <li>Shared mock state in this browser, so changes in one tab show in another.</li>
+                <li>A design proposal for review. It isn't approved yet.</li>
+              </ul>
+            </div>
+            <h2 class="h4" style="margin-top:var(--s-3)">What it is not</h2>
+            <div class="honest">
+              <ul>
+                <li>No messages, emails or calls are sent. No microphone is used.</li>
+                <li>No AI runs. Transcripts, readings and timings are scripted and labelled.</li>
+                <li>Proof results are previews, not test results.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="fixtures/case.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/index.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Case desk · Afterward (prototype)</title>
+  <meta name="description" content="Projector-friendly case desk for the fictional Malik demo case. Prototype with simulated data.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/brand/png/apple-touch-icon-180.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="assets/fonts/newsreader-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+  <script>try { if (localStorage.getItem("afterward.projector") === "on") document.documentElement.classList.add("is-projector"); } catch (e) {}</script>
+</head>
+<body data-page="desk">
+  <main id="main" tabindex="-1">
+    <div class="wrap wrap--wide">
+      <div class="desk__grid">
+        <aside class="spine" id="spine" aria-label="Case summary and controls"></aside>
+        <div class="desk__main" id="desk-main">
+          <div class="skeleton" aria-label="Loading the case" role="status">
+            <span class="visually-hidden">Loading the case…</span>
+            <div class="skeleton__line"></div><div class="skeleton__line"></div><div class="skeleton__line"></div><div class="skeleton__line"></div>
+          </div>
+        </div>
+        <aside class="desk__side" id="desk-side" aria-label="Timeline and call"></aside>
+      </div>
+    </div>
+  </main>
+  <script src="fixtures/case.js"></script>
+  <script src="assets/js/store.js"></script>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/desk.js"></script>
+</body>
+</html>
