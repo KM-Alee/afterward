@@ -208,6 +208,8 @@ def _maybe_extract(
     if isinstance(proposal, ReplyOut):
         _store_commitments(session, row, matched, proposal)
     plan = _approved_plan(session, matched.account_id)
+    if plan is None:
+        return "skipped"
     commitments = list(
         session.scalars(select(Commitment).where(Commitment.account_id == matched.account_id))
     )

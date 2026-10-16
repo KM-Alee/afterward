@@ -143,7 +143,7 @@ async def test_stubbed_extraction_does_not_fail_or_mark_the_account_done(db_sess
     )
     polled, _cursor = await family.poll(FAMILY, None)
     results = ingest_messages(db_session, polled, bus=SqlEventBus(), bound_case_id=case.id)
-    assert results[0].extraction == "unavailable"
+    assert results[0].extraction == "skipped"
     assert results[0].recipient_check == "approved"
     db_session.refresh(account)
     assert account.status_service == ServiceStatus.active
