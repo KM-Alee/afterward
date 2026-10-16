@@ -93,13 +93,13 @@
       if (s.intake === "confirmed") return;
       s.intake = "confirmed";
       closeCard(s, "intake", "confirmed");
-      ev(s, "intake", "Sara confirmed the summary: Yusuf Malik, died 3 March 2026. Sara is handling the estate (stated).", { actor: "Sara", tone: "family", ev: "family" });
+      ev(s, "intake", "Sara confirmed the summary.", { actor: "Sara", tone: "family", ev: "family" });
       s.now += 6;
-      ev(s, "discovery", "Read 6 forwarded emails and 4 photos (simulated): 9 possible accounts, 3 need ownership confirmed.", { actor: "Afterward" });
+      ev(s, "discovery", "Found 9 possible accounts in 6 emails and 4 photos.", { actor: "Afterward" });
       card(s, "sara", "candidates");
-      s.announce = "Summary confirmed. 9 possible accounts found.";
+      s.announce = "Confirmed. We found 9 possible accounts.";
     },
-    "intake.fix"(s) { s.announce = "In production this opens a short correction question. Not built in the prototype."; },
+    "intake.fix"(s) { s.announce = "Editing isn't in this prototype yet."; },
     "ownership.set"(s, a) {
       s.ownership[a.id] = a.value;
       const acc = F.accounts.find((x) => x.id === a.id);
@@ -112,10 +112,10 @@
       closeCard(s, "candidates", "reviewed");
       s.now += 3;
       s.dependency = "asked";
-      ev(s, "dependency", "Asked Amina about the Northline line ending 4417 before anything changes.", { actor: "Afterward" });
+      ev(s, "dependency", "Asked Amina about the 4417 line.", { actor: "Afterward" });
       card(s, "sara", "dependency_notice", {}, "info");
       card(s, "amina", "dependency_question");
-      s.announce = "Afterward has asked Amina one question about the 4417 line.";
+      s.announce = "We've asked Amina about the 4417 line.";
     },
     "amina.voice"(s) { aminaAnswer(s, "voice", F.transcripts.amina); },
     "amina.type"(s, a) { aminaAnswer(s, "typed", (a.text || "").trim() || F.transcripts.amina); },
@@ -123,17 +123,17 @@
       if (s.dependency !== "heard") return;
       s.dependency = "confirmed";
       closeCard(s, "dependency_reading", "confirmed");
-      ev(s, "dependency", "Amina confirmed: she uses the 4417 line, Crescent Bank sends her codes to it, and Yusuf's voice is on the voicemail.", { actor: "Amina", tone: "family", ev: "family" });
+      ev(s, "dependency", "Amina uses the 4417 line, gets bank codes on it, and wants the voicemail kept.", { actor: "Amina", tone: "family", ev: "family" });
       s.now += 2;
-      ev(s, "plan", "Plan changed by the rules table: Northline v1 → v2 (transfer with 3 conditions). Crescent Bank: don't close; linked to the 4417 line.", { actor: "Afterward" });
+      ev(s, "plan", "Plan v2: transfer the 4417 line to Amina, with conditions. Crescent Bank stays open.", { actor: "Afterward" });
       card(s, "sara", "plan_changed");
       s.approvals.nl = "open";
       card(s, "sara", "approval", { acc: "nl", v: 2, hash: planHash("nl", 2) });
       card(s, "amina", "amina_thanks", {}, "info");
       card(s, "amina", "crescent_joint");
-      s.announce = "Plan updated to version 2. Sara has a Northline approval card.";
+      s.announce = "Plan updated. Sara has a request to approve.";
     },
-    "amina.fix"(s) { s.announce = "In production Amina can correct the reading by voice or text. Not built in the prototype."; },
+    "amina.fix"(s) { s.announce = "Editing isn't in this prototype yet."; },
     "crescent.joint"(s, a) {
       s.crescentJoint = a.value;
       closeCard(s, "crescent_joint", "answered");
@@ -152,33 +152,33 @@
       ev(s, "approval", `Sara approved: ${a.id === "nl" ? "transfer the 4417 line to Amina (plan v2)" : routineLabel(a.id)}.`, { actor: "Sara", tone: "family", ev: "family" });
       s.now += 1;
       s.sent[a.id] = s.now;
-      ev(s, "send", `Request sent to ${prov.name} at ${prov.recipient} (simulated send, Ref AW-1042-${a.id.toUpperCase()}1).`, { actor: "Afterward", tone: "sim", ev: "sim" });
+      ev(s, "send", `Request sent to ${prov.name}.`, { actor: "Afterward", tone: "sim", ev: "sim" });
       if (a.id === "nl" && !findCard(s, "routine")) {
         s.approvals.cp = "open"; s.approvals.sb = "open"; s.approvals.fl = "open";
         card(s, "sara", "routine");
       }
       if (["cp", "sb", "fl"].every((k) => s.approvals[k] === "approved")) closeCard(s, "routine", "approved");
-      s.announce = `Approved. Request to ${prov.name} recorded as sent (simulated, nothing was sent).`;
+      s.announce = `Approved. Request sent to ${prov.name}.`;
     },
-    "approval.notnow"(s, a) { s.approvals[a.id] = "notnow"; ev(s, "approval", `Sara chose "Not now" for ${a.id === "nl" ? "the Northline request" : routineLabel(a.id)}. Nothing was sent.`, { actor: "Sara", tone: "family", ev: "family" }); s.announce = "Okay. Nothing has been sent. The card stays here."; },
-    "approval.change"(s) { s.announce = "In production this opens the plan editor and creates a new version. Not built in the prototype."; },
+    "approval.notnow"(s, a) { s.approvals[a.id] = "notnow"; ev(s, "approval", `Sara chose "Not now" for ${a.id === "nl" ? "the Northline request" : routineLabel(a.id)}. Nothing was sent.`, { actor: "Sara", tone: "family", ev: "family" }); s.announce = "Okay. Nothing sent."; },
+    "approval.change"(s) { s.announce = "Editing isn't in this prototype yet."; },
     "reply"(s, a) {
       const r = a.id === "custom" ? null : reply(a.id);
       const provider = r ? r.provider : a.provider;
       s.now += a.delay != null ? a.delay : 180;
       if (a.id === "custom") {
         s.replies.push({ id: "custom", at: s.now, custom: a.text, provider });
-        ev(s, "reply", `${F.providers[provider].name} replied with free text (simulated). The prototype can't read free text, so it is marked needs review (ambiguous).`, { actor: F.providers[provider].name, tone: "provider", ev: "unverified", quote: a.text });
-        s.announce = "Reply recorded. Marked needs review because the prototype has no model to read free text.";
+        ev(s, "reply", `${F.providers[provider].name} replied. Unclear, so marked for review.`, { actor: F.providers[provider].name, tone: "provider", ev: "unverified", quote: a.text });
+        s.announce = "Reply sent. Marked for review.";
         return;
       }
       s.replies.push({ id: a.id, at: s.now, provider });
       const P = F.providers[provider];
       if (a.id === "spoof_will") {
         s.spoof = true;
-        ev(s, "recipient", `Email from ${r.from} is not an approved ${P.name} address. Held: no reply, no documents. The request inside it was treated as evidence, not instructions.`, { actor: "Afterward", tone: "alert", ev: "unverified", quote: r.body });
+        ev(s, "recipient", `Held an email from an unknown address (${r.from}). Nothing sent.`, { actor: "Afterward", tone: "alert", ev: "unverified", quote: r.body });
         card(s, "sara", "spoof", { from: r.from });
-        s.announce = "Unapproved sender held. Nothing was sent.";
+        s.announce = "Held. Nothing sent.";
         return;
       }
       ev(s, "reply", `${P.name} replied.`, { actor: P.name, tone: "provider", ev: "writing", quote: r.body });
@@ -186,44 +186,44 @@
         case "nl_contradictory":
           s.nlDecision = "open";
           s.now += 1;
-          ev(s, "outcome", "Outcome check against plan v2: not done. Voicemail condition violated, new 24-month contract not authorised, number not stated.", { actor: "Afterward", tone: "alert" });
+          ev(s, "outcome", "Not done: voicemail reset and a new contract weren't approved.", { actor: "Afterward", tone: "alert" });
           card(s, "sara", "not_done");
-          s.announce = "Northline says complete. Afterward concludes: not done. Sara has a decision.";
+          s.announce = "Northline says done. It isn't. Sara has a decision.";
           break;
-        case "nl_ack": s.announce = "Acknowledged, not completed."; break;
+        case "nl_ack": s.announce = "Acknowledged, not done yet."; break;
         case "nl_certified":
           s.nlCertified = true;
-          ev(s, "documents", "Requirement unmet: Northline asks for a certified copy and the vault holds a photo. The photo will not be sent as if it were certified.", { actor: "Afterward", tone: "alert" });
+          ev(s, "documents", "Northline wants a certified copy. We only have a photo.", { actor: "Afterward", tone: "alert" });
           card(s, "sara", "certified");
-          s.announce = "Requirement unmet: certified copy needed.";
+          s.announce = "Certified copy needed.";
           break;
         case "nl_written":
           s.written = true;
           s.now += 1;
-          ev(s, "outcome", "Outcome check against plan v4: every condition holds, with written evidence. Service resolved.", { actor: "Afterward", tone: "good", ev: "writing" });
+          ev(s, "outcome", "Done: every condition confirmed in writing.", { actor: "Afterward", tone: "good", ev: "writing" });
           card(s, "sara", "written");
           if (!s.voicemailBackup) card(s, "sara", "voicemail_backup");
-          s.announce = "Northline confirmed every condition in writing. Service resolved.";
+          s.announce = "Confirmed in writing. Done.";
           break;
         case "cp_closed":
           s.cpClosed = true;
-          ev(s, "outcome", "City Power closure confirmed in writing, effective 31 March. Final-bill check scheduled for +35 case days.", { actor: "Afterward", tone: "good", ev: "writing" });
+          ev(s, "outcome", "City Power closed the account from 31 March.", { actor: "Afterward", tone: "good", ev: "writing" });
           s.announce = "City Power closure confirmed.";
           break;
         case "cp_april_feb":
           s.cpBill = "review";
-          ev(s, "money", "Charge after death: $61.40 invoice dated 2 April for 1 to 28 February service. The service period starts before the closure date, so: needs review. No dispute proposed.", { actor: "Afterward", tone: "alert" });
+          ev(s, "money", "$61.40 bill for February. Before closure, so not disputed: needs review.", { actor: "Afterward", tone: "alert" });
           card(s, "sara", "bill");
-          s.announce = "April invoice for February service: needs review, not disputed.";
+          s.announce = "February bill: needs review.";
           break;
         case "cp_refund":
           s.cpRefund = "issued";
-          ev(s, "money", "Refund issued by City Power ($42.00). Waiting for receipt evidence on a statement.", { actor: "Afterward" });
+          ev(s, "money", "City Power issued a $42 refund. Waiting to see it arrive.", { actor: "Afterward" });
           card(s, "sara", "refund");
-          s.announce = "Refund issued, awaiting receipt evidence.";
+          s.announce = "Refund issued. Not received yet.";
           break;
-        case "sb_ack": s.announce = "StreamBox: acknowledged, not completed."; break;
-        case "fl_ack": s.announce = "FitLife acknowledged. The follow-up timer stops."; break;
+        case "sb_ack": s.announce = "StreamBox acknowledged."; break;
+        case "fl_ack": s.announce = "FitLife acknowledged."; break;
         default: break;
       }
     },
@@ -236,14 +236,14 @@
       if (a.choice === "call") {
         s.call.status = "ready";
         card(s, "sara", "call_started", {}, "info");
-        s.announce = "Call requested. The call room is ready (simulated provider call).";
+        s.announce = "Calling Northline.";
       } else if (a.choice === "ask") {
         s.now += 2;
-        ev(s, "send", "Correction sent to Northline quoting what is outstanding: keep the voicemail, keep the number, no new contract (simulated send).", { actor: "Afterward", tone: "sim", ev: "sim" });
-        s.announce = "Correction recorded as sent (simulated).";
+        ev(s, "send", "Asked Northline to keep the voicemail and drop the contract.", { actor: "Afterward", tone: "sim", ev: "sim" });
+        s.announce = "Correction sent.";
       } else {
-        ev(s, "plan", "Plan v3: Sara accepted Northline's outcome, including the 24-month plan and the voicemail reset.", { actor: "Afterward" });
-        s.announce = "Recorded. The voicemail reset and the 24-month plan were accepted by Sara.";
+        ev(s, "plan", "Sara accepted Northline's changes.", { actor: "Afterward" });
+        s.announce = "Accepted.";
       }
     },
     "call.join"(s) {
@@ -252,9 +252,9 @@
       s.now += 30;
       agentSay(s, "Hello, I'm Afterward, an AI assistant calling on behalf of the Malik family, about the Northline line ending 4417. This is a simulated provider call.", "disclosure");
       latency(s, "disclosure");
-      ev(s, "call", "Call room opened. The agent disclosed it is an AI acting for the family (simulated provider call).", { actor: "Afterward", tone: "sim", ev: "sim" });
+      ev(s, "call", "Call started. The agent said it's an AI acting for the family.", { actor: "Afterward", tone: "sim", ev: "sim" });
       s.call.agent = "idle";
-      s.announce = "Call started. The agent has disclosed that it is an AI.";
+      s.announce = "Call started.";
     },
     "call.say"(s, a) {
       if (s.call.status !== "live") return;
@@ -276,7 +276,7 @@
           const old = termsOf(s, queued.terms);
           old.status = "void";
           s.call.turns.push({ who: "system", kind: "discarded", text: `Acceptance audio for ${queued.terms} discarded before playing. It was never spoken.`, at: s.now });
-          ev(s, "approval", `Terms changed on the call (${queued.terms} → ${tid}). Sara's approval for ${queued.terms} is void. Obsolete acceptance audio discarded before it played.`, { actor: "Afterward", tone: "alert" });
+          ev(s, "approval", `Northline changed the offer. Sara's approval no longer applies; nothing was accepted.`, { actor: "Afterward", tone: "alert" });
           const oldCard = findCard(s, "terms", (c) => c.data.terms === queued.terms);
           if (oldCard) { oldCard.status = "void"; oldCard.closedAt = s.now; }
           s.call.queued = null;
@@ -287,14 +287,14 @@
         s.call.terms.push({ id: tid, months, price, hash, status: "pending", at: s.now, quote: text });
         agentSay(s, "I can't agree to a new contract without the family. Let me check with them now. Please hold.", "hold");
         s.call.agent = "waiting_family";
-        ev(s, "call", `Northline offered terms ${tid}: keep number and voicemail, ${months}-month contract at $${price}/month. Not in the approved plan: decision sent to Sara.`, { actor: "Northline (on call)", tone: "provider", ev: "spoken", quote: text });
+        ev(s, "call", `Northline offered ${months} months at $${price}/month. Asked Sara.`, { actor: "Northline (on call)", tone: "provider", ev: "spoken", quote: text });
         card(s, "sara", "terms", { terms: tid });
         s.announce = queued ? `Terms changed. Approval for ${queued.terms} is void. Nothing was accepted.` : "New terms offered. The agent paused and asked Sara.";
       } else if (id === "confirm") {
         agentSay(s, "Thank you. The family will look out for it. Goodbye.", "end");
         s.call.status = "ended";
         s.call.agent = "idle";
-        ev(s, "call", "Call ended. Waiting for Northline's written confirmation.", { actor: "Afterward" });
+        ev(s, "call", "Call ended. Waiting for it in writing.", { actor: "Afterward" });
         s.announce = "Call ended.";
       } else {
         agentSay(s, "Sorry, I want to be sure I understand. Will the number and the existing voicemail be kept, and is any new contract involved?", "clarify");
@@ -306,27 +306,27 @@
     },
     "terms.decide"(s, a) {
       const t = termsOf(s, a.terms);
-      if (!t || t.status !== "pending") { s.announce = "This changed. The card you used is no longer current."; return; }
+      if (!t || t.status !== "pending") { s.announce = "This offer changed. Nothing was accepted."; return; }
       const c = findCard(s, "terms", (x) => x.data.terms === a.terms);
       if (a.choice === "approve") {
         t.status = "approved";
         if (c) { c.status = "approved"; c.closedAt = s.now; }
         s.now += 1;
         const v = a.terms === "T1" ? 3 : 4;
-        ev(s, "approval", `Sara approved terms ${a.terms} (plan v${v}, bound to #${t.hash}).`, { actor: "Sara", tone: "family", ev: "family" });
+        ev(s, "approval", `Sara approved ${t.months} months at $${t.price}/month.`, { actor: "Sara", tone: "family", ev: "family" });
         s.call.queued = { terms: a.terms, hash: t.hash };
         s.call.agent = "acceptance_queued";
         s.call.turns.push({ who: "system", kind: "queued", text: `Acceptance prepared from the server template, bound to ${a.terms} (#${t.hash}). It plays when the representative yields the floor.`, at: s.now });
-        s.announce = `Approved terms ${a.terms}. Acceptance is ready in the call room.`;
+        s.announce = `Approved. Ready to accept on the call.`;
       } else if (a.choice === "decline") {
         t.status = "declined";
         if (c) { c.status = "declined"; c.closedAt = s.now; }
-        ev(s, "decision", `Sara declined terms ${a.terms}.`, { actor: "Sara", tone: "family", ev: "family" });
+        ev(s, "decision", `Sara declined the offer.`, { actor: "Sara", tone: "family", ev: "family" });
         agentSay(s, "The family can't accept a new contract. Can the transfer go ahead on the current terms?", "explain");
         s.call.agent = "idle";
-        s.announce = "Declined. The agent told Northline.";
+        s.announce = "Declined.";
       } else {
-        s.announce = "Okay. The call stays on hold until you decide.";
+        s.announce = "Okay. The call stays on hold.";
       }
     },
     "call.continue"(s) {
@@ -341,24 +341,24 @@
       t.status = "accepted";
       s.call.queued = null;
       s.call.agent = "idle";
-      ev(s, "call", `Acceptance spoken from the server template for ${t.id} (#${t.hash}). Not done until Northline confirms in writing.`, { actor: "Afterward", tone: "sim", ev: "spoken" });
+      ev(s, "call", `Accepted on the call: ${t.months} months at $${t.price}/month.`, { actor: "Afterward", tone: "sim", ev: "spoken" });
       card(s, "sara", "accepted", { terms: t.id }, "info");
-      s.announce = "Acceptance spoken from the approved template.";
+      s.announce = "Accepted on the call.";
     },
     "voicemail.backup"(s, a) {
       s.voicemailBackup = a.value;
       closeCard(s, "voicemail_backup", a.value);
-      if (a.value === "yes") ev(s, "memory", "Sara confirmed she has her own copy of the voicemail greeting.", { actor: "Sara", tone: "family", ev: "family" });
+      if (a.value === "yes") ev(s, "memory", "Sara has her own copy of the voicemail.", { actor: "Sara", tone: "family", ev: "family" });
       s.announce = "Saved.";
     },
     "bill.decide"(s, a) { s.cpBill = a.value; closeCard(s, "bill", a.value); ev(s, "money", a.value === "reviewed" ? "Sara reviewed the City Power invoice and will pay it herself. Afterward never moves money." : "Asked City Power to explain the February charge (simulated send).", { actor: "Sara", tone: "family", ev: "family" }); s.announce = "Saved."; },
-    "refund.received"(s) { s.cpRefund = "received"; closeCard(s, "refund", "received"); ev(s, "money", "Refund received: $42.00 seen on a statement Sara shared (simulated upload).", { actor: "Sara", tone: "good", ev: "statement" }); s.announce = "Refund marked received, with statement evidence."; },
-    "certified.ack"(s) { closeCard(s, "certified", "ack"); ev(s, "documents", "Sara will post a certified copy to Northline's bereavement address.", { actor: "Sara", tone: "family", ev: "family" }); s.announce = "Saved. The next step is with Sara."; },
+    "refund.received"(s) { s.cpRefund = "received"; closeCard(s, "refund", "received"); ev(s, "money", "$42 refund seen on a statement.", { actor: "Sara", tone: "good", ev: "statement" }); s.announce = "Refund received."; },
+    "certified.ack"(s) { closeCard(s, "certified", "ack"); ev(s, "documents", "Sara will post a certified copy.", { actor: "Sara", tone: "family", ev: "family" }); s.announce = "Saved."; },
     "spoof.ack"(s) { closeCard(s, "spoof", "ack"); },
     "clock.advance"(s, a) {
       const before = s.now;
       s.now += a.days * 1440;
-      ev(s, "clock", `Demo case clock advanced ${a.days} days (${fmtDay(before)} → ${fmtDay(s.now)}). Simulated time only.`, { actor: "Demo clock", tone: "sim", ev: "sim" });
+      ev(s, "clock", `Demo clock moved forward ${a.days} days.`, { actor: "Demo clock", tone: "sim", ev: "sim" });
       // Follow-ups on silence, per profile window: once per window, at most two, then escalation.
       [["fl", "fl5531", "fitlife", "fl_ack"], ["sb", "sb", "streambox", "sb_ack"], ["cp", "cp77120", "citypower", "cp_closed"], ["nl", "nl4417", "northline", null]].forEach(([k, , pid, ackId]) => {
         if (s.sent[k] == null) return;
@@ -368,37 +368,37 @@
         const due = Math.min(2, Math.floor(businessDaysBetween(s.sent[k], s.now) / win));
         const have = s.followups[k] || 0;
         for (let n = have + 1; n <= due; n++) {
-          ev(s, "followup", `No reply from ${F.providers[pid].name} within ${win * n} business days: follow-up ${n} sent, quoting what is outstanding (simulated send, Ref AW-1042-${k.toUpperCase()}1-F${n}).`, { actor: "Afterward", tone: "sim", ev: "sim" });
+          ev(s, "followup", `No reply from ${F.providers[pid].name} in ${win * n} working days. Follow-up ${n} sent.`, { actor: "Afterward", tone: "sim", ev: "sim" });
         }
         s.followups[k] = Math.max(have, due);
       });
-      if (s.cpClosed && a.days >= 35) ev(s, "money", "Final-bill check ran for City Power (+35 case days).", { actor: "Afterward" });
-      s.announce = `Case clock advanced ${a.days} days (simulated).`;
+      if (s.cpClosed && a.days >= 35) ev(s, "money", "Checked for City Power's final bill.", { actor: "Afterward" });
+      s.announce = `Moved forward ${a.days} days.`;
     },
     "delivery.timeout"(s) {
       s.delivery = "uncertain";
-      ev(s, "delivery", "FitLife follow-up 1: the send timed out after the request left. It may have been sent. Marked delivery uncertain; no blind retry.", { actor: "Afterward", tone: "alert", ev: "unverified" });
-      s.announce = "Delivery uncertain.";
+      ev(s, "delivery", "FitLife follow-up may not have sent. Checking before trying again.", { actor: "Afterward", tone: "alert", ev: "unverified" });
+      s.announce = "Not sure it sent. Checking.";
     },
     "delivery.reconcile"(s) {
       if (s.delivery !== "uncertain") return;
       s.delivery = "reconciled";
       s.now += 5;
-      ev(s, "delivery", "Reconciled: found in the Sent folder by its reference AW-1042-FL1-F1. Marked sent. Not resent.", { actor: "Afterward", tone: "good" });
-      s.announce = "Reconciled. The follow-up was sent once.";
+      ev(s, "delivery", "FitLife follow-up found in Sent. It went once.", { actor: "Afterward", tone: "good" });
+      s.announce = "Found it. Sent once.";
     },
     "monitoring.set"(s, a) {
       if (s.monitoring === a.value) return;
       s.monitoring = a.value;
       if (a.value === "interrupted") {
-        ev(s, "monitoring", "Monitoring interrupted: mailbox access expired. Replies are not being read.", { actor: "Afterward", tone: "alert" });
+        ev(s, "monitoring", "Mailbox access expired. Replies aren't being read.", { actor: "Afterward", tone: "alert" });
         card(s, "sara", "monitoring");
-        s.announce = "Monitoring interrupted.";
+        s.announce = "Mailbox disconnected.";
       } else {
         s.now += 2;
-        ev(s, "monitoring", "Monitoring restored (simulated reconnect). Checked for replies that arrived while it was interrupted.", { actor: "Afterward", tone: "good" });
+        ev(s, "monitoring", "Mailbox reconnected. Caught up on missed replies.", { actor: "Afterward", tone: "good" });
         closeCard(s, "monitoring", "resolved");
-        s.announce = "Monitoring restored.";
+        s.announce = "Mailbox reconnected.";
       }
     },
     "control.set"(s, a) {
@@ -411,7 +411,7 @@
     "finished.ask"(s) {
       s.finished += 1;
       card(s, "sara", "finished", { summary: summary(s) }, "info");
-      s.announce = "Answer added to the top of the feed.";
+      s.announce = "Here's where things stand.";
     },
   };
 
@@ -423,14 +423,14 @@
     closeCard(s, "dependency_question", "answered");
     ev(s, "dependency", `Amina answered by ${via === "voice" ? "voice note (transcribed, simulated)" : "text"}.`, { actor: "Amina", tone: "family", ev: "family", quote: text });
     card(s, "amina", "dependency_reading");
-    s.announce = "Answer received. Please check what Afterward understood.";
+    s.announce = "Thanks. Please check we understood.";
   }
   function routineLabel(id) { return { cp: "close City Power electricity", sb: "cancel StreamBox", fl: "cancel FitLife Gym membership" }[id]; }
 
   function apply(log) {
     const s = initial();
     card(s, "sara", "intake");
-    ev(s, "intake", "Sara's voice note received and transcribed (simulated). Roles recorded as stated by Sara.", { actor: "Sara", tone: "family", quote: F.transcripts.sara });
+    ev(s, "intake", "Sara sent a voice note.", { actor: "Sara", tone: "family", quote: F.transcripts.sara });
     for (const a of log) {
       const h = handlers[a.type];
       s.announce = "";
@@ -457,12 +457,12 @@
       if (s.intake !== "confirmed") { d.next = { owner: "Family", action: "Confirm the summary", due: "" }; out.push(d); continue; }
 
       if (d.ownership === "unconfirmed" || d.ownership === "unsure") {
-        d.service = st("unknown", "Candidate: ownership unconfirmed", ICON.unknown);
+        d.service = st("unknown", "Unconfirmed", ICON.unknown);
         d.next = { owner: "Family", action: "Confirm whose account this is", due: "" };
         d.bucket = "unconfirmed";
       }
       if (d.ownership === "other") {
-        d.service = st("neutral", "Not his (Sara said): no action", ICON.neutral);
+        d.service = st("neutral", "Not his", ICON.neutral);
         d.next = { owner: "—", action: "Nothing. It stays listed in case that changes", due: "" };
         d.bucket = "not_theirs";
         out.push(d); continue;
@@ -473,16 +473,16 @@
           if (s.dependency === "confirmed") {
             d.plan = { v: 2, action: "Don't close. May be joint with Amina." };
             d.conditions.push({ label: "4417 line keeps receiving Crescent login codes", state: "holding", why: "Linked by Amina's answer" });
-            if (s.crescentJoint === "yes") { d.service = st("holding", "Joint with Amina (stated): no action", ICON.holding); d.next = { owner: "Family", action: "Nothing needed unless Amina asks", due: "" }; d.bucket = "kept"; }
+            if (s.crescentJoint === "yes") { d.service = st("holding", "Joint (stated)", ICON.holding); d.next = { owner: "Family", action: "Nothing needed unless Amina asks", due: "" }; d.bucket = "kept"; }
             else { d.next = { owner: "Family", action: "Amina to say whether it's joint", due: "" }; }
           }
           break;
         case "cp77120": routine(s, d, "cp"); break;
         case "sb": routine(s, d, "sb"); break;
         case "fl5531": routine(s, d, "fl"); break;
-        case "hw": d.service = st("holding", "Kept on purpose: Amina lives at the house", ICON.holding); d.next = { owner: "Family", action: "Change the account holder later, if you want", due: "" }; d.bucket = "kept"; break;
+        case "hw": d.service = st("holding", "Kept", ICON.holding); d.next = { owner: "Family", action: "Change the account holder later, if you want", due: "" }; d.bucket = "kept"; break;
         case "pb":
-          d.service = st("info", "Handed to Sara: web form only", ICON.info);
+          d.service = st("info", "With Sara (web form)", ICON.info);
           d.next = { owner: "Family", action: "Submit the prepared web form (details filled in)", due: "" };
           d.bucket = "handed"; break;
         default: break;
@@ -498,20 +498,20 @@
     if (s.approvals[k] === "open" || s.approvals[k] === "notnow") { d.plan = { v: 1, action: k === "cp" ? "Close at the end of the billing month" : "Cancel" }; d.next = { owner: "Family", action: "Approve or not now", due: "" }; d.bucket = "decision"; return; }
     if (sent == null) { d.next = { owner: "Afterward", action: "Plan ready after Northline's approval", due: "" }; return; }
     d.plan = { v: 1, action: k === "cp" ? "Close at the end of the billing month" : "Cancel" };
-    d.service = st("progress", k === "cp" ? "Requested: close" : "Requested: cancel", ICON.progress);
+    d.service = st("progress", k === "cp" ? "Close requested" : "Cancel requested", ICON.progress);
     d.bucket = "waiting";
     const win = F.providers[pid].windowBd;
     const fu = s.followups[k] || 0;
     d.next = { owner: "Provider", action: fu ? `Reply (follow-up ${fu} sent)` : "Reply", due: fmtDay(addBusinessDays(sent, win * (fu + 1))) };
     if (k === "fl" && s.delivery === "uncertain") d.next = { owner: "Afterward", action: "Reconcile follow-up 1 (delivery uncertain)", due: "" };
-    if (k === "sb" && hasReply(s, "sb_ack")) { d.service = st("info", "Acknowledged, not completed", ICON.info); d.next = { owner: "Provider", action: "Confirm cancellation", due: fmtDay(addBusinessDays(sent, win * 2)) }; }
-    if (k === "fl" && hasReply(s, "fl_ack")) { d.service = st("info", "Acknowledged, not completed", ICON.info); d.next = { owner: "Provider", action: "Confirm cancellation", due: fmtDay(addBusinessDays(sent, win)) }; }
+    if (k === "sb" && hasReply(s, "sb_ack")) { d.service = st("info", "Acknowledged", ICON.info); d.next = { owner: "Provider", action: "Confirm cancellation", due: fmtDay(addBusinessDays(sent, win * 2)) }; }
+    if (k === "fl" && hasReply(s, "fl_ack")) { d.service = st("info", "Acknowledged", ICON.info); d.next = { owner: "Provider", action: "Confirm cancellation", due: fmtDay(addBusinessDays(sent, win)) }; }
     if (k === "cp") {
-      if (s.cpClosed) { d.service = st("holding", "Closed 31 Mar (in writing)", ICON.holding); d.bucket = "confirmed"; d.next = { owner: "Afterward", action: "Watch for the final bill", due: fmtDay(sent + 35 * 1440) }; }
-      if (s.cpBill === "review") { d.money = st("review", "Needs review: $61.40 for Feb service", ICON.review); d.bucket = "review"; d.next = { owner: "Family", action: "Review the February invoice", due: "30 Apr" }; }
-      if (s.cpBill === "reviewed") d.money = st("neutral", "Balance owed $61.40: Sara paying", ICON.neutral);
-      if (s.cpBill === "asked") d.money = st("review", "Needs review: asked City Power", ICON.review);
-      const refund = s.cpRefund === "issued" ? st("waiting", "Refund issued $42: awaiting receipt", ICON.waiting) : s.cpRefund === "received" ? st("holding", "Refund received $42 (statement)", ICON.holding) : null;
+      if (s.cpClosed) { d.service = st("holding", "Closed 31 Mar", ICON.holding); d.bucket = "confirmed"; d.next = { owner: "Afterward", action: "Watch for the final bill", due: fmtDay(sent + 35 * 1440) }; }
+      if (s.cpBill === "review") { d.money = st("review", "$61.40 bill to review", ICON.review); d.bucket = "review"; d.next = { owner: "Family", action: "Review the February invoice", due: "30 Apr" }; }
+      if (s.cpBill === "reviewed") d.money = st("neutral", "$61.40 owed", ICON.neutral);
+      if (s.cpBill === "asked") d.money = st("review", "$61.40 queried", ICON.review);
+      const refund = s.cpRefund === "issued" ? st("waiting", "$42 refund pending", ICON.waiting) : s.cpRefund === "received" ? st("holding", "$42 refund received", ICON.holding) : null;
       if (refund) { if (s.cpBill) d.moneyExtra = [refund]; else d.money = refund; }
       if (s.cpRefund === "issued") { if (d.bucket !== "review") d.bucket = "promised"; if (s.cpBill !== "review") d.next = { owner: "Family", action: "Look for $42 on a statement", due: "" }; }
     }
@@ -534,15 +534,15 @@
     ];
     d.conditions = conds;
     if (s.approvals.nl !== "approved") { d.next = { owner: "Family", action: "Sara to approve the Northline request", due: "" }; d.bucket = "decision"; conds.forEach((c) => { c.state = "neutral"; c.why = "Not requested yet"; }); return; }
-    d.service = st("progress", "Requested: transfer", ICON.progress);
-    d.docs = st("info", "Sent: death certificate (photo)", ICON.info);
+    d.service = st("progress", "Transfer requested", ICON.progress);
+    d.docs = st("info", "Photo sent", ICON.info);
     d.bucket = "waiting";
     d.next = { owner: "Provider", action: "Reply", due: fmtDay(addBusinessDays(s.sent.nl, 5)) };
-    if (hasReply(s, "nl_ack")) { d.service = st("info", "Acknowledged, not completed", ICON.info); }
-    if (s.nlCertified) { d.docs = st("violated", "Requirement unmet: certified copy needed, vault holds a photo", ICON.violated); d.next = { owner: "Family", action: "Post a certified copy", due: "" }; }
+    if (hasReply(s, "nl_ack")) { d.service = st("info", "Acknowledged", ICON.info); }
+    if (s.nlCertified) { d.docs = st("violated", "Certified copy needed", ICON.violated); d.next = { owner: "Family", action: "Post a certified copy", due: "" }; }
     if (hasReply(s, "nl_contradictory")) {
-      d.service = st("review", "Reported transferred: not accepted", ICON.review);
-      d.money = st("unauthorised", "Unapproved 24-month plan", ICON.unauthorised);
+      d.service = st("review", "Not accepted", ICON.review);
+      d.money = st("unauthorised", "Unapproved contract", ICON.unauthorised);
       conds[0].state = "unknown"; conds[0].why = "Not stated in the reply";
       conds[1].state = "violated"; conds[1].why = "\"Voicemail will be reset\"";
       conds[2].state = "unauthorised"; conds[2].why = "\"new 24-month plan\"";
@@ -550,20 +550,20 @@
       d.next = { owner: "Family", action: "Decide: correction, call, or accept", due: "" };
       if (s.nlDecision === "call") d.next = { owner: "Afterward", action: "Call Northline (simulated call room)", due: "" };
       if (s.nlDecision === "ask") { d.next = { owner: "Provider", action: "Reply to the correction", due: "" }; d.bucket = "waiting"; }
-      if (s.nlDecision === "accept") { d.bucket = "confirmed"; d.service = st("holding", "Transferred (Sara accepted the outcome)", ICON.holding); conds[1].state = "neutral"; conds[1].why = "Sara accepted the reset"; conds[2].state = "neutral"; conds[2].why = "Sara accepted the 24-month plan"; d.money = st("neutral", "24-month plan accepted by Sara", ICON.neutral); }
+      if (s.nlDecision === "accept") { d.bucket = "confirmed"; d.service = st("holding", "Transferred", ICON.holding); conds[1].state = "neutral"; conds[1].why = "Sara accepted the reset"; conds[2].state = "neutral"; conds[2].why = "Sara accepted the 24-month plan"; d.money = st("neutral", "24-month plan accepted", ICON.neutral); }
     }
     const pending = s.call.terms.find((t) => t.status === "pending");
     if (pending) { d.next = { owner: "Family", action: `Decide on terms ${pending.id}`, due: "now (call on hold)" }; d.bucket = "decision"; }
     if (s.call.queued) d.next = { owner: "Afterward", action: `Speak acceptance for ${s.call.queued.terms}`, due: "" };
     if (accepted) {
-      d.service = st("waiting", "Agreed on the call: awaiting writing", ICON.waiting);
-      d.money = st("info", `New contract approved: ${accepted.months} mo at $${accepted.price}`, ICON.info);
+      d.service = st("waiting", "Agreed, not in writing", ICON.waiting);
+      d.money = st("info", `$${accepted.price}/mo approved`, ICON.info);
       conds.forEach((c) => { c.state = "unknown"; c.why = "Said on the call, not yet in writing"; c.ev = "spoken"; });
       d.bucket = "promised";
       d.next = { owner: "Provider", action: "Confirm in writing", due: fmtDay(addBusinessDays(accepted.at, 5)) };
     }
     if (s.written) {
-      d.service = st("holding", "Transferred to Amina", ICON.holding);
+      d.service = st("holding", "Transferred", ICON.holding);
       d.docs = st("holding", "Accepted", ICON.holding);
       conds.forEach((c) => { c.state = "holding"; c.why = "Northline confirmed in writing"; c.ev = "writing"; });
       if (s.voicemailBackup === "yes") conds[1].why = "Northline confirmed in writing; Sara has her own copy";
@@ -645,7 +645,7 @@
     { n: 1, title: "Sara's voice note becomes the case", where: "Family view · Sara", href: "family.html?as=sara", setup: upto(0), done: (s) => s.intake === "confirmed" },
     { n: 2, title: "Candidate coverage: 9 possible accounts", where: "Family view · Sara", href: "family.html?as=sara", setup: upto(1), done: (s) => s.candidates === "reviewed" },
     { n: 3, title: "Amina answers the 4417 question", where: "Family view · Amina", href: "family.html?as=amina", setup: upto(2), done: (s) => s.dependency === "confirmed" },
-    { n: 4, title: "The plan changes: v1 → v2", where: "Family view · Sara (also on the desk)", href: "family.html?as=sara", setup: upto(4), done: (s) => s.planReviewed },
+    { n: 4, title: "The plan changes: v1 → v2", where: "Family view · Sara (also on the desk)", href: "family.html?as=sara", setup: upto(4), done: (s) => s.dependency === "confirmed" },
     { n: 5, title: "Sara approves the specific Northline request", where: "Family view · Sara", href: "family.html?as=sara#active", setup: upto(5), done: (s) => s.approvals.nl === "approved" },
     { n: 6, title: "Northline replies \"complete\"", where: "Provider console", href: "provider.html?reply=nl_contradictory", setup: upto(9), done: (s) => hasReply(s, "nl_contradictory") },
     { n: 7, title: "Afterward says: not done", where: "Case desk", href: "desk.html", setup: upto(10), done: (s) => s.nlDecision && s.nlDecision !== "open" },

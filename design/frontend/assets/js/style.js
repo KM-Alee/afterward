@@ -31,3 +31,21 @@
   new MutationObserver(render).observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme", "class"] });
   matchMedia("(prefers-color-scheme: dark)").addEventListener("change", render);
 })();
+/* Tabs: show one section at a time so the page fits one screen. */
+(function () {
+  "use strict";
+  const tabs = document.getElementById("sg-tabs");
+  const panels = [...document.querySelectorAll(".sg-section")];
+  tabs.innerHTML = panels.map((p, i) => `<button type="button" role="tab" id="t-${p.id}" aria-controls="${p.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">${p.querySelector(".h2").textContent.replace(/:.*$/, "").replace(/,.*$/, "")}</button>`).join("");
+  const show = (id) => {
+    panels.forEach((p) => { p.hidden = p.id !== id; p.setAttribute("role", "tabpanel"); p.setAttribute("aria-labelledby", `t-${p.id}`); });
+    tabs.querySelectorAll("button").forEach((b) => { const on = b.getAttribute("aria-controls") === id; b.setAttribute("aria-selected", on); b.tabIndex = on ? 0 : -1; });
+    document.getElementById("sg-panels").scrollTop = 0;
+  };
+  tabs.addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) show(b.getAttribute("aria-controls")); });
+  tabs.addEventListener("keydown", (e) => {
+    const list = [...tabs.querySelectorAll("button")], i = list.indexOf(document.activeElement);
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") { const n = list[(i + (e.key === "ArrowRight" ? 1 : -1) + list.length) % list.length]; n.focus(); show(n.getAttribute("aria-controls")); e.preventDefault(); }
+  });
+  show(location.hash && document.querySelector(location.hash + ".sg-section") ? location.hash.slice(1) : panels[0].id);
+})();

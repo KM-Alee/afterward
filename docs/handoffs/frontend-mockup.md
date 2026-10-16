@@ -3,12 +3,15 @@
 Owner: Claude (frontend UX prototype)
 Branch: slice/frontend-mockup
 Commit: branch head (pages last changed in 1303226; this handoff and the docs follow)
-Updated: 2026-10-16 21:45 PKT
+Updated: 2026-10-16 22:53 PKT
 
-**State: review. Awaiting explicit user approval.** Not approved, not merged. Do not launch
-A/B/C/D on the strength of this handoff.
+**State: done.** The user approved revision 2 and asked for the merge. A/B/C/D still wait for
+the lead's contract revision 1.
 
 ## What works
+
+- Revision 2: less copy, one-screen layouts (drawers, sheets, tabs), one card at a time in the
+  family app, slim prototype bar. See UX.md and DESIGN-GUIDE.md "Revision 2".
 
 - Standalone prototype in `design/frontend/` (HTML/CSS/vanilla JS, no build step, no remote
   requests): entry/access (`index.html`), case desk (`desk.html`), family view (`family.html`),
@@ -36,15 +39,16 @@ that they aren't built. No Python, routes, contracts, models or dependencies wer
 - `make ci`: lint clean, 32 passed (2026-10-16 21:45 PKT, local Postgres up).
 - `uv run --frozen pre-commit run --all-files`: all hooks passed, including gitleaks.
 - Browser checks (headless Chromium via Playwright, scripts not committed): end-to-end
-  click-through 31/31; axe-core 0 violations on 13 states in light and dark; every tab stop shows
-  focus; no horizontal overflow from 320 to 1920 px including projector mode; reduced motion honoured.
+  click-through 34/34; axe-core 0 violations on 13 page states and 10 open drawers in light and
+  dark; every tab stop shows focus; every surface fits one screen from 1024×768 to 1920×1080 and
+  1280×720 projector; reduced motion honoured.
 - Not verified: real screen readers, Firefox/Safari, physical devices or a projector.
 
 ## Known risks
 
 - No contract change requests. The prototype invents no backend contract; DESIGN-GUIDE §9.3 maps
   mock fields to the existing T4 tables only as guidance for D and the lead.
-- Open UX questions for the user are listed in REVIEW.md §7.
+- Known limitations are listed in REVIEW.md.
 - D must copy assets into `static/` (its own path); anything shared goes through the lead.
 
 ## Files touched
@@ -52,4 +56,5 @@ that they aren't built. No Python, routes, contracts, models or dependencies wer
 - `design/frontend/**` (new)
 - `docs/handoffs/frontend-mockup.md` (this file)
 - `docs/STATUS.md` (Frontend UX row only)
-- `docs/DEVLOG.md` (appended entry)
+- `docs/DEVLOG.md` (appended entries)
+- `docs/FRONTEND-APPROVAL.md` (approval recorded at the user's explicit request)

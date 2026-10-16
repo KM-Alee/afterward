@@ -56,6 +56,8 @@
   /* ---------- Shell: prototype bar and header ---------- */
   function shell(pageId, opts) {
     opts = opts || {};
+    document.body.classList.add("fit");
+    if (opts.fitAlways) document.body.classList.add("fit-always");
     const skip = document.createElement("a");
     skip.className = "skip-link"; skip.href = "#main"; skip.textContent = "Skip to content";
     document.body.prepend(skip);
@@ -85,13 +87,12 @@
     const cur = window.AW ? AW.currentStep() : null;
     const theme = getTheme();
     bar.innerHTML = `<div class="wrap ${opts.wide ? "wrap--wide" : ""} protobar__inner">
-      <span class="protobar__label">${icon("ring")}Prototype</span>
-      <span class="protobar__note">Fictional family · local mock state · nothing is sent</span>
+      <span class="protobar__label" title="Fictional family. Everything is simulated in this browser; nothing is sent.">${icon("ring")}Prototype</span>
+      ${cur ? `<a class="protobar__step" href="${cur.href}">Next: ${esc(cur.title)}</a>` : window.AW ? `<span class="protobar__step">Story complete</span>` : ""}
       <span class="protobar__spacer"></span>
-      ${cur ? `<span class="protobar__step">Next in the story: <b>${cur.n}. ${esc(cur.title)}</b> <a href="${cur.href}">${esc(cur.where)}</a></span>` : window.AW ? `<span class="protobar__step"><b>Core story complete.</b> Side scenarios are in the guide.</span>` : ""}
-      <button class="btn btn--sim btn--sm" type="button" data-open-story>${icon("horizon")}Story guide</button>
-      <div class="segmented" role="group" aria-label="Colour theme">
-        ${["auto", "light", "dark"].map((t) => `<button type="button" data-theme-set="${t}" aria-pressed="${theme === t}" title="${t[0].toUpperCase() + t.slice(1)} theme">${icon(t === "auto" ? "contrast" : t === "light" ? "sun" : "moon")}<span class="visually-hidden-sm">${t[0].toUpperCase() + t.slice(1)}</span></button>`).join("")}
+      <button class="protobar__btn" type="button" data-open-story>${icon("horizon")}Story</button>
+      <div class="protobar__theme" role="group" aria-label="Colour theme">
+        ${["auto", "light", "dark"].map((t) => `<button type="button" data-theme-set="${t}" aria-pressed="${theme === t}" title="${t[0].toUpperCase() + t.slice(1)} theme"><span class="visually-hidden">${t[0].toUpperCase() + t.slice(1)} theme</span>${icon(t === "auto" ? "contrast" : t === "light" ? "sun" : "moon")}</button>`).join("")}
       </div>
     </div>`;
     bar.querySelector("[data-open-story]").addEventListener("click", openStory);
@@ -116,20 +117,20 @@
         <span class="step__marker" aria-hidden="true">${done ? icon("check", "icon--sm") : x.n}</span>
         <span class="step__title">${esc(x.title)}<span class="visually-hidden">${done ? " (done)" : isCur ? " (next)" : ""}</span></span>
         <span class="step__where">${esc(x.where)}</span>
-        <button class="btn btn--sm" type="button" data-setup="core:${x.n}">Set up and open</button>
+        <button class="btn btn--sm" type="button" data-setup="core:${x.n}">Go</button>
       </li>`;
     }).join("");
     const side = AW.SIDE.map((x) => `<li class="step"><span class="step__marker" aria-hidden="true">${icon("dot", "icon--sm")}</span>
         <span class="step__title">${esc(x.title)}</span><span class="step__where">${esc(x.where)}</span>
-        <button class="btn btn--sm" type="button" data-setup="side:${x.id}">Set up and open</button></li>`).join("");
-    return `<div class="dialog__head"><h2 class="h3" id="story-title">Story guide</h2><button class="btn btn--quiet btn--sm" type="button" data-close>${icon("close")}Close</button></div>
+        <button class="btn btn--sm" type="button" data-setup="side:${x.id}">Go</button></li>`).join("");
+    return `<div class="dialog__head"><h2 class="h3" id="story-title">Story</h2><button class="btn btn--quiet btn--sm" type="button" data-close>${icon("close")}Close</button></div>
       <div class="dialog__body stack">
-        <p class="secondary small">"Set up and open" replays the mock state to just before that moment and opens the right page. Use the pages normally from there. Everything happens in this browser only.</p>
-        <div class="horizon">Core story</div>
+        <p class="secondary small">Jump to any moment. Everything stays in this browser.</p>
+        <div class="horizon">The story</div>
         <ol class="steps" role="list">${steps}</ol>
-        <div class="horizon">Side scenarios</div>
+        <div class="horizon">Other moments</div>
         <ul class="steps" role="list">${side}</ul>
-        <div class="cluster cluster--between"><button class="btn btn--danger btn--sm" type="button" data-setup="reset">${icon("retry")}Reset to the start</button><span class="xsmall muted">${AW.logLength} mock actions recorded</span></div>
+        <div class="cluster cluster--between"><button class="btn btn--danger btn--sm" type="button" data-setup="reset">${icon("retry")}Start over</button></div>
       </div>`;
   }
   function openStory() {
@@ -138,7 +139,7 @@
     dialog.querySelector("[data-close]").addEventListener("click", () => dialog.close());
     dialog.querySelectorAll("[data-setup]").forEach((b) => b.addEventListener("click", () => {
       const v = b.dataset.setup;
-      if (v === "reset") { AW.reset([]); dialog.close(); announce("Prototype reset to the start of the story."); return; }
+      if (v === "reset") { AW.reset([]); dialog.close(); announce("Started over."); return; }
       const [kind, id] = v.split(":");
       const item = kind === "core" ? AW.STEPS.find((x) => String(x.n) === id) : AW.SIDE.find((x) => x.id === id);
       AW.reset(item.setup);
@@ -149,10 +150,34 @@
     dialog.showModal();
   }
 
+  /* ---------- Drawer (side) and sheet (bottom) ----------
+     drawer({ id, title, side: "right" | "bottom", render: () => html, onOpen(el) }) returns { open, close, refresh }. */
+  function drawer(o) {
+    const d = document.createElement("dialog");
+    d.className = `drawer ${o.side === "bottom" ? "drawer--bottom" : ""}`;
+    d.setAttribute("aria-labelledby", `${o.id}-title`);
+    document.body.appendChild(d);
+    d.addEventListener("click", (e) => { if (e.target === d) d.close(); });
+    let opener = null;
+    const paint = () => {
+      d.innerHTML = `<div class="drawer__head"><h2 class="drawer__title" id="${o.id}-title">${esc(typeof o.title === "function" ? o.title() : o.title)}</h2><button class="icon-btn" type="button" data-close aria-label="Close">${icon("close")}</button></div><div class="drawer__body" tabindex="0">${o.render()}</div>`;
+      d.querySelector("[data-close]").addEventListener("click", () => d.close());
+      if (o.onOpen) o.onOpen(d);
+    };
+    d.addEventListener("close", () => { if (opener && document.contains(opener)) opener.focus(); });
+    return {
+      el: d,
+      open() { opener = document.activeElement; paint(); if (!d.open) d.showModal(); },
+      close() { d.close(); },
+      refresh() { if (d.open) { const y = d.querySelector(".drawer__body") ? d.querySelector(".drawer__body").scrollTop : 0; paint(); const b = d.querySelector(".drawer__body"); if (b) b.scrollTop = y; } },
+      get isOpen() { return d.open; },
+    };
+  }
+
   /* ---------- Small helpers ---------- */
   function on(root, sel, evt, fn) { root.addEventListener(evt, (e) => { const t = e.target.closest(sel); if (t && root.contains(t)) fn(e, t); }); }
   function param(name) { return new URLSearchParams(location.search).get(name); }
   function focusFirst(el) { if (!el) return; const f = el.querySelector("button:not([disabled]), a[href], input, textarea, select"); if (f) f.focus({ preventScroll: false }); }
 
-  window.UI = { esc, icon, status, chip, evLabel, simTag, compactMark, lockup, shell, announce, toast, openStory, on, param, focusFirst, setTheme, getTheme };
+  window.UI = { drawer, esc, icon, status, chip, evLabel, simTag, compactMark, lockup, shell, announce, toast, openStory, on, param, focusFirst, setTheme, getTheme };
 })();

@@ -254,3 +254,21 @@ Suggested templates: `base.html` (head, skip link, header, live region), partial
 
 Changes to the flows, the card contents, the three-option rule, colours, type, the logo or the
 desk composition are material UX changes: propose them to the user instead of making them.
+
+---
+
+## 10. Revision 2 additions (one-screen layout)
+
+| Pattern | Classes | Rule |
+|---|---|---|
+| One-screen frame | `body.fit` (added by `UI.shell`), `.scroll` | The page is 100dvh; only `.scroll` regions scroll. Grids cap rows with `minmax(0, 1fr)`. Phones scroll normally except the family app (`fit-always`). |
+| Drawer / sheet | `dialog.drawer`, `.drawer--bottom`, `__head`, `__body`, `__group`, `__label`; `UI.drawer({...})` | Native `<dialog>`: focus moves in, Escape closes, focus returns to the opener. Body is focusable for keyboard scrolling. |
+| Panel with scrolling body | `.panel-box`, `__head`, `__title`, `__body` | For transcript, thread, activity, accounts. |
+| Tabs | `.tablist` (desk side panel), `.tabs` (provider), `.sg-tabs` (style guide) | `role="tab"`, `aria-selected`; arrow keys on the style guide. |
+| Account tile | `.tiles > .tile`, `.tile__top`, `.tile__name`, `.tile__sub`, `.is-focus` | Name, overall status, service. Detail in the account drawer. |
+| Family card stage | `.needs`, `.needs__card`, `.pager`, `.dock`, `.earlier` | One card at a time; urgent first; finished cards become one-line rows. |
+| Banner line | `.banner-line`, `--alert`, `--warn`, `--good` | One line, with the action inline. |
+| Call stage | `.stage`, `.say__chips`, `.say__chip`, `.say__line`, `.chat`, `.bubble--agent/rep/system`, `.mirror` | Chips pick the line; the talk button sends it. |
+
+Agent D: build these as Jinja partials the same way; keep the one-screen rule and the drawer
+focus behaviour. The previous sections still describe tokens, components and assets.

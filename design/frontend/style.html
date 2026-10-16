@@ -18,12 +18,11 @@
   <style>.is-hover-demo{--btn-bg:var(--c-sunken)} .btn--primary.is-hover-demo{--btn-bg:color-mix(in srgb,var(--c-ink) 86%,var(--c-dawn))} .is-focus-demo{box-shadow:var(--focus-ring)} .input.is-focus-demo{border-color:var(--c-ink)}</style>
 </head>
 <body data-page="style">
-  <nav class="sg-nav" aria-label="Style guide sections"><div class="wrap"><ul role="list">
-    <li><a href="#brand">Brand</a></li><li><a href="#logo">Logo</a></li><li><a href="#voice">Voice</a></li><li><a href="#color">Colour</a></li><li><a href="#type">Type</a></li><li><a href="#space">Space and grid</a></li><li><a href="#controls">Controls</a></li><li><a href="#status">Status</a></li><li><a href="#patterns">Patterns</a></li><li><a href="#states">States</a></li><li><a href="#icons">Icons</a></li><li><a href="#motion">Motion</a></li><li><a href="#assets">Assets</a></li>
-  </ul></div></nav>
   <main id="main" tabindex="-1">
     <div class="wrap">
-      <header class="page-head" style="margin-top:var(--s-5)"><div class="page-head__titles"><p class="eyebrow">Design system · prototype revision for review</p><h1 class="h1">Afterward style guide</h1><p class="lede">The identity, tokens and components the prototype uses. Every example on this page is the real CSS from <code>assets/css/</code>. Full notes are in DESIGN-GUIDE.md.</p></div></header>
+      <div class="page-row"><div><h1 class="page-title">Style guide</h1><p class="page-sub">The brand and components, using the real CSS.</p></div></div>
+      <div class="sg-tabs" role="tablist" aria-label="Sections" id="sg-tabs"></div>
+      <div class="sg-panels scroll" id="sg-panels" tabindex="0">
 
       <section class="sg-section" id="brand" aria-labelledby="brand-h">
         <h2 class="h2" id="brand-h">Brand concept: first light</h2>
@@ -231,6 +230,7 @@
         </tbody></table></div>
         <p class="small secondary" style="margin-top:var(--s-3)">No remote fonts, scripts or images are loaded. No generated raster artwork is used.</p>
       </section>
+      </div>
     </div>
   </main>
   <script src="fixtures/case.js"></script>

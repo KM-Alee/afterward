@@ -191,3 +191,26 @@ on with any screen size, because projectors often run at 1280 × 720.
 ## 10. Open questions for the reviewer
 
 See REVIEW.md, "Remaining UX questions".
+
+---
+
+## Revision 2 (user feedback: less text, no scrolling, better flow)
+
+Supersedes the layout parts of §§2, 3 and 6 above. The flows, states and honesty rules are unchanged.
+
+- **One screen per surface.** Pages never scroll on laptop and desktop screens (checked at
+  1920×1080, 1440×900, 1366×768, 1024×768 and 1280×720 projector). Long lists scroll inside their
+  own panel; detail opens in a **drawer** (side panel) or a **sheet** (bottom panel).
+- **Family:** one "Needs you" card at a time, with a pager when there are more (urgent ones first).
+  A dock opens three sheets: **Earlier** (finished cards as one-line rows that expand),
+  **Where are we?** (the honest summary) and **Pause** (quiet / hold / stop, plus support).
+- **Desk:** a header with the demo clock and buttons for *Did we finish?*, *Coverage* and *Case*
+  (people, intent, autopilot, pause, demo failures); "Now" and an account tile grid on the left;
+  an Activity / Call tab panel on the right. Tapping an account opens its four dimensions,
+  plan, conditions and provider profile in a drawer.
+- **Call room:** stage (state, line chips, talk button, typed fallback) beside the transcript.
+  Timing opens in a drawer. Sara's pending decision appears as a floating demo card.
+- **Provider console:** organisation tabs, reply chips and message on the left; the thread on the right.
+- **Proofs:** compact two-column list; each case opens in a drawer.
+- **Prototype bar:** one slim line with the next story step, a Story button and the theme switch.
+- **Copy:** shorter, plainer sentences throughout ("Northline says it's done. It isn't.").
