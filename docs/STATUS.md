@@ -13,4 +13,4 @@ Parallel slices A–D start from that revision. See FRONTEND-FIRST.md and CONTRA
 | B Channels & Conversation | Agent B | done | slice/channels-conversation | 2026-10-17 00:13 PKT | None. Malik script passes on fakes; live Telegram, WhatsApp and OpenAI were not called |
 | C Mail & Integrations | Agent C | done | slice/mail-integrations | 2026-10-17 00:14 PKT | Live Google consent is still an operator checkpoint. Extraction runs when Agent A's functions exist. |
 | D Web/Desk/Call room | Agent D | done | slice/web-desk-call | 2026-10-17 00:06 PKT | None for this slice. Lead mounts the routers in Phase 3. Proof runner and live realtime audio are not in this slice. |
-| QA | QA adversary | review | slice/qa-adversary | 2026-10-17 00:46 PKT | 12 failing tests/qa findings. Production not changed. make ci red only for those tests. |
+| QA | QA adversary | done | slice/qa-adversary | 2026-10-17 00:55 PKT | Findings fixed on main. The 12 regressions now pass. |
