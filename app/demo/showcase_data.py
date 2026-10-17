@@ -501,3 +501,57 @@ TOUR: tuple[dict[str, Any], ...] = (
         "show": "details",
     },
 )
+
+
+# Autoplay (hands-free video run): the spoken line and minimum dwell (seconds) per stop.
+# Honest-claims wording only; simulated parts are named as simulated.
+AUTOPLAY: dict[str, dict[str, Any]] = {
+    "welcome": {
+        "say": "A family should not chase twenty companies while grieving. Everything here is a real database row; Gmail, Telegram and the companies are simulated, and each card says so.",
+        "dwell": 11,
+    },
+    "intake": {
+        "say": "Sara tells it once. The model proposes; code keeps a fact only if her own words back it.",
+        "dwell": 14,
+    },
+    "discover": {
+        "say": "It looks only where Sara allowed, and lists what it found as unconfirmed. It does not claim the list is complete, and it shows what it did not search.",
+        "dwell": 12,
+    },
+    "confirm": {
+        "say": "Only the family can say which accounts were his. Sara decides, one by one.",
+        "dwell": 9,
+    },
+    "dependency": {
+        "say": "Amina knows what depends on that phone line. Her answer changes the plan from version one to version two.",
+        "dwell": 14,
+    },
+    "send": {
+        "say": "Sara approves one exact request. Afterward sends it and keeps checking. Email is simulated; nothing left this machine.",
+        "dwell": 11,
+    },
+    "provider": {
+        "say": "Northline says done. We compare the reply to what the family approved.",
+        "dwell": 14,
+    },
+    "caught": {
+        "say": "The voicemail promise was broken and the new contract was never approved, so this account is not done. A reply is checked against the plan.",
+        "dwell": 11,
+    },
+    "call": {
+        "say": "You can talk to it live in the call room. It can note an offer, but it can never accept one. This is a browser call, not a phone call.",
+        "dwell": 11,
+    },
+    "clock": {
+        "say": "Two weeks later, by itself, one follow-up goes out. We moved the demo clock; no days really passed.",
+        "dwell": 9,
+    },
+    "handback": {
+        "say": "Probate, certified copies and government forms are prepared and handed back to people. We never file, sign or move money.",
+        "dwell": 9,
+    },
+    "finish": {
+        "say": "Did we finish everything? Not everything, and it says so, counted from saved rows. AI proposes, code decides, the family approves.",
+        "dwell": 11,
+    },
+}

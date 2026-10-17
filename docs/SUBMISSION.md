@@ -78,7 +78,10 @@ account. Legal, tax and government steps are prepared, not filed.
 
 ## Video script (≈2:30) — follows the 12-stop guided tour
 
-Record the live deployment (or the laptop app) from Showcase → **Start the guided tour**.
+**Hands-free option (recommended):** sign in, open `/showcase`, press **Play the 2-minute demo**
+(or open `/showcase?autoplay=1`), press `h` to hide the controls, and screen-record at 1920x1080.
+It resets the case, types the live lines itself, speaks the narration and ends on a closing card.
+Otherwise, record the live deployment (or the laptop app) from Showcase → **Start the guided tour**.
 Hide the passcode field and any dashboard env values. Full spoken lines are in `docs/SHOWCASE.md`.
 
 1. **0:00–0:15 Paperwork after a death** — the problem in one sentence; press "Start a fresh case".

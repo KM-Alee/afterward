@@ -146,3 +146,43 @@
   .tour-list li, .tour-row, .tour-state, .tour-verdict, .tour-cond--new, .tour-diff__arrow,
   .tour-flash, .tour-pop-in, .tour-pop { animation: none; }
 }
+
+/* ---------- Autoplay (hands-free demo) ---------- */
+.ap { position: fixed; inset: 0; z-index: 9000; pointer-events: none; font-family: inherit; }
+.ap-spot { position: fixed; border-radius: 14px; box-shadow: 0 0 0 100vmax rgb(17 23 22 / 0.58), 0 0 0 3px rgb(255 190 120 / .9), 0 0 36px 6px rgb(255 190 120 / .35); transition: top .9s cubic-bezier(.22,.8,.2,1), left .9s cubic-bezier(.22,.8,.2,1), width .9s cubic-bezier(.22,.8,.2,1), height .9s cubic-bezier(.22,.8,.2,1); animation: ap-pulse 3.2s ease-in-out infinite; }
+.ap-spot--none { top: 50%; left: 50%; width: 0; height: 0; }
+@keyframes ap-pulse { 50% { box-shadow: 0 0 0 100vmax rgb(17 23 22 / 0.58), 0 0 0 3px rgb(255 190 120 / .55), 0 0 46px 12px rgb(255 190 120 / .25); } }
+.ap-zoom { animation: ap-zoom .9s cubic-bezier(.2,.8,.2,1); transform-origin: 50% 30%; }
+@keyframes ap-zoom { from { transform: scale(.975); } to { transform: scale(1); } }
+.ap-tag { position: fixed; top: 16px; left: 50%; transform: translate(-50%, -10px); opacity: 0; background: rgb(17 23 22 / .86); color: #fff; padding: 6px 16px; border-radius: 999px; font-size: 14px; letter-spacing: .02em; transition: opacity .5s, transform .5s; white-space: pre; }
+.ap-tag.is-in { opacity: 1; transform: translate(-50%, 0); }
+.ap-cap { position: fixed; left: 50%; bottom: 7vh; transform: translate(-50%, 16px); opacity: 0; width: min(62rem, 90vw); background: rgb(17 23 22 / .88); color: #fff; padding: 18px 28px; border-radius: 16px; border-left: 5px solid rgb(255 190 120); transition: opacity .5s, transform .5s; }
+.ap-cap.is-in { opacity: 1; transform: translate(-50%, 0); }
+.ap-cap__text { margin: 0; font-size: clamp(1.1rem, 2.1vw, 1.7rem); line-height: 1.4; }
+.ap-w { animation: ap-word .35s ease both; }
+@keyframes ap-word { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.ap-live { position: fixed; right: 3vw; top: 12vh; width: min(30rem, 42vw); background: #fffaf3; color: #1b2220; border-radius: 14px; padding: 14px 18px; box-shadow: 0 12px 40px rgb(0 0 0 / .35); opacity: 0; transform: translateY(12px) scale(.97); transition: opacity .5s, transform .5s; }
+.ap-live.is-in { opacity: 1; transform: none; }
+.ap-live__meta { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em; color: #8a5a2b; margin-bottom: 6px; }
+.ap-live__box { margin: 0; min-height: 3.2em; font-size: 1.05rem; line-height: 1.45; border-bottom: 2px solid #e5d6c0; padding-bottom: 8px; }
+.ap-live__box::after { content: "▍"; animation: ap-blink 1s steps(1) infinite; color: #8a5a2b; }
+@keyframes ap-blink { 50% { opacity: 0; } }
+.ap-live__out { margin: 8px 0 0; font-size: .95rem; }
+.ap-src { display: inline-block; padding: 2px 10px; border-radius: 999px; font-size: .8rem; color: #fff; }
+.ap-src.is-live { background: #2f7a55; } .ap-src.is-rec { background: #8a5a2b; }
+.ap-prog { position: fixed; left: 0; bottom: 0; height: 4px; width: 100%; background: rgb(255 255 255 / .12); }
+.ap-prog i { display: block; height: 100%; width: 0; background: rgb(255 190 120); transition: width .8s ease; }
+.ap-bar { position: fixed; right: 12px; bottom: 12px; display: flex; gap: 6px; pointer-events: auto; opacity: .55; transition: opacity .2s; }
+.ap-bar:hover { opacity: 1; }
+.ap-bar button { font: inherit; font-size: 12px; padding: 4px 10px; border-radius: 8px; border: 1px solid rgb(255 255 255 / .35); background: rgb(17 23 22 / .8); color: #fff; cursor: pointer; }
+.ap-bar.is-hidden, .ap-prog.is-hidden { display: none; }
+.ap-card { position: fixed; inset: 0; display: grid; place-content: center; text-align: center; gap: 12px; padding: 24px; background: radial-gradient(circle at 50% 40%, #2b3a36, #121817); color: #fff; opacity: 0; transition: opacity .8s; }
+.ap-card.is-in { opacity: 1; }
+.ap-card[hidden] { display: none; }
+.ap-card h1 { margin: 0; font-size: clamp(2rem, 5vw, 3.6rem); letter-spacing: .01em; }
+.ap-card p { margin: 0; font-size: clamp(1.1rem, 2vw, 1.6rem); opacity: .9; max-width: 40ch; }
+.ap-card small { opacity: .65; font-size: 1rem; }
+@media (prefers-reduced-motion: reduce) {
+  .ap-spot, .ap-tag, .ap-cap, .ap-live, .ap-prog i, .ap-card { transition: none; animation: none; }
+  .ap-zoom, .ap-w, .ap-live__box::after { animation: none; }
+}

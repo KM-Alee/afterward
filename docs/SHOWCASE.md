@@ -19,6 +19,20 @@ that a phone call was made. The call room is a browser call, not a phone call.
 4. Use Chrome or Edge for the **Speak** button; otherwise type. Keys: Right = next, Left = back,
    Esc = exit. **Next** on a stop you did not run runs it silently, so the next page is never empty.
 
+## 2-minute autoplay for the video
+
+Sign in, open `/showcase`, press **Play the 2-minute demo** (or open `/showcase?autoplay=1`). It
+resets the demo case, then walks all 12 stops across the pages by itself (about 2:30): the real
+steps run, the three live lines are typed with a typewriter effect and sent to the live endpoints,
+and each stop is narrated in a lower-third caption.
+
+- Voice: server speech when a model key is configured (`POST /api/showcase/narrate`), else the
+  browser voice, else timed captions only. Nothing is claimed beyond what the screen shows.
+- The model tag stays visible: **Live model** with a key, **Recorded model output** without.
+- Call room: no microphone is opened; it is narrated as a browser call, not a phone call.
+- Keys: `h` hides the small controls and progress bar for recording, `p` pause/resume, `s` skip,
+  `Esc` exit. Respects reduced-motion. Record at 1920x1080 with browser zoom at 100%.
+
 ## 20-second pitch
 
 > When someone dies, a family has to tell dozens of organisations, then work out whether each

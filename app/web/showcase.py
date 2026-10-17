@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 from uuid import UUID
 
 from fastapi import APIRouter, Request
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse, Response
 
 from app.demo import showcase_data
 from app.demo.showcase import (
@@ -276,7 +277,14 @@ def tour_config(request: Request):
             state = tour_state(session)
             done = {item["step_id"]: item for item in progress(session)}
             started = showcase_case(session) is not None
-    stops = [{**stop, "url": links.get(stop["page"], "/")} for stop in showcase_data.TOUR]
+    stops = [
+        {
+            **stop,
+            "url": links.get(stop["page"], "/"),
+            "autoplay": showcase_data.AUTOPLAY.get(stop["id"], {"say": stop["text"], "dwell": 8}),
+        }
+        for stop in showcase_data.TOUR
+    ]
     return JSONResponse(
         {
             "stops": stops,
@@ -415,3 +423,46 @@ async def showcase_run_to(request: Request):
     from dataclasses import asdict
 
     return JSONResponse({"ok": True, **(_step_payload(asdict(result)) or {})})
+
+
+_NARRATION_KEY = "showcase_narration"
+_NARRATION_MAX = 40
+
+
+def _no_voice(status: int, why: str) -> JSONResponse:
+    return JSONResponse({"ok": False, "fallback": "browser", "error": why}, status_code=status)
+
+
+@router.post("/api/showcase/narrate")
+async def showcase_narrate(request: Request):
+    """Spoken narration for the autoplay demo. Cached by text; the browser falls back on error."""
+    denied = _require_desk(request)
+    if denied is not None:
+        return denied
+    text = await _text_of(request)
+    if text is None:
+        return JSONResponse({"ok": False, "error": "Give some text to speak."}, 422)
+    ai = _live_ai(request)
+    if ai is None:
+        return _no_voice(503, "No speech voice is configured; the browser voice is used.")
+    settings = getattr(request.app.state, "settings", None)
+    voice = getattr(settings, "tts_voice", "") if settings is not None else ""
+    cache: dict[str, bytes] = getattr(request.app.state, _NARRATION_KEY, None) or {}
+    setattr(request.app.state, _NARRATION_KEY, cache)
+    key = hashlib.sha256(f"{voice}\n{text}".encode()).hexdigest()
+    audio = cache.get(key)
+    if audio is None:
+        try:
+            chunks = [c.audio async for c in ai.speak_stream(text, audio_format="opus")]
+        except Exception:
+            logger.info("showcase narrate", extra={"kind": "showcase.narrate", "ok": False})
+            return _no_voice(502, "The voice service was unavailable; the browser voice is used.")
+        audio = b"".join(chunks)
+        if not audio:
+            return _no_voice(502, "The voice service returned nothing; the browser voice is used.")
+        if len(cache) >= _NARRATION_MAX:
+            cache.pop(next(iter(cache)))
+        cache[key] = audio
+    return Response(
+        audio, media_type="audio/ogg", headers={"Cache-Control": "private, max-age=600"}
+    )

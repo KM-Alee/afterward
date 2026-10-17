@@ -34,6 +34,7 @@
     </div>
     <div class="toolbar" data-tour="sc-controls">
       <button class="btn btn--primary" type="button" data-tour-start{% if not has_db %} disabled{% endif %}>{{ ui.icon('arrow-right') }}Start the guided tour</button>
+      <button class="btn" type="button" data-autoplay-start{% if not has_db %} disabled{% endif %}>{{ ui.icon('arrow-right') }}Play the 2-minute demo</button>
       <form method="post" action="/api/showcase/next" data-loading>
         <button class="btn" type="submit"{% if not started or finished or not has_db %} disabled{% endif %}>{{ ui.icon('fast-forward') }}{% if finished %}All steps done{% else %}Run next step{% endif %}</button>
       </form>
