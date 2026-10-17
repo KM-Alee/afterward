@@ -9,7 +9,7 @@ Everything in [brackets] is for you to fill in. The LinkedIn post is written by 
 | # | Item | Who | Status |
 |---|---|---|---|
 | 1 | App live on Alternate Clouds, `/status` green | lead | in progress |
-| 2 | Final git tag + image tag recorded (below) | lead | `v0.3.0` |
+| 2 | Final git tag + image tag recorded (below) | lead | `v0.3.1` |
 | 3 | Screenshot: Alternate Clouds dashboard showing service + deployment status (no env values visible) | you | |
 | 4 | Screenshot: both teammates in the Alternate Futures Discord server | both | |
 | 5 | 2–3 min video (unlisted YouTube or Drive), script below; no keys or passcode on screen | you | |
@@ -66,7 +66,7 @@ follow-ups that run by themselves for months.
 - Judge login: demo passcode [passcode — put it only in the PDF]
 - Telegram bot: [https://t.me/afterwardai_bot]
 - GitHub: https://github.com/KM-Alee/afterward
-- Release: git tag `v0.3.0`, image `ghcr.io/km-alee/afterward:0.3.0`
+- Release: git tag `v0.3.1`, image `ghcr.io/km-alee/afterward:0.3.1`
 - Video: [link]
 - LinkedIn post: [link] — reshare: [link]
 - Presenter script / guided tour: `docs/SHOWCASE.md` in the repo
