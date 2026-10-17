@@ -96,6 +96,8 @@
     if (audio) { if (paused) audio.pause(); else audio.play().catch(function () {}); }
     try { if (window.speechSynthesis) { if (paused) speechSynthesis.pause(); else speechSynthesis.resume(); } } catch (e) { /* ignore */ }
   }
+  // A browser voice from the previous page can outlive the navigation; silence it on load.
+  try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) { /* ignore */ }
   function stopVoice() {
     if (audio) { try { audio.pause(); } catch (e) { /* ignore */ } audio = null; }
     try { if (window.speechSynthesis) speechSynthesis.cancel(); } catch (e) { /* ignore */ }
@@ -165,8 +167,10 @@
   // Speaks `text`; resolves when it ends (or after a safe cap), false if superseded.
   function speak(text, g) {
     var capMs = Math.max(2000, words(text) * 290 + 900);
+    stopVoice(); // one voice at a time: never talk over the previous line
     return fetchAudio(text).then(function (url) {
       if (g !== gen) return false;
+      stopVoice();
       if (url) {
         return new Promise(function (resolve) {
           var a = new Audio(url); a.playbackRate = 1.45; audio = a; var done = false;
