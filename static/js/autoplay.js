@@ -128,17 +128,17 @@
   }
   // Speaks `text`; resolves when it ends (or after a safe cap), false if superseded.
   function speak(text, g) {
-    var capMs = Math.max(4000, words(text) * 520 + 2500);
+    var capMs = Math.max(2500, words(text) * 360 + 1200);
     return fetchAudio(text).then(function (url) {
       if (g !== gen) return false;
       if (url) {
         return new Promise(function (resolve) {
-          var a = new Audio(url); audio = a; var done = false;
+          var a = new Audio(url); a.playbackRate = 1.2; audio = a; var done = false;
           function fin(ok) { if (!done) { done = true; resolve(ok); } }
           a.onended = function () { fin(true); };
           a.onerror = function () { audio = null; browserVoice(text, g, capMs).then(fin); };
           a.play().catch(function () { audio = null; browserVoice(text, g, capMs).then(fin); });
-          wait(capMs + 4000, g).then(fin);
+          wait(capMs + 1500, g).then(fin);
         });
       }
       return browserVoice(text, g, capMs);
@@ -151,7 +151,7 @@
       try {
         if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
           var u = new SpeechSynthesisUtterance(text);
-          u.lang = "en-US"; u.rate = 1.05;
+          u.lang = "en-US"; u.rate = 1.25;
           var v = (speechSynthesis.getVoices() || []).filter(function (x) { return /^en/i.test(x.lang); })[0];
           if (v) u.voice = v;
           u.onend = fin; u.onerror = fin;
@@ -173,7 +173,7 @@
         ui.liveBox.textContent = text.slice(0, i);
         var page = document.getElementById("reply-text");
         if (page) page.value = text.slice(0, i);
-        if (i < text.length) setTimeout(step, 35); else resolve(true);
+        if (i < text.length) setTimeout(step, 12); else resolve(true);
       })();
     });
   }
@@ -218,7 +218,7 @@
     if (!st.idx && !st.titled) {
       st.titled = true; write();
       card("Afterward — tell it once", "Paperwork after a death, handled honestly.", "Fictional demo. Browser demo, not a phone call.");
-      return sleep(3500).then(function () { if (g === gen) { ui.card.hidden = true; return body(); } });
+      return sleep(1800).then(function () { if (g === gen) { ui.card.hidden = true; return body(); } });
     }
     return body();
 
@@ -236,7 +236,7 @@
         return Promise.all([pre, voice, work]).then(function () {
           if (g !== gen) return;
           var spent = Date.now() - t0;
-          return wait(Math.max(600, ap.dwell * 1000 - spent), g);
+          return wait(Math.max(300, ap.dwell * 1000 - spent), g);
         }).then(function (ok) { if (ok) next(); });
       });
     }
@@ -267,7 +267,7 @@
     ui.fill.style.width = "100%";
     card("Afterward", "It tells the truth about what is done. AI proposes, code decides, the family approves.", "Fictional demo. Simulated parts are labelled.");
     var line = "Afterward. Tell it once, and it tells you the truth about what is done.";
-    speak(line, g).then(function () { return wait(3500, g); }).then(function (ok) { if (ok) { exit(); } });
+    speak(line, g).then(function () { return wait(1800, g); }).then(function (ok) { if (ok) { exit(); } });
   }
 
   function begin() {
