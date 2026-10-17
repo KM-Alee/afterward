@@ -10,12 +10,13 @@
   if (!root || !window.WebSocket || root.getAttribute("data-status") !== "live") return;
   var token = root.getAttribute("data-token");
   var RATE = 24000;
-  var BARGE_RMS = 0.045;
+  var BARGE_RMS = 0.06;
 
   var socket = null, ctx = null, stream = null, source = null, node = null, gain = null;
   var playAt = 0, sources = [], ended = false, retry = 0, mode = root.getAttribute("data-mode");
   var agentBusy = false, userTalking = false, loud = 0, interruptedAt = 0;
   var live = { agent: null, rep: null };
+  var pending = { agent: [], rep: [] }; // finished captions still waiting for their final line
 
   var $ = function (id) { return document.getElementById(id); };
   var micBtn = $("mic"), micLabel = micBtn ? micBtn.querySelector("[data-mic-label]") : null;
@@ -79,16 +80,27 @@
     if (!chat) return;
     if (empty) { empty.remove(); empty = null; }
     var who = turn.who === "system" ? "system" : turn.who;
-    var slot = who === "agent" || who === "rep" ? live[who] : null;
     var li = bubble(who, label(turn), turn.text, turn.type === "discarded" ? "bubble--discarded" : "");
-    if (slot && slot.el && slot.el.parentNode) { chat.replaceChild(li, slot.el); live[who] = null; }
+    var target = null;
+    if (who === "agent" || who === "rep") {
+      if (pending[who].length) target = pending[who].shift();
+      else if (live[who]) { target = live[who].el; live[who] = null; }
+    }
+    if (target && target.parentNode) chat.replaceChild(li, target);
     else chat.appendChild(li);
     scrollDown();
   }
   function liveCaption(who, item, delta) {
     if (!chat) return;
     var slot = live[who];
-    if (!slot || slot.item !== item) {
+    if (slot && slot.item !== item) {
+      slot.el.classList.remove("bubble--live");
+      var name = slot.el.querySelector(".bubble__who");
+      if (name) name.textContent = who === "agent" ? "Afterward (AI), cut off" : "You";
+      pending[who].push(slot.el);
+      slot = live[who] = null;
+    }
+    if (!slot) {
       if (empty) { empty.remove(); empty = null; }
       var el = bubble(who, who === "agent" ? "Afterward (AI), speaking…" : "You, speaking…", "", "bubble--live");
       chat.appendChild(el);
@@ -130,7 +142,7 @@
   function ensureCtx() {
     if (ctx) return ctx;
     var AC = window.AudioContext || window.webkitAudioContext;
-    try { ctx = new AC({ sampleRate: RATE, latencyHint: "interactive" }); } catch (e) { ctx = new AC(); }
+    ctx = new AC({ latencyHint: "interactive" }); // device rate: some systems give silence at 24 kHz
     gain = ctx.createGain();
     gain.connect(ctx.destination);
     return ctx;
@@ -164,6 +176,7 @@
     setState("speaking", "Afterward is speaking");
     window.setTimeout(function () { if (agentBusy) setLevel(level); }, Math.max(0, (startAt - c.currentTime) * 1000));
     src.onended = function () {
+      lastAgentAudio = Date.now();
       sources = sources.filter(function (s) { return s !== src; });
       if (!sources.length) { agentBusy = false; setLevel(0); idle(); }
     };
@@ -173,22 +186,40 @@
   function toPcm16(f32, fromRate) {
     var ratio = fromRate / RATE, length = Math.floor(f32.length / ratio), out = new Int16Array(length);
     for (var i = 0; i < length; i++) {
-      var v = Math.max(-1, Math.min(1, f32[Math.floor(i * ratio)]));
+      var start = Math.floor(i * ratio), end = Math.min(f32.length, Math.floor((i + 1) * ratio));
+      var acc = 0, n = 0;
+      for (var j = start; j < end; j++) { acc += f32[j]; n++; }
+      var v = Math.max(-1, Math.min(1, n ? acc / n : f32[start] || 0));
       out[i] = v < 0 ? v * 32768 : v * 32767;
     }
     return out.buffer;
   }
+  var held = [], frames = 0, lastAgentAudio = 0;
   function onMic(f32, rate) {
+    frames++;
     var sum = 0;
     for (var i = 0; i < f32.length; i++) sum += f32[i] * f32[i];
     var rms = Math.sqrt(sum / f32.length);
-    if (!agentBusy) setLevel(rms * 6);
-    loud = rms > BARGE_RMS ? loud + 1 : 0;
-    if (agentBusy && loud >= 2) bargeIn();
-    if (socket && socket.readyState === 1) socket.send(toPcm16(f32, rate));
+    var chunk = toPcm16(f32, rate);
+    var agentAudible = agentBusy || Date.now() - lastAgentAudio < 350;
+    if (!agentAudible) setLevel(rms * 6);
+    if (agentAudible) {
+      // The agent's own voice comes back through the mic. Don't send it, or the model
+      // hears itself and cuts its answer short. A clear voice over it is a barge-in.
+      held.push(chunk);
+      if (held.length > 8) held.shift();
+      loud = rms > BARGE_RMS ? loud + 1 : 0;
+      if (loud >= 3) bargeIn();
+      return;
+    }
+    loud = 0;
+    if (held.length) { held.forEach(sendAudio); held = []; }
+    sendAudio(chunk);
   }
+  function sendAudio(chunk) { if (socket && socket.readyState === 1) socket.send(chunk); }
   function bargeIn() {
     interruptedAt = Date.now();
+    lastAgentAudio = 0;
     stopPlayback();
     sendJson({ type: "interrupt" });
     setState("user", "You're speaking");
@@ -208,11 +239,12 @@
     source = c.createMediaStreamSource(stream);
     node = c.createScriptProcessor(2048, 1, 1);
     node.onaudioprocess = function (ev) { onMic(ev.inputBuffer.getChannelData(0), c.sampleRate); };
-    var mute = c.createGain();
-    mute.gain.value = 0; // keep the processor running without playing the mic back
     source.connect(node);
-    node.connect(mute);
-    mute.connect(c.destination);
+    node.connect(c.destination); // the processor writes no output, so nothing is played back
+    frames = 0;
+    window.setTimeout(function () {
+      if (micOn() && frames === 0) say("No sound is reaching the page from your microphone. Check the browser's input device.");
+    }, 2500);
     if (micBtn) { micBtn.setAttribute("aria-pressed", "true"); micBtn.setAttribute("aria-label", "End talking"); }
     if (micLabel) micLabel.textContent = "Stop talking";
     idle();

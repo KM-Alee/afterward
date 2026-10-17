@@ -20,7 +20,14 @@ def asset_version() -> str:
     return format(max(stamps, default=0), "x")
 
 
-TEMPLATES.env.globals["asset_v"] = asset_version()
+class _AssetVersion:
+    """Rendered as the current version, so an edited script is never served stale."""
+
+    def __str__(self) -> str:
+        return asset_version()
+
+
+TEMPLATES.env.globals["asset_v"] = _AssetVersion()
 
 
 def render(request: Request, name: str, context: dict[str, object], status_code: int = 200):
