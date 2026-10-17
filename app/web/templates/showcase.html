@@ -35,7 +35,7 @@
     <div class="toolbar" data-tour="sc-controls">
       <button class="btn btn--primary" type="button" data-tour-start{% if not has_db %} disabled{% endif %}>{{ ui.icon('arrow-right') }}Start the guided tour</button>
       <form method="post" action="/api/showcase/next" data-loading>
-        <button class="btn btn--primary" type="submit"{% if not started or finished or not has_db %} disabled{% endif %}>{{ ui.icon('fast-forward') }}{% if finished %}All steps done{% else %}Run next step{% endif %}</button>
+        <button class="btn" type="submit"{% if not started or finished or not has_db %} disabled{% endif %}>{{ ui.icon('fast-forward') }}{% if finished %}All steps done{% else %}Run next step{% endif %}</button>
       </form>
       <form method="post" action="/api/showcase/reset" data-loading>
         <button class="btn btn--sim btn--sm" type="submit">Reset to the start</button>

@@ -1,11 +1,50 @@
 # Afterward
 
-Hackathon workflow scaffold for Agentika 2.0 / NaSCon’26. **Only `/health` and
-`/status` are implemented.** Product modules, OAuth/probe helpers, fakes, schemas
-and tables are explicitly empty stubs. `make proof` is a placeholder.
+Afterward is an AI case manager for the paperwork after a death. A family tells it their wishes
+once; it drafts requests to each organisation, and writes only after the family approves the exact
+plan. It then checks every reply against what was approved before an account is marked resolved.
+AI proposes structured records; deterministic code controls permission and outcomes.
+Built for Agentika 2.0, NaSCon'26.
+
+**Live demo:** see the submission PDF for the URL and passcode.
+**Showcase script:** [docs/SHOWCASE.md](docs/SHOWCASE.md) (the in-app guided tour: sign in, then
+press **Start the guided tour**).
+
+## Run it locally
+
+```sh
+make setup     # frozen uv environment and hooks
+make db-up     # local Postgres 17
+make run       # http://localhost:8000
+```
+
+Set variables in the process environment (no dotenv file is loaded; `.env.example` lists names only).
+Without an OpenAI key the model steps show clearly labelled recorded output.
+
+## Architecture
+
+- FastAPI (Python 3.13) serves the HTML pages, JSON API and the call room.
+- PostgreSQL holds durable jobs, versioned approvals, audit events and encrypted documents.
+- OpenAI Agents SDK for extraction and reply reading; Realtime voice runs over WebRTC straight from
+  the browser, with our server minting the key and keeping the tools.
+- Telegram is the family channel; Gmail and Calendar are used through direct APIs. The demo runs
+  them against labelled simulations.
+- A plan is hashed and approved by the family; the job runner re-checks approval and recipient at send time.
+
+## Honest limits
+
+- It does not find every account: candidates stay unconfirmed until the family decides, and
+  coverage lists what was not searched.
+- The call room is a browser call, not a phone call. No phone call is made.
+- The speech check reduces the chance of an implied agreement; it is not a guarantee. The agent
+  has no tool that accepts terms.
+- No exactly-once delivery claim. Photos are not certified copies. It never signs, files or moves money.
+- Simulated parts (Gmail, Telegram, providers, recorded model output) are labelled on screen.
+
+## Developer workflow (setup scaffold notes)
 
 Read [product](docs/AFTERWARD.md), [architecture](docs/AFTERWARD-TECH.md),
-[implementation plan](docs/IMPLEMENTATION.md), [agent rules](AGENTS.md),
+[implementation plan](docs/IMPLEMENTATION.md), [agent rules](CLAUDE.md),
 [ownership](CONTRIBUTING-AGENTS.md), and [operator setup](docs/START-HERE.md).
 
 ## Local workflow

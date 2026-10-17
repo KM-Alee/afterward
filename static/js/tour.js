@@ -271,7 +271,7 @@
     if (!target || !document.body.contains(target)) {
       spot.classList.add("tour-spot--none");
       ui.card.classList.add("tour-card--center");
-      ui.card.classList.remove("tour-card--left");
+      ui.card.classList.remove("tour-card--left", "tour-card--top");
       return;
     }
     ui.card.classList.remove("tour-card--center");
@@ -288,8 +288,25 @@
     spot.style.width = width + "px";
     spot.style.height = height + "px";
     if (first) { void spot.offsetWidth; spot.classList.remove("no-anim"); }
-    var mid = r.left + r.width / 2;
-    ui.card.classList.toggle("tour-card--left", mid > vw * 0.55 && vw > 760);
+    dock(r, vw, vh);
+  }
+
+  // Dock the card in the viewport corner that hides the least of the highlighted target.
+  function dock(r, vw, vh) {
+    var card = ui.card, m = 20, narrow = vw <= 760;
+    var cw = narrow ? vw - 2 * 16 : Math.min(26 * 16, vw - 40), ch = Math.min(card.offsetHeight || 260, vh - 2 * m);
+    var corners = narrow ? [[false, false], [false, true]] : [[false, false], [true, false], [false, true], [true, true]];
+    var best = null, bestArea = Infinity;
+    corners.forEach(function (c) {
+      var left = narrow ? 16 : (c[0] ? m : vw - m - cw), top = c[1] ? m : vh - m - ch;
+      var ox = Math.max(0, Math.min(left + cw, r.right) - Math.max(left, r.left));
+      var oy = Math.max(0, Math.min(top + ch, r.bottom) - Math.max(top, r.top));
+      var area = ox * oy;
+      if (area < bestArea - 1) { bestArea = area; best = c; }
+    });
+    best = best || corners[0];
+    card.classList.toggle("tour-card--left", !narrow && best[0]);
+    card.classList.toggle("tour-card--top", best[1]);
   }
 
   function setBusy(on, label) {

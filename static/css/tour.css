@@ -22,10 +22,11 @@
   padding: var(--s-4) var(--s-5) var(--s-4);
   pointer-events: auto;
   opacity: 0; transform: translateY(14px) scale(0.98);
-  transition: opacity 280ms var(--ease-out), transform 360ms var(--ease-spring), right 320ms var(--ease-out), left 320ms var(--ease-out);
+  transition: opacity 280ms var(--ease-out), transform 360ms var(--ease-spring);
 }
 .tour-card.is-in { opacity: 1; transform: none; }
 .tour-card--left { right: auto; left: var(--s-5); }
+.tour-card--top { bottom: auto; top: var(--s-5); }
 .tour-card--center { right: 50%; bottom: 50%; transform: translate(50%, 50%); }
 .tour-card--center.is-in { transform: translate(50%, 50%); }
 .tour-card.is-busy { cursor: progress; }
@@ -135,7 +136,8 @@
 
 @media (max-width: 760px) {
   .tour-card, .tour-card--left { left: var(--gutter); right: var(--gutter); bottom: var(--gutter); width: auto; max-height: 62vh; padding: var(--s-4); }
-  .tour-card--center, .tour-card--center.is-in { right: var(--gutter); bottom: var(--gutter); transform: none; }
+    .tour-card--center, .tour-card--center.is-in { right: var(--gutter); bottom: var(--gutter); transform: none; }
+  .tour-card--top, .tour-card--top.tour-card--left { bottom: auto; top: var(--gutter); }
   .tour-row--check { grid-template-columns: 1fr; gap: 2px; }
 }
 @media (prefers-reduced-motion: reduce) {

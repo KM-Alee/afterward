@@ -35,24 +35,47 @@
 
   function say(text) { if (status) status.textContent = text; }
   function micOn() { return !!(micTrack && micTrack.enabled); }
-  function setLevel(v) { if (orb) orb.style.setProperty("--level", Math.min(1, v).toFixed(3)); }
-  var shownState = "", shownAt = 0;
+  /* One derived state, shown only once it has been stable for a moment (STABLE_MS).
+     Barge-in, the speech check and the approved clip switch instantly. */
+  var STABLE_MS = 380, RELEASE_MS = 900, ATTACK = 0.03, RELEASE = 0.015;
+  var waitingReply = false, waitingSince = 0, trippedUntil = 0, remoteSmooth = 0, lastRemoteLoud = 0;
+  var shownState = "", shownLabel = "", desiredState = "", desiredSince = 0, evalTimer = null;
+  var level = 0, levelShown = -1;
+  function setLevel(v) {
+    level += (Math.min(1, Math.max(0, v)) - level) * 0.2; // exponential moving average
+    if (level < 0.01) level = 0;
+    if (Math.abs(level - levelShown) < 0.01 && level !== 0) return;
+    levelShown = level;
+    if (orb) orb.style.setProperty("--level", level.toFixed(2));
+  }
+  function derive(now) {
+    if (ended) return ["idle", "Call ended"];
+    if (now < trippedUntil) return ["tripped", "Stopped by the speech check"];
+    if (playingApproved) return ["speaking", "Approved wording"];
+    if (userTalking && micOn()) return ["user", "You're speaking"];
+    if (agentBusy) return ["speaking", "Afterward is speaking"];
+    if ((waitingReply && now - waitingSince < 5000) || responseActive) return ["thinking", "Thinking\u2026"];
+    if (micOn()) return ["listening", "Listening"];
+    return ["idle", mode === "realtime" ? (dc ? "Mic is off" : "Tap to start talking") : "Rehearsal"];
+  }
+  function commit(state, label) {
+    // Only touch the DOM when something really changed, so CSS animations never restart.
+    if (state !== shownState) { shownState = state; if (orb) orb.setAttribute("data-state", state); }
+    if (label !== shownLabel) { shownLabel = label; if (stateEl) stateEl.textContent = label; }
+  }
+  function evaluate(instant) {
+    var now = Date.now(), d = derive(now);
+    if (d[0] !== desiredState) { desiredState = d[0]; desiredSince = now; }
+    var urgent = instant || !shownState || d[0] === "user" || d[0] === "tripped" || (ended && d[0] === "idle");
+    if (d[0] === shownState) { commit(d[0], d[1]); return; }
+    if (urgent || now - desiredSince >= STABLE_MS) { commit(d[0], d[1]); return; }
+    if (!evalTimer) evalTimer = window.setTimeout(function () { evalTimer = null; evaluate(false); }, STABLE_MS - (now - desiredSince) + 20);
+  }
   function setState(state, label, force) {
-    var now = Date.now();
-    if (state === shownState && !force) return;
-    // Hold each state briefly so pauses between words don't make the orb and label flicker.
-    if (!force && now - shownAt < 350 && (shownState === "speaking" || shownState === "user")
-        && (state === "listening" || state === "idle")) return;
-    shownState = state;
-    shownAt = now;
-    if (orb) orb.setAttribute("data-state", state);
-    if (stateEl && label) stateEl.textContent = label;
+    if (state === "tripped") trippedUntil = Date.now() + 4000;
+    evaluate(!!force || state === "tripped");
   }
-  function idle() {
-    if (agentBusy) return;
-    if (micOn()) setState(userTalking ? "user" : "listening", userTalking ? "You're speaking" : "Listening");
-    else setState("idle", mode === "realtime" ? (dc ? "Mic is off" : "Tap to start talking") : "Rehearsal");
-  }
+  function idle() { evaluate(false); }
   function setCaption(text, who) {
     if (!caption) return;
     caption.textContent = text;
@@ -172,7 +195,7 @@
   function silenceAgent() {
     if (responseActive) send({ type: "response.cancel" });
     send({ type: "output_audio_buffer.clear" });
-    agentBusy = false;
+    agentBusy = false; lastRemoteLoud = 0; // barge-in: stop at once, do not wait for the meter
   }
   function postJson(path, body) {
     return fetch("/api/calls/" + token + path, {
@@ -189,6 +212,7 @@
     silenceAgent();
     if (live.agent && live.agent.item === item) { live.agent.el.remove(); live.agent = null; }
     if (remoteAudio) remoteAudio.muted = true;
+    agentBusy = false; waitingReply = false;
     setState("tripped", "Stopped by the speech check");
     say(STOPPED_MSG);
     setCaption(STOPPED_MSG, null);
@@ -208,13 +232,13 @@
     diagState.last = ev.type;
     switch (ev.type) {
       case "input_audio_buffer.speech_started":
-        userTalking = true;
+        userTalking = true; waitingReply = false; trippedUntil = 0;
         if (agentBusy || responseActive) silenceAgent();
-        setState("user", "You're speaking");
+        evaluate(true);
         break;
       case "input_audio_buffer.speech_stopped":
-        userTalking = false;
-        setState("thinking", "Thinking…");
+        userTalking = false; waitingReply = true; waitingSince = Date.now();
+        evaluate(false);
         break;
       case "conversation.item.input_audio_transcription.delta":
         if (ev.delta) liveCaption("rep", ev.item_id, ev.delta);
@@ -223,15 +247,15 @@
         if (ev.transcript && ev.transcript.trim()) postLine("rep", ev.transcript.trim(), ev.item_id, "voice");
         break;
       case "response.created":
-        responseActive = true;
+        responseActive = true; trippedUntil = 0;
         if (playingApproved) send({ type: "response.cancel" });
-        else if (!agentBusy) setState("thinking", "Thinking…");
+        else evaluate(false);
         break;
       case "output_audio_buffer.started":
-        if (!playingApproved) { agentBusy = true; setState("speaking", "Afterward is speaking"); }
+        if (!playingApproved) { agentBusy = true; lastRemoteLoud = Date.now(); evaluate(false); }
         break;
       case "output_audio_buffer.cleared":
-        agentBusy = false; lastRemoteLoud = 0; setLevel(0); idle();
+        agentBusy = false; lastRemoteLoud = 0; evaluate(false);
         break;
       case "output_audio_buffer.stopped":
         break; // the level meter ends "speaking" once the audio has really gone quiet
@@ -254,14 +278,14 @@
         handleTool(ev.name, ev.call_id, ev.arguments);
         break;
       case "response.done": {
-        responseActive = false;
+        responseActive = false; waitingReply = false;
         var out = (ev.response && ev.response.output) || [];
         out.forEach(function (it) { if (it.type === "function_call") handleTool(it.name, it.call_id, it.arguments); });
         if (ev.response && ev.response.status === "failed") {
           var d = ev.response.status_details && ev.response.status_details.error;
           diagState.error = (d && (d.message || d.code)) || "response failed";
         }
-        if (!agentBusy) idle();
+        evaluate(false);
         break;
       }
       case "error":
@@ -289,24 +313,21 @@
     for (var i = 0; i < buf.length; i++) { var v = (buf[i] - 128) / 128; sum += v * v; }
     return Math.sqrt(sum / buf.length);
   }
-  var lastRemoteLoud = 0;
   function meter() {
     if (ended) return;
     var m = micAnalyser && micOn() ? rms(micAnalyser) : 0;
     var r = remoteAnalyser ? rms(remoteAnalyser) : 0;
     diagState.mic = Math.min(1, m * 4);
     var now = Date.now();
-    if (r > 0.02 && !playingApproved) lastRemoteLoud = now;
-    var agentAudible = now - lastRemoteLoud < 900; // pauses between words count as speaking
-    if (agentAudible && !playingApproved) {
-      if (!agentBusy) { agentBusy = true; setState("speaking", "Afterward is speaking"); }
-      setLevel(r * 5);
-    } else if (agentBusy && !responseActive) {
-      agentBusy = false; setLevel(0); idle();
-    } else if (!agentBusy) {
-      setLevel(m * 6);
-    }
-    if (Math.random() < 0.1) showDiag();
+    remoteSmooth += (r - remoteSmooth) * 0.25;
+    // Attack/release: loud audio switches "audible" on fast; it stays on through short pauses.
+    if (remoteSmooth > (agentBusy ? RELEASE : ATTACK) && !playingApproved) lastRemoteLoud = now;
+    var audible = now - lastRemoteLoud < RELEASE_MS && !playingApproved;
+    if (audible && !agentBusy && !userTalking) agentBusy = true;
+    else if (!audible && agentBusy) agentBusy = false;
+    setLevel(agentBusy ? remoteSmooth * 5 : m * 6);
+    evaluate(false);
+    if (Math.random() < 0.05) showDiag();
     window.requestAnimationFrame(meter);
   }
   async function connect() {
@@ -392,7 +413,7 @@
     if (sender) await sender.replaceTrack(micTrack);
     micTrack.enabled = true;
     setMicButton(true);
-    idle();
+    evaluate(true);
     setCaption("Go ahead, you're on. Answer as Northline would.", null);
     say("Listening. Talk over the agent any time; it stops.");
   }
@@ -400,7 +421,7 @@
     if (micTrack) micTrack.enabled = false;
     setMicButton(false);
     userTalking = false;
-    idle();
+    evaluate(true);
     say("Microphone off. The call is still open.");
   }
   if (micBtn) micBtn.addEventListener("click", function () {
@@ -436,10 +457,10 @@
     silenceAgent();
     if (remoteAudio) remoteAudio.muted = true;
     var clip = new Audio("data:" + (res.mime || "audio/ogg") + ";base64," + res.audio);
-    var done = function () { playingApproved = false; if (remoteAudio) remoteAudio.muted = false; idle(); };
+    var done = function () { playingApproved = false; if (remoteAudio) remoteAudio.muted = false; evaluate(false); };
     clip.onended = done;
     clip.onerror = done;
-    setState("speaking", "Approved wording");
+    evaluate(true);
     clip.play().catch(done);
   }
 
@@ -455,13 +476,13 @@
         break;
       case "turn":
         addTurn(data);
-        if (data.type === "guard" && mode !== "realtime") { setState("tripped", "Stopped by the speech check"); }
+        if (data.type === "guard" && mode !== "realtime") { setState("tripped", ""); }
         break;
       case "state": showState(data); break;
       case "ended":
         ended = true;
         say("The call has ended.");
-        setState("idle", "Call ended");
+        evaluate(true);
         window.setTimeout(function () { closePeer(); }, 6000); // let the goodbye finish
         break;
       case "missing": case "not_started": ended = true; closePeer(); say("This call link is not open."); break;

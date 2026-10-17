@@ -52,9 +52,9 @@
 .vc-orb[data-state="speaking"] .arc { opacity: 1; }
 .vc-orb[data-state="tripped"] .disc { fill: var(--c-ochre); }
 
-.vc-state { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1.1; transition: opacity var(--t-base); }
+.vc-state { font-family: var(--font-serif); font-size: clamp(1.5rem, 2.6vw, 2rem); line-height: 1.1; min-height: 1.2em; }
 .vc-sub, .vc-caption { color: var(--c-ink-2); max-width: 34rem; font-size: var(--fs-base); }
-.vc-caption { min-height: 3.2em; font-size: var(--fs-md); line-height: 1.45; color: var(--c-ink); }
+.vc-caption { min-height: 4.4em; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; font-size: var(--fs-md); line-height: 1.45; color: var(--c-ink); }
 .vc-caption.is-rep { color: var(--c-dusk); }
 .vc-caption.is-quiet { color: var(--c-ink-3); font-size: var(--fs-base); }
 

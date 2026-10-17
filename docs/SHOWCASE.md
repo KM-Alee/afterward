@@ -20,7 +20,8 @@ that a phone call was made. The call room is a browser call.
    Reset is safe at any time and only touches the demo case.
 4. Use Chrome or Edge if you want the **Speak** button (browser speech input). Without it the card
    is typing only. The projector toggle on the desk helps in a big room.
-5. Keys: Right arrow = next, Left arrow = back, Esc = exit. The tour position survives page changes
+5. The card shows the stop count ("5 / 21") and a row of progress dots; **Exit** is always at its
+   top right. The card docks in the corner that hides the least of the highlighted area. Keys: Right arrow = next, Left arrow = back, Esc = exit. The tour position survives page changes
    and reloads. **Next** on a stop that was not run runs it silently so the next page is not empty.
 
 ## 30-second pitch
@@ -158,11 +159,11 @@ exact line below, or say your own. Ctrl+Enter sends.
 
 ## Wow moments to land
 
-1. **Dependency changes the plan** (step 4), with two refusals.
-2. **The wrong "done" is caught** (step 8), with the exact violated conditions.
-3. **The agent cannot accept on a call** (step 9).
-4. **Honest coverage** (steps 2 and 12): what was read, what was not, what was never searched.
-5. **The follow-up runs by itself** (step 10), and cancels itself when no longer needed.
+1. **Dependency changes the plan** (stop 10), with two refusals.
+2. **The wrong "done" is caught** (stops 13 and 14), with the exact violated conditions.
+3. **The agent cannot accept on a call** (stops 15 and 16).
+4. **Honest coverage** (stops 3, 8 and 20): what was read, what was not, what was never searched.
+5. **The follow-up runs by itself** (stop 17), and cancels itself when no longer needed.
 
 ## What is real and what is simulated
 
