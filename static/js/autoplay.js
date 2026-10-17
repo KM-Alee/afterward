@@ -154,7 +154,7 @@
   }
   function caption(text, g) {
     ui.cap.classList.remove("is-in"); ui.capText.textContent = "";
-    var w = text.split(" "), i = 0, per = Math.max(120, Math.min(300, (words(text) * 380) / Math.max(1, w.length)));
+    var w = text.split(" "), i = 0, per = Math.max(95, Math.min(240, (words(text) * 300) / Math.max(1, w.length)));
     void ui.cap.offsetWidth; ui.cap.classList.add("is-in");
     (function add() {
       if (g !== gen || i >= w.length) return;
@@ -164,12 +164,12 @@
   }
   // Speaks `text`; resolves when it ends (or after a safe cap), false if superseded.
   function speak(text, g) {
-    var capMs = Math.max(2500, words(text) * 360 + 1200);
+    var capMs = Math.max(2000, words(text) * 290 + 900);
     return fetchAudio(text).then(function (url) {
       if (g !== gen) return false;
       if (url) {
         return new Promise(function (resolve) {
-          var a = new Audio(url); a.playbackRate = 1.2; audio = a; var done = false;
+          var a = new Audio(url); a.playbackRate = 1.45; audio = a; var done = false;
           function fin(ok) { if (!done) { done = true; resolve(ok); } }
           a.onended = function () { fin(true); };
           a.onerror = function () { audio = null; browserVoice(text, g, capMs).then(fin); };
@@ -187,7 +187,7 @@
       try {
         if (window.speechSynthesis && window.SpeechSynthesisUtterance) {
           var u = new SpeechSynthesisUtterance(text);
-          u.lang = "en-US"; u.rate = 1.25;
+          u.lang = "en-US"; u.rate = 1.5;
           var v = (speechSynthesis.getVoices() || []).filter(function (x) { return /^en/i.test(x.lang); })[0];
           if (v) u.voice = v;
           u.onend = fin; u.onerror = fin;
@@ -209,7 +209,7 @@
         ui.liveBox.textContent = text.slice(0, i);
         var page = document.getElementById("reply-text");
         if (page) page.value = text.slice(0, i);
-        if (i < text.length) setTimeout(step, 12); else resolve(true);
+        if (i < text.length) setTimeout(step, 9); else resolve(true);
       })();
     });
   }
@@ -263,7 +263,7 @@
     if (!st.idx && !st.titled) {
       st.titled = true; write();
       card("Afterward — tell it once", "Paperwork after a death, handled honestly.", "Fictional demo. Browser demo, not a phone call.");
-      return sleep(1800).then(function () { if (g === gen) { ui.card.hidden = true; return body(); } });
+      return sleep(1400).then(function () { if (g === gen) { ui.card.hidden = true; return body(); } });
     }
     return body();
 
