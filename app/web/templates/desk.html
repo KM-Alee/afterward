@@ -29,7 +29,7 @@
     <div>
       <h1 class="page-title">{{ board.deceased }}</h1>
       <p class="page-sub">Died {{ board.died }}. {{ board.handler }}</p>
-      <p class="reality">What is real here: Gmail sends and reads mail, Telegram reaches this bot, and this call is in the browser, not on a phone. The 14 proofs use a stand-in model. A restart keeps this desk.</p>
+      <p class="reality">What is real: Gmail, Telegram, and a browser call, not a phone call. The 14 proofs use a stand-in model. A restart keeps this desk. Reminders use Google Calendar unless a Fastn workflow is configured. <a href="https://docs.google.com/document/d/18cnj5XJ1pz1jFCk0CWtGWtuKwZElqs7jpd-PW7hg7-c/edit">This status note</a> was written once through Fastn. It has no message bodies.</p>
     </div>
     <div class="toolbar">
       <span class="clock-pill" title="Demo clock. Only moves case time.">{{ ui.icon('clock') }}<span>{{ case_time }}</span>
@@ -65,7 +65,7 @@
         </div>
         <div class="compare-wrap"><div class="compare">
           <div class="compare__col">
-            <h3 class="eyebrow" style="margin-bottom:var(--s-2)">Sara asked for</h3>
+            <h3 class="compare__label">Sara asked for</h3>
             <p class="requested-action">{{ board.outcome.requested }}</p>
             <ul class="cond-list" role="list">
               {% for item in board.outcome.requested_conditions %}
@@ -74,14 +74,14 @@
             </ul>
           </div>
           <div class="compare__col">
-            <h3 class="eyebrow" style="margin-bottom:var(--s-2)">Northline said</h3>
+            <h3 class="compare__label">Northline said</h3>
             <figure class="quote">
               <blockquote class="quote__text">{{ board.outcome.quote }}</blockquote>
               <figcaption class="quote__source">{{ ui.evidence(board.outcome.quote_evidence) }}<span>{{ board.outcome.quote_at }}</span></figcaption>
             </figure>
           </div>
           <div class="compare__col">
-            <h3 class="eyebrow" style="margin-bottom:var(--s-2)">So</h3>
+            <h3 class="compare__label">What that means</h3>
             <p class="verdict verdict--{{ board.outcome.verdict_kind }}">{{ ui.icon('cross') }}{{ board.outcome.verdict_text }}</p>
             <ul class="checks" role="list">
               {% for check in board.outcome.checks %}

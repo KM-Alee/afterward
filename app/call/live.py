@@ -62,11 +62,79 @@ def fallback_reply(room: CallRoom) -> str:
     return FALLBACK_LINE
 
 
+def _last_assistant(history: object) -> str:
+    """The latest assistant line in a realtime history. Tool rows are skipped."""
+    if not isinstance(history, list):
+        return ""
+    found = ""
+    for item in history:
+        role = getattr(item, "role", None)
+        if role not in {None, "assistant"}:
+            continue
+        content = getattr(item, "content", None)
+        if isinstance(content, str) and content.strip():
+            found = content.strip()
+        elif isinstance(content, list):
+            for part in content:
+                text = getattr(part, "text", None) or getattr(part, "transcript", None)
+                if isinstance(text, str) and text.strip():
+                    found = text.strip()
+    return found
+
+
+async def _agents_voice_reply(settings: Any, room: CallRoom, rep_text: str) -> str | None:
+    """Run the Agents SDK voice agent so its tools can record an offer. It cannot accept."""
+    from agents.realtime import RealtimeRunner
+
+    from app.call.tools import bind_room, build_call_agent
+
+    bind_room(room)
+    runner = RealtimeRunner(
+        build_call_agent(),
+        config={
+            "model_settings": {"model_name": settings.realtime_model, "output_modalities": ["text"]}
+        },
+    )
+    session = await runner.run()
+    spoken = ""
+    pending = 0
+    try:
+        await session.send_message(rep_text)
+
+        async def _listen() -> str:
+            nonlocal pending, spoken
+            async for event in session:
+                kind = getattr(event, "type", "")
+                if kind == "tool_approval_required":
+                    await session.approve_tool_call(event.call_id)
+                elif kind == "tool_start":
+                    pending += 1
+                elif kind == "tool_end":
+                    pending = max(0, pending - 1)
+                elif kind == "history_updated":
+                    spoken = _last_assistant(event.history) or spoken
+                elif kind == "error":
+                    break
+                if spoken and pending == 0 and kind in {"history_updated", "tool_end"}:
+                    break
+            return spoken
+
+        return await asyncio.wait_for(_listen(), REALTIME_TIMEOUT_S) or None
+    finally:
+        await session.close()
+
+
 async def realtime_reply(settings: Any, room: CallRoom, rep_text: str) -> str | None:
-    """Open one realtime socket, send the representative's words, read the text reply."""
+    """Ask the voice agent, then a text-only realtime session if that agent is unavailable."""
     key = settings.openai_api_key.get_secret_value() if settings is not None else ""
     if not key:
         return None
+    try:
+        spoken = await _agents_voice_reply(settings, room, rep_text)
+        if spoken:
+            return spoken
+    except Exception:
+        logger.info("voice agent", extra={"kind": "call.agent", "ok": False})
     from openai import AsyncOpenAI
 
     client = AsyncOpenAI(api_key=key)

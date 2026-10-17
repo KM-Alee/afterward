@@ -20,6 +20,7 @@ body.fit > main > .wrap { flex: 1; min-height: 0; display: flex; flex-direction:
 .page-title { font-family: var(--font-serif); font-size: clamp(1.5rem, 1.2rem + 1vw, 2.1rem); font-weight: 500; line-height: 1.1; }
 .page-sub { color: var(--c-ink-2); font-size: var(--fs-sm); margin-top: 4px; line-height: 1.45; max-width: 62ch; }
 .reality { margin: var(--s-3) 0 0; max-width: 68ch; padding: var(--s-3) var(--s-4); background: var(--c-sunken); border-radius: var(--r-md); color: var(--c-ink); font-size: var(--fs-sm); line-height: 1.5; }
+.compare__label { margin: 0 0 var(--s-2); font-size: var(--fs-sm); font-weight: 700; color: var(--c-ink); }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .icon-btn { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: var(--r-md); border: 0; background: transparent; color: var(--c-ink-2); cursor: pointer; }
 .icon-btn:hover { background: var(--c-sunken); color: var(--c-ink); }

@@ -9,12 +9,19 @@ from app.ai.schemas import ReplyOut
 from app.conversation.demo_malik import run_malik_script
 from app.fakes import FakeAI, FakeChannel, FakeMailbox
 from app.runtime import after_turn
-from app.story import NORTHLINE_FOOTER, mark_request_sent, reflect_turn
+from app.story import NORTHLINE_FOOTER, fastn_reminder_succeeded, mark_request_sent, reflect_turn
 from app.web.factory import create_surface_app
 from app.web.state import DEMO_CASE_ID, VARIANTS, build_surface
 from tests.web.conftest import login, token_for
 
 CONTRADICTORY = VARIANTS["nl_contradictory"]["text"]
+
+
+def test_fastn_success_needs_a_run_id():
+    assert fastn_reminder_succeeded(200, {}) is False
+    assert fastn_reminder_succeeded(200, "ok") is False
+    assert fastn_reminder_succeeded(404, {"id": "run-1"}) is False
+    assert fastn_reminder_succeeded(200, {"executionId": "run-1"}) is True
 
 
 def _commitment(action, status, facts, interpretation="clear", hint="Line", quote=""):

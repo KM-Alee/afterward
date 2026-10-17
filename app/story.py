@@ -325,26 +325,34 @@ async def add_reply_reminder(settings: Any) -> str:
     return "google"
 
 
+def fastn_reminder_succeeded(status_code: int, body: object) -> bool:
+    """True only when Fastn reports a created workflow run. A bare 200 is not enough."""
+    if status_code >= 300 or not isinstance(body, dict):
+        return False
+    return bool(body.get("id") or body.get("executionId") or body.get("ok") is True)
+
+
 async def _fastn_reminder(settings: Any) -> bool:
-    """Ask Fastn to create the reminder when a key is configured. Otherwise skip."""
-    key = ""
+    """Run a configured Fastn workflow. Without a workflow id, use Google Calendar."""
     secret = getattr(settings, "fastn_api_key", None)
-    if secret is not None:
-        key = secret.get_secret_value()
-    if not key:
+    key = secret.get_secret_value() if secret is not None else ""
+    host = str(getattr(settings, "fastn_api_host", "") or "").rstrip("/")
+    workflow_id = str(getattr(settings, "fastn_workflow_id", "") or "")
+    if not key or not host or not workflow_id:
         return False
     import httpx
 
+    headers = {"Authorization": f"Bearer {key}"}
+    if key.startswith("fsk_test_"):
+        headers["X-fastn-Test-Mode"] = "true"
+        headers["x-fastn-env"] = "test"
     try:
         response = await httpx.AsyncClient(timeout=15).post(
-            "https://api.fastn.ai/v1/events",
-            headers={"Authorization": f"Bearer {key}"},
-            json={
-                "type": "afterward.calendar_reminder",
-                "summary": "Check Northline's written reply for line 4417",
-            },
+            f"{host}/api/v1/workflows/{workflow_id}/execute",
+            headers=headers,
+            json={"input": {"summary": "Check Northline's written reply for line 4417"}},
         )
-        return response.status_code < 300
+        return fastn_reminder_succeeded(response.status_code, response.json())
     except Exception:
         logger.info("reply reminder", extra={"kind": "calendar.fastn", "ok": False})
         return False

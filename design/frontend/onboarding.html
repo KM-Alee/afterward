@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Finding accounts · Afterward (prototype)</title>
+  <meta name="description" content="Onboarding for candidate discovery: the family chooses every source, nothing is searched until they do, and every account stays a question until they confirm it. Prototype with fictional data.">
+  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <link rel="icon" href="favicon.ico" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/brand/png/apple-touch-icon-180.png">
+  <link rel="manifest" href="site.webmanifest">
+  <link rel="preload" href="assets/fonts/newsreader-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="assets/css/tokens.css">
+  <link rel="stylesheet" href="assets/css/base.css">
+  <link rel="stylesheet" href="assets/css/components.css">
+  <link rel="stylesheet" href="assets/css/pages.css">
+</head>
+<body data-page="onboarding">
+  <main id="main" tabindex="-1">
+    <div class="wrap wrap--wide">
+      <div class="ob-intro stack">
+        <p class="eyebrow">Yusuf Malik · finding his accounts</p>
+        <h1 class="h1">Where should we look, Sara?</h1>
+        <p class="lede">Nothing is searched until you choose a place. Everything we find stays a question until you tell us whose it is.</p>
+        <div class="banner banner--info" role="note" id="ob-boundary"></div>
+      </div>
+      <div class="ob">
+        <section class="ob__sources stack-lg" id="ob-sources" aria-label="Places you can let us look"></section>
+        <aside class="ob__side stack-lg" aria-label="What we found and what we didn't search">
+          <section class="card" id="ob-found" aria-labelledby="ob-found-title"></section>
+          <section class="card" id="ob-coverage" aria-labelledby="ob-coverage-title"></section>
+          <section class="card" id="ob-handback" aria-labelledby="ob-handback-title"></section>
+        </aside>
+      </div>
+    </div>
+  </main>
+  <script src="assets/js/ui.js"></script>
+  <script src="assets/js/onboarding.js"></script>
+</body>
+</html>

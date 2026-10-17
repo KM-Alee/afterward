@@ -1,5 +1,7 @@
 """Call room in the browser: the family approves exact terms; the model only speaks."""
 
+from types import SimpleNamespace
+
 from fastapi.testclient import TestClient
 
 from app.call.acceptance import OfferedTerms, build_acceptance_sentence, offered_terms_from_text
@@ -104,3 +106,16 @@ def test_realtime_reply_is_labelled(monkeypatch):
         call, _family = _tokens(client)
         page = client.post(f"/api/calls/{call}/turn", data={"text": "Hello."}).text
         assert "live realtime model, text" in page
+
+
+def test_voice_history_keeps_the_assistant_line_only():
+    from app.call.live import _last_assistant
+
+    history = [
+        SimpleNamespace(role="user", content=[SimpleNamespace(text="12 months at $30")]),
+        SimpleNamespace(
+            role="assistant", content=[SimpleNamespace(transcript="I'll ask the family.")]
+        ),
+    ]
+    assert _last_assistant(history) == "I'll ask the family."
+    assert _last_assistant("nope") == ""

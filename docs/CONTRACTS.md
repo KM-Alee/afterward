@@ -243,3 +243,20 @@ Only the lead may accept, edit the frozen sections and increment revision.
 - Accepted — 2026-10-16 — CR-lead-1 — revision 1. `openai-agents` is a dependency.
   SQLAlchemy asyncio support (greenlet) is included so `SQLAlchemySession` imports.
   No asyncpg driver. Implementation commit `a1991101cc6b7210d67e67928b5a91f2c1b8c2b9`.
+- CR-lead-2 — 2026-10-17 — Candidate sources (docs/DISCOVERY-SOURCES.md). Add tables
+  `discovery_sources` (id, case_id, kind `forward`/`photo`/`household_inbox`/`mail_export`/
+  `statement`/`locator`/`said_by_family`, started_by member_id, scope_text, status
+  `connected`/`scanned`/`started`/`result_received`/`no_match_reported`, matched, read, at) and
+  `candidates` (id, case_id, account_ref nullable, provider, label, track
+  `ordinary`/`financial`/`insurance_pension`/`handback` from the provider profile, ownership
+  `proposed`/`confirmed`/`removed`/`needs_check`, evidence JSONB) with `candidate_sources`
+  linking both. Add `MailClient.search_headers(mailbox, query) -> list[MailHeader]` (From,
+  Subject, Date, id; no body) and a `StatementOut` AI schema (payee, reference, amount, date,
+  quote per line). Discovery agent tools (`search_inbox_headers`, `ask_to_read` with
+  `needs_approval`, `read_message`, `list_documents`, `document_fields`, `statement_payees`,
+  `provider_profile`, `locator_catalogue`, `propose_candidate`, `suggest_to_family`) bound to
+  granted sources by the server, plus a `SuggestionOut` schema (kind, text, why, evidence_ids,
+  at most three options; no address or state field). `Coverage` takes source rows and still has no completion field. Merge only
+  on an identical non-empty reference. — candidates are in memory only and the desk list is
+  hardcoded — affects A (track rules, StatementOut), B (discovery, onboarding cards),
+  C (header search), D (desk tiles, onboarding page).

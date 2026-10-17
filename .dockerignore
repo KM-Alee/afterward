@@ -3,6 +3,8 @@
 !requirements.txt
 !app/
 !app/**
+!static/
+!static/**
 app/**/__pycache__/
 app/**/*.pyc
 app/**/.env*

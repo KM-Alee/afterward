@@ -104,41 +104,13 @@
   }
 
   var ptt = document.querySelector("[data-ptt]");
-  var toggle = document.querySelector("[data-toggle-mode]");
-  if (ptt) {
-    var holding = false;
-    function label() {
-      var tap = toggle && toggle.checked;
-      if (holding) ptt.lastChild.textContent = tap ? " Tap to finish" : " Release to send";
-      else ptt.lastChild.textContent = tap ? " Tap to talk" : " Hold to talk";
-    }
-    ptt.addEventListener("pointerdown", function (event) {
-      if (toggle && toggle.checked) return;
-      event.preventDefault();
-      holding = true;
-      ptt.setAttribute("aria-pressed", "true");
-      label();
+  var talk = document.getElementById("talk-form");
+  if (ptt && talk) {
+    talk.addEventListener("submit", function () {
+      ptt.disabled = true;
+      ptt.setAttribute("aria-busy", "true");
+      var note = talk.querySelector("[data-ptt-status]");
+      if (note) note.textContent = "Sending that line…";
     });
-    window.addEventListener("pointerup", function () {
-      if (!holding || (toggle && toggle.checked)) return;
-      holding = false;
-      ptt.setAttribute("aria-pressed", "false");
-      label();
-      if (typeof ptt.form.requestSubmit === "function") ptt.form.requestSubmit();
-    });
-    ptt.addEventListener("keydown", function (event) {
-      if (event.key !== " " && event.key !== "Enter") return;
-      if (event.repeat) { event.preventDefault(); return; }
-      ptt.setAttribute("aria-pressed", "true");
-      holding = true;
-      label();
-    });
-    ptt.addEventListener("keyup", function (event) {
-      if (event.key !== " " && event.key !== "Enter") return;
-      holding = false;
-      ptt.setAttribute("aria-pressed", "false");
-      label();
-    });
-    if (toggle) toggle.addEventListener("change", label);
   }
 })();
