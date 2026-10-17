@@ -1,15 +1,17 @@
 {% extends "base.html" %}
 {% import "_macros.html" as ui %}
 {% block title %}Family · Afterward{% endblock %}
-{% block body_class %} fit-always{% endblock %}
+{% block body_mode %}app{% endblock %}
+{% block footer_wrap %} wrap--narrow{% endblock %}
 {% block context %}<span class="brand__context">Family</span>{% endblock %}
 {% block main %}
-<div class="wrap">
+<div class="wrap page">
   <div class="family">
     <section class="phone" aria-labelledby="persona-name">
-      <div class="persona">
+      <div class="persona rise">
         <span class="avatar avatar--sara" aria-hidden="true">S</span>
         <div>
+          <p class="eyebrow">Family view</p>
           <h1 class="persona__name" id="persona-name">Sara Malik</h1>
           <p class="persona__role">Handling the estate (stated)</p>
         </div>
@@ -49,9 +51,9 @@
       </section>
       {% endif %}
       <section class="needs" aria-labelledby="needs-you">
-        <div class="needs__head"><h2 class="h4" id="needs-you">{% if board.empty or board.family_choice %}Nothing needs you{% else %}Needs you{% endif %}</h2></div>
+        <div class="needs__head"><h2 class="needs__title" id="needs-you">{% if board.empty or board.family_choice %}Nothing needs you{% else %}Needs you{% endif %}</h2></div>
         {% if board.empty %}
-        <div class="calm"><p>Nothing needs you right now. I'll tell you when something does.</p></div>
+        <div class="calm">{{ ui.icon('horizon') }}<p>Nothing needs you right now. I'll tell you when something does.</p></div>
         {% elif board.family_choice %}
         <div class="needs__card">
           <article class="fcard">
@@ -82,15 +84,16 @@
           </article>
         </div>
         {% else %}
-        <div class="calm"><p>Nothing needs you right now.</p></div>
+        <div class="calm">{{ ui.icon('horizon') }}<p>Nothing needs you right now.</p></div>
         {% endif %}
       </section>
       <nav class="dock" aria-label="More">
-        <button type="button" data-open="earlier">{{ ui.icon('clock') }}Earlier</button>
+        <button type="button" data-open="earlier">{{ ui.icon('clock') }}<span>Earlier</span>{{ ui.icon('chevron-right') }}</button>
+        <a href="/family/{{ token }}/onboarding">{{ ui.icon('mail') }}<span>Finding accounts</span>{{ ui.icon('chevron-right') }}</a>
       </nav>
     </section>
     <aside class="side-note" aria-label="About this view">
-      <section class="card stack stack-sm">
+      <section class="card stack stack-sm rise" style="--i:2">
         <h2 class="h4">This is Sara's phone</h2>
         <p class="small"><a href="/family/{{ token }}/onboarding">Finding accounts</a></p>
         <p class="small secondary">The buttons are the only way to decide. The agent cannot accept an offer or mark a reply done.</p>

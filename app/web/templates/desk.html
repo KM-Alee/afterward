@@ -1,40 +1,58 @@
 {% extends "base.html" %}
 {% import "_macros.html" as ui %}
 {% block title %}Case desk · Afterward{% endblock %}
+{% block body_mode %}app{% endblock %}
 {% block wrap_mod %} wrap--wide{% endblock %}
+{% block footer_wrap %} wrap--wide{% endblock %}
 {% block context %}<span class="brand__context">Case desk</span>{% endblock %}
 {% block main %}
-<div class="wrap wrap--wide" id="desk-root">
+<div class="wrap wrap--wide page" id="desk-root">
   {% if board.empty %}
-  <div class="page-row">
-    <div>
+  <header class="pagehead rise">
+    <div class="pagehead__main">
+      <p class="eyebrow">Case desk</p>
       <h1 class="page-title">No case open</h1>
       <p class="page-sub">Accounts appear once the family confirms the summary.</p>
     </div>
-  </div>
-  <section class="now" aria-labelledby="now-title">
+  </header>
+  <section class="now now--quiet rise" style="--i:1" aria-labelledby="now-title">
     <div class="now__head"><h2 class="now__title" id="now-title">Waiting for the family to confirm</h2></div>
-    <div class="now__empty"><p class="secondary">Nothing has been sent.</p></div>
+    <div class="now__empty">
+      <svg class="empty__art" viewBox="2 14 60 36" aria-hidden="true"><path class="art-arc" d="M16.03 38.19A17 17 0 0 1 47.97 38.19M11.69 30.3A24.5 24.5 0 0 1 19.75 22.78M26.49 20.13A24.5 24.5 0 0 1 37.51 20.13M44.25 22.78A24.5 24.5 0 0 1 52.31 30.3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M21 44A11 11 0 0 1 43 44Z" fill="var(--c-dawn)"/><path d="M8 44H56" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>
+      <p class="secondary">Nothing has been sent.</p>
+    </div>
   </section>
-  <section class="panel-box" aria-labelledby="acc-title">
-    <div class="panel-box__head"><h2 class="panel-box__title" id="acc-title">Accounts</h2></div>
-    <div class="panel-box__body"><div class="empty"><p>Accounts appear once the family confirms the summary.</p></div></div>
-  </section>
-  <section class="panel-box" aria-label="Activity">
-    <div class="panel-box__head"><h2 class="panel-box__title">Activity</h2></div>
-    <div class="panel-box__body"><p class="muted">No events yet.</p></div>
-  </section>
+  <div class="desk desk--empty">
+    <section class="panel-box rise" style="--i:2" aria-labelledby="acc-title">
+      <div class="panel-box__head"><h2 class="panel-box__title" id="acc-title">Accounts</h2></div>
+      <div class="panel-box__body"><div class="empty"><p>Accounts appear once the family confirms the summary.</p></div></div>
+    </section>
+    <section class="panel-box rise" style="--i:3" aria-label="Activity">
+      <div class="panel-box__head"><h2 class="panel-box__title">Activity</h2></div>
+      <div class="panel-box__body"><p class="muted">No events yet.</p></div>
+    </section>
+  </div>
   {% else %}
-  <div class="page-row">
-    <div>
+  {% set accounts = board.accounts %}
+  {% set chipmap = {'kept': 'neutral', 'handed': 'info', 'decision': 'review', 'confirmed': 'holding', 'unconfirmed': 'review', 'blocked': 'review', 'open': 'progress', 'promised': 'waiting'} %}
+  {% set done_kinds = ['holding', 'kept', 'confirmed'] %}
+  {% set attn_kinds = ['violated', 'unauthorised', 'review', 'unknown', 'decision', 'unconfirmed', 'blocked'] %}
+  {% set ns = namespace(done=0, attn=0) %}
+  {% for a in accounts %}
+    {% if a.bucket_kind in done_kinds %}{% set ns.done = ns.done + 1 %}{% elif a.bucket_kind in attn_kinds or a.focus %}{% set ns.attn = ns.attn + 1 %}{% endif %}
+  {% endfor %}
+  {% set n_done = ns.done %}
+  {% set n_attn = ns.attn %}
+  <header class="pagehead rise">
+    <div class="pagehead__main">
+      <p class="eyebrow">Case desk</p>
       <h1 class="page-title">{{ board.deceased }}</h1>
       <p class="page-sub">Died {{ board.died }}. {{ board.handler }}</p>
-      <p class="small" data-source="{{ board.source }}">{% if board.source == 'database' %}{{ ui.chip('holding', board.source_label) }}{% else %}<span class="sim-tag">{{ ui.icon('ring') }}{{ board.source_label }}</span>{% endif %}</p>
-      <p class="reality">What is real: Gmail, Telegram, and a browser call, not a phone call. The 14 proofs use a stand-in model. A restart keeps this desk. Reminders use Google Calendar unless a Fastn workflow is configured. <a href="https://docs.google.com/document/d/18cnj5XJ1pz1jFCk0CWtGWtuKwZElqs7jpd-PW7hg7-c/edit">This status note</a> was written once through Fastn. It has no message bodies.</p>
+      <p class="small pagehead__source" data-source="{{ board.source }}">{% if board.source == 'database' %}{{ ui.chip('holding', board.source_label) }}{% else %}<span class="sim-tag">{{ ui.icon('ring') }}{{ board.source_label }}</span>{% endif %}{{ ui.chip('neutral', 'Confidential compute: not verified') }}</p>
     </div>
     <div class="toolbar">
       <span class="clock-pill" title="Demo clock. Only moves case time.">{{ ui.icon('clock') }}<span>{{ case_time }}</span>
-        <form method="post" action="/api/cases/{{ board.id }}/clock" style="display:inline">
+        <form method="post" action="/api/cases/{{ board.id }}/clock" style="display:inline" data-loading>
           <button class="btn btn--sim btn--sm" type="submit" name="advance_days" value="14">+14 days</button>
           <button class="btn btn--sim btn--sm" type="submit" name="advance_days" value="35">+35 days</button>
         </form>
@@ -42,12 +60,24 @@
       <button class="btn btn--sm" type="button" data-open="sum">{{ ui.icon('chat') }}Did we finish?</button>
       <button class="btn btn--sm" type="button" data-open="cov">{{ ui.icon('eye-off') }}Coverage</button>
       <button class="btn btn--sm" type="button" data-open="case">{{ ui.icon('user') }}Case</button>
-      <form method="post" action="/api/cases/{{ board.id }}/reset" style="display:inline"><button class="btn btn--sim btn--sm" type="submit" title="Start the demo story again">Reset demo</button></form>
+      <form method="post" action="/api/cases/{{ board.id }}/reset" style="display:inline" data-loading><button class="btn btn--sim btn--sm" type="submit" title="Start the demo story again">Reset demo</button></form>
       <button class="icon-btn" type="button" data-projector aria-pressed="false" title="Projector mode" aria-label="Projector mode">{{ ui.icon('projector') }}</button>
     </div>
-  </div>
-  <p class="small">{{ ui.chip('neutral', 'Confidential compute: not verified') }}</p>
-  <p class="xsmall muted">{{ boundary_note }}</p>
+  </header>
+
+  <details class="reality rise" style="--i:1" open>
+    <summary>{{ ui.icon('info') }}<b>What is real here</b>{{ ui.icon('chevron-down') }}</summary>
+    <p>Gmail, Telegram, and a browser call, not a phone call. The 14 proofs use a stand-in model. A restart keeps this desk. Reminders use Google Calendar unless a Fastn workflow is configured. <a href="https://docs.google.com/document/d/18cnj5XJ1pz1jFCk0CWtGWtuKwZElqs7jpd-PW7hg7-c/edit">This status note</a> was written once through Fastn. It has no message bodies.</p>
+    <p class="xsmall muted">{{ boundary_note }}</p>
+  </details>
+
+  <section class="metrics-row rise" style="--i:2" aria-label="Case at a glance">
+    <div class="mcard"><span class="mcard__icon">{{ ui.icon('building') }}</span><span class="mcard__value num" data-count="{{ accounts | length }}">{{ accounts | length }}</span><span class="mcard__label">Accounts listed</span></div>
+    <div class="mcard mcard--good"><span class="mcard__icon">{{ ui.icon('check') }}</span><span class="mcard__value num" data-count="{{ n_done }}">{{ n_done }}</span><span class="mcard__label">Done or kept</span></div>
+    <div class="mcard mcard--warn"><span class="mcard__icon">{{ ui.icon('warning') }}</span><span class="mcard__value num" data-count="{{ n_attn }}">{{ n_attn }}</span><span class="mcard__label">Need attention</span></div>
+    <div class="mcard"><span class="mcard__icon">{{ ui.icon('clock') }}</span><span class="mcard__value num" data-count="{{ board.scheduled | length }}">{{ board.scheduled | length }}</span><span class="mcard__label">Scheduled follow-ups</span></div>
+  </section>
+
   {% if board.monitoring == 'interrupted' %}
   <div class="banner-line banner-line--alert" role="alert">{{ ui.icon('eye-off') }}<span><b>Mailbox disconnected.</b> Replies aren't being read, so nothing can be checked.</span></div>
   {% endif %}
@@ -56,12 +86,13 @@
   {% elif board.delivery == 'reconciled' %}
   <div class="banner-line banner-line--good">{{ ui.icon('check') }}<span><b>Found it.</b> The message went once.</span></div>
   {% endif %}
+
   <div class="desk">
     <div class="desk__col">
       {% if board.outcome %}
-      <section class="now" aria-labelledby="now-title">
+      <section class="now rise" style="--i:3" aria-labelledby="now-title">
         <div class="now__head">
-          <h2 class="now__title" id="now-title">{{ board.outcome.title }}</h2>
+          <div><p class="eyebrow">Latest outcome</p><h2 class="now__title" id="now-title">{{ board.outcome.title }}</h2></div>
           <div class="cluster cluster--tight"><span class="status status--neutral">Plan v{{ board.outcome.plan_version }}</span></div>
         </div>
         <div class="compare-wrap"><div class="compare">
@@ -81,39 +112,52 @@
               <figcaption class="quote__source">{{ ui.evidence(board.outcome.quote_evidence) }}<span>{{ board.outcome.quote_at }}</span></figcaption>
             </figure>
           </div>
-          <div class="compare__col">
+          <div class="compare__col compare__col--verdict">
             <h3 class="compare__label">What that means</h3>
             <p class="verdict verdict--{{ board.outcome.verdict_kind }}">{{ ui.icon('cross') }}{{ board.outcome.verdict_text }}</p>
             <ul class="checks" role="list">
               {% for check in board.outcome.checks %}
-              <li><span>{{ check.label }}</span>{{ ui.chip(check.chip_kind, check.chip_text) }}</li>
+              <li style="--i:{{ loop.index0 }}"><span>{{ check.label }}</span>{{ ui.chip(check.chip_kind, check.chip_text) }}</li>
               {% endfor %}
             </ul>
           </div>
         </div></div>
       </section>
       {% else %}
-      <section class="now" aria-labelledby="now-title">
+      <section class="now now--quiet rise" style="--i:3" aria-labelledby="now-title">
         <div class="now__head"><h2 class="now__title" id="now-title">Waiting for a reply</h2></div>
         <div class="now__empty"><p class="muted">No reply yet.</p></div>
       </section>
       {% endif %}
-      <section class="panel-box tiles-box" aria-labelledby="acc-title">
-        <div class="panel-box__head"><h2 class="panel-box__title" id="acc-title">Accounts</h2></div>
-        <div class="panel-box__body scroll">
-          <div class="tiles">
-            {% for account in board.accounts %}
-            <button class="tile{% if account.focus %} is-focus{% endif %}" type="button" data-open="acct-{{ account.id }}">
-              <span class="tile__top"><span class="tile__name">{{ account.name }}</span>{{ ui.chip(account.bucket_kind if account.bucket_kind in ['holding','violated','unauthorised','unknown','review','waiting','info','progress','neutral','void'] else 'review', account.bucket_text) }}</span>
+
+      <section class="panel-box tiles-box rise" style="--i:4" aria-labelledby="acc-title">
+        <div class="panel-box__head">
+          <h2 class="panel-box__title" id="acc-title">Accounts</h2>
+          <div class="filters" role="group" aria-label="Filter accounts">
+            <button type="button" data-filter="all" aria-pressed="true">All</button>
+            <button type="button" data-filter="attn" aria-pressed="false">Need attention</button>
+            <button type="button" data-filter="wait" aria-pressed="false">In progress</button>
+            <button type="button" data-filter="done" aria-pressed="false">Done</button>
+          </div>
+        </div>
+        <div class="panel-box__body">
+          <div class="tiles" data-stagger>
+            {% for account in accounts %}
+            {% set grp = 'done' if account.bucket_kind in done_kinds else ('attn' if (account.bucket_kind in attn_kinds or account.focus) else 'wait') %}
+            <button class="tile{% if account.focus %} is-focus{% endif %}" type="button" data-open="acct-{{ account.id }}" data-group="{{ grp }}" style="--i:{{ loop.index0 }}">
+              <span class="tile__top"><span class="tile__name">{{ account.name }}</span>{{ ui.chip(chipmap.get(account.bucket_kind, account.bucket_kind) if chipmap.get(account.bucket_kind, account.bucket_kind) in ['holding','violated','unauthorised','unknown','review','waiting','info','progress','neutral','void'] else 'review', account.bucket_text) }}</span>
               <span class="tile__sub">{{ account.label }}</span>
+              <span class="tile__next">{{ ui.icon('arrow-right') }}<span><b>{{ account.next_owner }}</b>: {{ account.next_action }}</span></span>
             </button>
             {% endfor %}
           </div>
+          <p class="filters__empty muted small" hidden>No accounts in this view.</p>
         </div>
       </section>
     </div>
+
     <aside class="desk__col side" aria-label="Activity and call">
-      <section class="panel-box">
+      <section class="panel-box rise" style="--i:5">
         <div class="panel-box__head">
           <div class="tablist" role="tablist" aria-label="Side panel">
             <button type="button" role="tab" data-tab="activity" aria-selected="true">Activity</button>
@@ -122,7 +166,7 @@
         </div>
         <div class="panel-box__body scroll" data-panel="activity" data-events="{{ board.id }}" id="event-stream" tabindex="0">
           {% if board.scheduled %}
-          <div class="small" aria-label="Scheduled">
+          <div class="small scheduled" aria-label="Scheduled">
             <b>Scheduled</b>
             <ul class="facts" role="list">
               {% for job in board.scheduled %}<li>{{ ui.icon('clock') }}<span>{{ job.label }} &middot; {{ job.due }} ({{ job.status }})</span></li>{% endfor %}
@@ -131,10 +175,10 @@
           {% endif %}
           <ol class="tl" role="list">
             {% for event in board.events | reverse %}
-            <li class="t--{{ event.tone }}">
+            <li class="t--{{ event.tone }}" style="--i:{{ loop.index0 if loop.index0 < 10 else 10 }}">
               <div>
                 <p class="tl__text">{{ event.text }}</p>
-                {% if event.quote %}<p class="quote--inline small">“{{ event.quote }}”</p>{% endif %}
+                {% if event.quote %}<p class="quote--inline small">&ldquo;{{ event.quote }}&rdquo;</p>{% endif %}
                 <p class="tl__meta"><span>{{ event.at }}</span>{{ ui.evidence(event.evidence) }}</p>
               </div>
             </li>
@@ -172,7 +216,7 @@
       </section>
     </aside>
   </div>
-  {% for account in board.accounts %}
+  {% for account in accounts %}
   <dialog class="drawer" id="acct-{{ account.id }}" aria-labelledby="acct-{{ account.id }}-title">
     <div class="drawer__head">
       <h2 class="drawer__title" id="acct-{{ account.id }}-title">{{ account.name }}</h2>

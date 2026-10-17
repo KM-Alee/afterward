@@ -5,6 +5,7 @@ html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body {
   margin: 0;
   min-height: 100vh;
+  min-height: 100dvh;
   background: var(--c-paper);
   color: var(--c-ink);
   font-family: var(--font-sans);
@@ -17,7 +18,8 @@ img, svg { display: block; max-width: 100%; }
 button, input, select, textarea { font: inherit; color: inherit; }
 p, ul, ol, dl, figure, blockquote { margin: 0; }
 ul[role="list"], ol[role="list"] { list-style: none; padding: 0; }
-h1, h2, h3, h4 { margin: 0; font-weight: 500; }
+h1, h2, h3, h4 { margin: 0; font-weight: 500; text-wrap: balance; }
+p { text-wrap: pretty; }
 a { color: var(--c-dawn-ink); text-underline-offset: 0.18em; text-decoration-thickness: 1px; }
 a:hover { text-decoration-thickness: 2px; }
 hr { border: 0; border-top: var(--rule); margin: var(--s-5) 0; }
@@ -76,4 +78,25 @@ code, kbd, samp, .mono { font-family: var(--font-mono); font-size: 0.92em; }
 .settle { animation: aw-settle var(--t-slow) var(--ease-out) both; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+
+
+/* ---------- Motion primitives (redesign) ----------
+   Content is visible by default. Only when scripts mark <html class="js"> do reveal
+   targets start hidden, so a failed script never hides the page. */
+@keyframes aw-rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes aw-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes aw-pop { from { opacity: 0; transform: scale(0.86); } to { opacity: 1; transform: none; } }
+@keyframes aw-breathe { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.45; transform: scale(0.8); } }
+@keyframes aw-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+@keyframes aw-sweep { from { background-position: 120% 0; } to { background-position: -120% 0; } }
+
+.rise { animation: aw-rise 520ms var(--ease-out) both; animation-delay: calc(var(--i, 0) * 70ms); }
+.js [data-reveal] { opacity: 0; transform: translateY(16px); transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-out), box-shadow var(--t-base), border-color var(--t-base); transition-delay: calc(var(--i, 0) * 80ms), calc(var(--i, 0) * 80ms), 0ms, 0ms; }
+.js [data-reveal].is-in { opacity: 1; transform: none; }
+.js .card--hover[data-reveal].is-in:hover { transform: translateY(-2px); transition-delay: 0ms; }
+
+@media (prefers-reduced-motion: reduce) {
+  .js [data-reveal] { opacity: 1; transform: none; transition: none; }
+  .rise { animation: none; }
 }

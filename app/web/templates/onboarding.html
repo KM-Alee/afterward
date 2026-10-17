@@ -3,7 +3,8 @@
 {% block title %}Finding accounts · Afterward{% endblock %}
 {% block wrap_mod %} wrap--wide{% endblock %}
 {% block context %}<span class="brand__context">Finding accounts</span>{% endblock %}
-{% block body_class %} ob-page{% endblock %}
+{% block body_mode %}app{% endblock %}
+{% block footer_wrap %} wrap--wide{% endblock %}
 {% block main %}
 <div class="wrap wrap--wide">
   {% if not view %}
@@ -12,7 +13,7 @@
     <div class="banner banner--info" role="note"><div class="banner__body"><p class="banner__title">No database here</p><p class="small">This page reads the case from the database, and none is set up. Nothing is shown rather than invented.</p></div></div>
   </div>
   {% else %}
-  <div class="ob-intro stack">
+  <div class="ob-intro stack rise">
     <p class="eyebrow">{{ view.case.deceased_name }} · finding his accounts</p>
     <h1 class="h1">Where should we look, {{ view.first }}?</h1>
     <p class="lede">Nothing is searched until you choose a place. Everything we find stays a question until you tell us whose it is.</p>
@@ -24,7 +25,7 @@
     <section class="ob__sources stack-lg" aria-label="Places you can let us look">
       {% if view.suggestions %}
       {% set x = view.suggestions[0] %}
-      <article class="card ob-sugg" aria-labelledby="sugg-text">
+      <article class="card ob-sugg rise" aria-labelledby="sugg-text">
         <p class="ob-sugg__who">{{ ui.icon('chat') }}Afterward noticed{% if view.suggestions|length > 1 %} <span class="pill-count">{{ view.suggestions|length - 1 }} more</span>{% endif %}</p>
         <p class="ob-sugg__text" id="sugg-text">{{ x.text }}</p>
         <p class="hint">{{ ui.icon('quote') }} {{ x.why }}</p>
@@ -37,10 +38,10 @@
         <p class="xsmall muted">A suggestion only. Nothing is searched, sent or confirmed unless you choose it.</p>
       </article>
       {% else %}
-      <article class="card card--sunken ob-sugg ob-sugg--quiet"><p class="ob-sugg__who">{{ ui.icon('check') }}No suggestions right now.</p><p class="hint">New photos, forwards or a statement can always add more.</p></article>
+      <article class="card card--sunken ob-sugg ob-sugg--quiet rise"><p class="ob-sugg__who">{{ ui.icon('check') }}No suggestions right now.</p><p class="hint">New photos, forwards or a statement can always add more.</p></article>
       {% endif %}
 
-      <article class="card ob-src" id="src-household">
+      <article class="card ob-src" data-reveal id="src-household">
         <header class="ob-src__head">{{ ui.icon('mail') }}<div><h2 class="h3">An inbox you control</h2><p class="hint">If his bills came to a shared or household address, connect it. You own it; we only read what you tick.</p></div></header>
         <div class="stack">
           {% for conn in view.connections if conn.account_of == 'household' %}
@@ -57,7 +58,7 @@
         </div>
       </article>
 
-      <article class="card ob-src" id="src-his-mail">
+      <article class="card ob-src" data-reveal id="src-his-mail">
         <header class="ob-src__head">{{ ui.icon('shield') }}<div><h2 class="h3">His own mailbox</h2><p class="hint">Only if you already have a legitimate way in.</p></div></header>
         <div class="stack">
           <p class="small">{{ view.his_wording }}</p>
@@ -80,17 +81,17 @@
         </div>
       </article>
 
-      <article class="card ob-src">
+      <article class="card ob-src" data-reveal>
         <header class="ob-src__head">{{ ui.icon('photo') }}<div><h2 class="h3">Photos and forwarded emails</h2><p class="hint">Send them to the Afterward chat in Telegram, or forward mail to the case address. Bills, letters, renewal notices.</p></div></header>
         <p class="hint">Phone photos are kept as photos, never as certified copies.</p>
       </article>
 
-      <article class="card ob-src">
+      <article class="card ob-src" data-reveal>
         <header class="ob-src__head">{{ ui.icon('money') }}<div><h2 class="h3">A bank or card statement</h2><p class="hint">Recurring payments show accounts that never emailed anyone. We list payees; we do not use balances.</p></div></header>
         <p class="hint">Send a photo of a statement in Telegram. Each new payee comes back here as a question.</p>
       </article>
 
-      <article class="card ob-src">
+      <article class="card ob-src" data-reveal>
         <header class="ob-src__head">{{ ui.icon('building') }}<div><h2 class="h3">Searches you can run</h2><p class="hint">Official locators and registers. You run them; I prepare what they ask for.</p></div></header>
         <ul class="ob-locs" role="list">
           {% for item in view.locators %}
@@ -113,14 +114,14 @@
         <p class="xsmall muted">Real services vary by country. Pakistan: not researched yet.</p>
       </article>
 
-      <article class="card ob-src">
+      <article class="card ob-src" data-reveal>
         <header class="ob-src__head">{{ ui.icon('mic') }}<div><h2 class="h3">Tell me yourself</h2><p class="hint">A name is enough, like &ldquo;he had a gym membership&rdquo;.</p></div></header>
         <form class="ob-tell" method="post" action="/family/{{ token }}/onboarding/tell"><label class="visually-hidden" for="tell">Something he had</label><input class="input" id="tell" name="text" placeholder="He had…" autocomplete="off" maxlength="200"><button class="btn" type="submit">Add</button></form>
       </article>
     </section>
 
     <aside class="ob__side stack-lg" aria-label="What we found and what we did not search">
-      <section class="card" aria-labelledby="ob-found-title">
+      <section class="card ob-panel" data-reveal aria-labelledby="ob-found-title">
         <div class="panel__head"><h2 class="section-title" id="ob-found-title">{{ ui.icon('building') }}Possible accounts</h2><span class="small">{{ view.rows|length }} listed · {{ view.need }} need you</span></div>
         {% if view.rows %}
         <ul class="cands">
@@ -144,7 +145,7 @@
         <p class="xsmall muted">Nothing is planned or sent for an account until you say it is his.</p>
       </section>
 
-      <section class="card" aria-labelledby="ob-coverage-title">
+      <section class="card ob-panel" data-reveal aria-labelledby="ob-coverage-title">
         <div class="panel__head"><h2 class="section-title" id="ob-coverage-title">{{ ui.icon('eye-off') }}What we did and did not search</h2></div>
         <div class="ob-cov">
           <div><h3 class="h4">{{ ui.icon('check') }} Searched</h3>{% if view.coverage.searched %}<ul>{% for i in view.coverage.searched %}<li>{{ i }}</li>{% endfor %}</ul>{% else %}<p class="hint">Nothing yet.</p>{% endif %}</div>
@@ -155,7 +156,7 @@
         <p class="small">This list stays open. Anything you send later can add to it.</p>
       </section>
 
-      <section class="card" aria-labelledby="ob-handback-title">
+      <section class="card ob-panel" data-reveal aria-labelledby="ob-handback-title">
         <div class="panel__head"><h2 class="section-title" id="ob-handback-title">{{ ui.icon('hand') }}Prepared for you, done by you</h2></div>
         <p class="hint">Legal, government, tax and certified-document steps. We get them ready; a person does them.</p>
         <ul class="ob-hb" role="list">

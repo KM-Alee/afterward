@@ -16,9 +16,9 @@
   <link rel="stylesheet" href="/static/css/base.css?v={{ asset_v }}">
   <link rel="stylesheet" href="/static/css/components.css?v={{ asset_v }}">
   <link rel="stylesheet" href="/static/css/pages.css?v={{ asset_v }}">
-  <script>try { if (localStorage.getItem("afterward.projector") === "on") document.documentElement.classList.add("is-projector"); var theme = localStorage.getItem("afterward.theme"); if (theme && theme !== "auto") document.documentElement.setAttribute("data-theme", theme); } catch (e) {}</script>
+  <script>document.documentElement.classList.add("js"); try { if (localStorage.getItem("afterward.projector") === "on") document.documentElement.classList.add("is-projector"); var theme = localStorage.getItem("afterward.theme"); if (theme && theme !== "auto") document.documentElement.setAttribute("data-theme", theme); } catch (e) {}</script>
 </head>
-<body data-page="{{ page }}" class="fit{% block body_class %}{% endblock %}">
+<body data-page="{{ page }}" class="{% block body_mode %}fit{% endblock %}{% block body_class %}{% endblock %}">
   <a class="skip-link" href="#main">Skip to content</a>
   <header class="site-header">
     <div class="wrap{% block wrap_mod %}{% endblock %} site-header__inner">
@@ -26,22 +26,46 @@
         <svg class="brand__lockup" viewBox="0 0 633.45 94" role="img" aria-label="Afterward"><use href="/static/brand/afterward-lockup-tokens.svg#lockup"></use></svg>
       </a>
       {% block context %}{% endblock %}
-      <button class="btn btn--quiet btn--sm nav__toggle" type="button" aria-expanded="false" aria-controls="site-nav">{{ ui.icon('chevron-down') }}Menu</button>
       <nav class="nav" id="site-nav" aria-label="Surfaces">
+        {% block header_nav %}
         {% for item in nav | default([]) %}
         <a href="{{ item.href }}"{% if item.current %} aria-current="page"{% endif %}>{{ ui.icon(item.icon) }}{{ item.label }}</a>
         {% endfor %}
+        {% endblock %}
       </nav>
-      <div class="protobar__theme" role="group" aria-label="Colour theme">
-        <button type="button" data-theme-set="auto" title="Auto theme"><span class="visually-hidden">Auto theme</span>{{ ui.icon('contrast') }}</button>
-        <button type="button" data-theme-set="light" title="Light theme"><span class="visually-hidden">Light theme</span>{{ ui.icon('sun') }}</button>
-        <button type="button" data-theme-set="dark" title="Dark theme"><span class="visually-hidden">Dark theme</span>{{ ui.icon('moon') }}</button>
+      <div class="header-end">
+        {% if signed_in and page != 'index' %}
+        {% set case_name = board.deceased if (board is defined and board and board.deceased) else 'Malik family demo' %}
+        <details class="switcher" data-switcher>
+          <summary aria-label="Open case: {{ case_name }}"><span class="avatar avatar--sara" aria-hidden="true">{{ case_name[:1] }}</span><span class="switcher__name">{{ case_name }}</span>{{ ui.icon('chevron-down') }}</summary>
+          <div class="switcher__menu">
+            <p class="eyebrow">Open case</p>
+            <div class="switcher__item"><span class="avatar avatar--sara" aria-hidden="true">{{ case_name[:1] }}</span><span><b>{{ case_name }}</b><small>{% if board is defined and board and board.source_label %}{{ board.source_label }}{% else %}Fictional demo family{% endif %}</small></span></div>
+            <hr class="switcher__sep">
+            <p class="switcher__note">This build opens one fictional demo case. Nothing here is a real person or organisation.</p>
+          </div>
+        </details>
+        {% endif %}
+        <div class="protobar__theme" role="group" aria-label="Colour theme">
+          <button type="button" data-theme-set="auto" title="Auto theme"><span class="visually-hidden">Auto theme</span>{{ ui.icon('contrast') }}</button>
+          <button type="button" data-theme-set="light" title="Light theme"><span class="visually-hidden">Light theme</span>{{ ui.icon('sun') }}</button>
+          <button type="button" data-theme-set="dark" title="Dark theme"><span class="visually-hidden">Dark theme</span>{{ ui.icon('moon') }}</button>
+        </div>
+        <button class="btn btn--quiet btn--sm nav__toggle" type="button" aria-expanded="false" aria-controls="site-nav">{{ ui.icon('chevron-down') }}Menu</button>
       </div>
     </div>
   </header>
   <main id="main" tabindex="-1">
     {% block main %}{% endblock %}
   </main>
+  {% if self.body_mode() | trim == 'app' %}
+  <footer class="site-footer">
+    <div class="wrap{% block footer_wrap %}{% endblock %} site-footer__inner">
+      <span>Afterward &middot; Agentika 2.0, NaSCon&rsquo;26</span>
+      <span>Fictional Malik demo. A browser call is not a phone call. The speech check is not a guarantee.</span>
+    </div>
+  </footer>
+  {% endif %}
   <script src="/static/js/app.js?v={{ asset_v }}"></script>
   {% block scripts %}{% endblock %}
 </body>

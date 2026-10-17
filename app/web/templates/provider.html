@@ -1,18 +1,21 @@
 {% extends "base.html" %}
 {% import "_macros.html" as ui %}
 {% block title %}Provider console · Afterward{% endblock %}
+{% block body_mode %}app{% endblock %}
 {% block context %}<span class="brand__context">Provider console</span>{% endblock %}
 {% block main %}
-<div class="wrap">
-  <div class="page-row">
-    <div>
+<div class="wrap page">
+  <header class="pagehead rise">
+    <div class="pagehead__main">
+      <p class="eyebrow">Provider console</p>
       <h1 class="page-title">Reply as a provider</h1>
       <p class="page-sub">Pick an organisation and answer Afterward's email.</p>
     </div>
     <span class="sim-tag">{{ ui.icon('ring') }}Simulated provider</span>
-  </div>
+  </header>
   {% if board.empty %}
-  <div class="empty">
+  <div class="empty empty--card rise" style="--i:1">
+    <span class="empty__icon">{{ ui.icon('mail') }}</span>
     <p class="empty__title">Nothing to answer yet</p>
     <p>Afterward writes to an organisation only after the family approves that request.</p>
   </div>
@@ -23,7 +26,8 @@
   {% if notice %}
   <div class="banner-line banner-line--good" role="status">{{ ui.icon('check') }}<span><b>Sent.</b> {{ notice }} A real organisation was not contacted.</span></div>
   {% endif %}
-  <form class="compose" method="post" action="/api/provider/send" novalidate aria-label="Your reply">
+  <div class="console">
+  <form class="compose rise" style="--i:1" data-loading method="post" action="/api/provider/send" novalidate aria-label="Your reply">
     <input type="hidden" name="token" value="{{ token }}">
     <label class="label" for="provider">Organisation</label>
     <select class="input" id="provider" name="provider">
@@ -45,7 +49,7 @@
       <button class="btn btn--primary" type="submit">{{ ui.icon('send') }}Send reply</button>
     </div>
   </form>
-  <section class="panel-box" aria-labelledby="thread-title">
+  <section class="panel-box rise" style="--i:2" aria-labelledby="thread-title">
     <div class="panel-box__head"><h2 class="panel-box__title" id="thread-title">Threads</h2></div>
     <div class="panel-box__body scroll" tabindex="0">
       {% if board.threads %}
@@ -62,10 +66,11 @@
       {% endfor %}
       {% endfor %}
       {% else %}
-      <p class="muted">No emails yet.</p>
+      <div class="empty empty--tight">{{ ui.icon('mail') }}<p class="muted">No emails yet.</p></div>
       {% endif %}
     </div>
   </section>
+  </div>
   {% endif %}
 </div>
 {% endblock %}
