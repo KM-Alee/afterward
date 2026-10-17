@@ -16,3 +16,7 @@ htmlcov/
 .claude/settings.local.json
 build/
 dist/
+
+# Local run logs
+.run/
+*.log

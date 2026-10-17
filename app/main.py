@@ -20,6 +20,7 @@ from app.engine.demo_case import ensure_demo_case
 from app.logging import case_id_context, configure_logging, request_id_context
 from app.runtime import handle_telegram, supervise
 from app.web.router import router as web_router
+from app.web.showcase import router as showcase_router
 from app.web.state import build_surface
 
 STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
@@ -107,6 +108,7 @@ def _seed_demo_case(database_url: str, providers_mailbox: str, *, start_poll: bo
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
 app.include_router(web_router)
 app.include_router(call_router)
+app.include_router(showcase_router)
 app.add_api_route("/webhooks/telegram", handle_telegram, methods=["POST"])
 if STATIC_DIR.is_dir():
     app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")

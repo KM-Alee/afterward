@@ -16,6 +16,7 @@ from app.models import (
     Case,
     Dependency,
     DependencyKind,
+    DeskSnapshot,
     DocsStatus,
     Job,
     Member,
@@ -40,6 +41,8 @@ _OVERLAY: dict[str, tuple[ServiceStatus, MoneyStatus, DocsStatus]] = {
 def ensure_demo_case(session: Session, *, providers_mailbox: str = "") -> UUID:
     """Return the demo case id, inserting the case, members, accounts and follow-up once."""
     case = session.scalar(select(Case).where(Case.ref == DEMO_CASE_REF))
+    if case is not None and _showcase_drives(session, case):
+        return case.id  # the showcase writes every row itself; this seed must not add to them
     if case is None:
         case = seed_malik(session, providers_mailbox=providers_mailbox)
         accounts = {
@@ -59,6 +62,12 @@ def ensure_demo_case(session: Session, *, providers_mailbox: str = "") -> UUID:
     _name_and_track(session, case)
     _ensure_followup(session, case)
     return case.id
+
+
+def _showcase_drives(session: Session, case: Case) -> bool:
+    """True while the step-driven showcase owns this case (its progress row names the case)."""
+    row = session.get(DeskSnapshot, "showcase")
+    return row is not None and (row.payload or {}).get("case_id") == str(case.id)
 
 
 # Demo organisations that have no provider profile yet: name them, never guess an address.

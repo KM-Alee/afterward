@@ -94,6 +94,7 @@ def _nav(request: Request, current: str, *, reveal: bool = False) -> list[dict[s
     demo = surface.demo_case_id
     items = [
         {"id": "index", "href": "/", "label": "Start", "icon": "horizon"},
+        {"id": "showcase", "href": "/showcase", "label": "Showcase", "icon": "fast-forward"},
         {"id": "desk", "href": f"/desk/{demo}", "label": "Case desk", "icon": "desk"},
         {
             "id": "family",
@@ -200,6 +201,12 @@ def _doors(surface: SurfaceState) -> list[dict[str, str]]:
             "detail": "Reply as an organisation",
         },
         {"href": "/proofs", "icon": "flask", "title": "Proofs", "detail": "The 14 cases"},
+        {
+            "href": "/showcase",
+            "icon": "fast-forward",
+            "title": "Showcase",
+            "detail": "The whole case, step by step",
+        },
     ]
 
 
