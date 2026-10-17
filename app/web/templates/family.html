@@ -11,13 +11,12 @@
       <div class="persona rise">
         <span class="avatar avatar--sara" aria-hidden="true">S</span>
         <div>
-          <p class="eyebrow">Family view</p>
-          <h1 class="persona__name" id="persona-name">Sara Malik</h1>
+                    <h1 class="persona__name" id="persona-name">Sara Malik</h1>
           <p class="persona__role">Handling the estate (stated)</p>
         </div>
       </div>
       {% if board.monitoring == 'interrupted' %}
-      <div class="banner banner--interrupted">{{ ui.icon('eye-off') }}<p class="banner__title">Mailbox disconnected</p><p class="banner__body">Replies aren't being read until it's back.</p></div>
+      <div class="banner banner--interrupted">{{ ui.icon('eye-off') }}<p class="banner__title">Mailbox disconnected</p></div>
       {% endif %}
       {% if offer %}
       <section class="needs" aria-labelledby="call-offer">
@@ -32,11 +31,11 @@
               </ul>
               {% if offer_error %}<p class="small" role="alert"><b>{{ offer_error }}</b></p>{% endif %}
               {% if offer.approval_status == 'approved' %}
-              <p class="small">You approved this exact offer. If Northline changes it, your approval is void.</p>
+              <p class="small">Approved. Void if Northline changes it.</p>
               {% elif offer.approval_status == 'declined' %}
-              <p class="small">You declined. Nothing was accepted.</p>
+              <p class="small">Declined.</p>
               {% else %}
-              <p class="small">{% if offer.approval_status == 'void' %}The offer changed, so your earlier approval no longer counts. {% endif %}The agent cannot accept. Only you can.</p>
+              <p class="small">{% if offer.approval_status == 'void' %}The offer changed, so your earlier approval no longer counts. {% endif %}Only you can accept.</p>
               {% endif %}
             </div>
             {% if offer.approval_status != 'approved' and offer.approval_status != 'declined' %}
@@ -53,12 +52,12 @@
       <section class="needs" aria-labelledby="needs-you">
         <div class="needs__head"><h2 class="needs__title" id="needs-you">{% if board.empty or board.family_choice %}Nothing needs you{% else %}Needs you{% endif %}</h2></div>
         {% if board.empty %}
-        <div class="calm">{{ ui.icon('horizon') }}<p>Nothing needs you right now. I'll tell you when something does.</p></div>
+        <div class="calm">{{ ui.icon('horizon') }}<p>All clear.</p></div>
         {% elif board.family_choice %}
         <div class="needs__card">
           <article class="fcard">
             <h3 class="fcard__title">Recorded.</h3>
-            <div class="fcard__body"><p>Your choice is on the case. Nothing was sent because of this tap alone.</p></div>
+            <div class="fcard__body"><p>Saved. Nothing was sent.</p></div>
           </article>
         </div>
         {% elif board.outcome %}
@@ -84,7 +83,7 @@
           </article>
         </div>
         {% else %}
-        <div class="calm">{{ ui.icon('horizon') }}<p>Nothing needs you right now.</p></div>
+        <div class="calm">{{ ui.icon('horizon') }}<p>All clear.</p></div>
         {% endif %}
       </section>
       <nav class="dock" aria-label="More">
@@ -92,13 +91,6 @@
         <a href="/family/{{ token }}/onboarding">{{ ui.icon('mail') }}<span>Finding accounts</span>{{ ui.icon('chevron-right') }}</a>
       </nav>
     </section>
-    <aside class="side-note" aria-label="About this view">
-      <section class="card stack stack-sm rise" style="--i:2">
-        <h2 class="h4">This is Sara's phone</h2>
-        <p class="small"><a href="/family/{{ token }}/onboarding">Finding accounts</a></p>
-        <p class="small secondary">The buttons are the only way to decide. The agent cannot accept an offer or mark a reply done.</p>
-      </section>
-    </aside>
   </div>
 </div>
 <dialog class="drawer drawer--bottom" id="earlier" aria-labelledby="earlier-title">
@@ -114,7 +106,7 @@
       {% endfor %}
     </ol>
     {% else %}
-    <p class="muted">No earlier messages.</p>
+    <p class="muted">Nothing earlier.</p>
     {% endif %}
   </div>
 </dialog>

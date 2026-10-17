@@ -8,163 +8,129 @@
 {% block main %}
 <div class="wrap wrap--wide">
   {% if not view %}
-  <div class="ob-intro stack">
-    <h1 class="h1">Finding accounts</h1>
-    <div class="banner banner--info" role="note"><div class="banner__body"><p class="banner__title">No database here</p><p class="small">This page reads the case from the database, and none is set up. Nothing is shown rather than invented.</p></div></div>
-  </div>
+  <header class="pagehead rise"><div class="pagehead__main"><h1 class="page-title">Finding accounts</h1><p class="page-sub">No database here, so nothing is shown.</p></div></header>
   {% else %}
-  <div class="ob-intro stack rise">
-    <p class="eyebrow">{{ view.case.deceased_name }} · finding his accounts</p>
-    <h1 class="h1">Where should we look, {{ view.first }}?</h1>
-    <p class="lede">Nothing is searched until you choose a place. Everything we find stays a question until you tell us whose it is.</p>
-    <div class="banner banner--info" role="note">{{ ui.icon('shield') }}<div class="banner__body"><p class="banner__title">What we never do</p><p class="small">{{ view.boundary }}</p></div></div>
-    {% if notice %}<div class="banner-line banner-line--good" role="status">{{ ui.icon('check') }}<span>{{ notice }}</span></div>{% endif %}
-    {% if error %}<div class="banner-line banner-line--alert" role="alert">{{ ui.icon('warning') }}<span>{{ error }}</span></div>{% endif %}
-  </div>
+  {% set hh = view.connections | selectattr('account_of', 'equalto', 'household') | list %}
+  {% set his = view.connections | selectattr('account_of', 'equalto', 'deceased') | list %}
+  <header class="pagehead rise">
+    <div class="pagehead__main">
+      <h1 class="page-title">Where should we look, {{ view.first }}?</h1>
+      <p class="page-sub">{{ view.case.deceased_name }} &middot; {{ view.rows|length }} possible accounts &middot; {{ view.need }} need you</p>
+    </div>
+    <a class="btn btn--sm" href="/family/{{ token }}">{{ ui.icon('arrow-left') }}Back</a>
+  </header>
+  {% if notice %}<div class="banner-line banner-line--good" role="status">{{ ui.icon('check') }}<span>{{ notice }}</span></div>{% endif %}
+  {% if error %}<div class="banner-line banner-line--alert" role="alert">{{ ui.icon('warning') }}<span>{{ error }}</span></div>{% endif %}
   <div class="ob">
-    <section class="ob__sources stack-lg" aria-label="Places you can let us look">
-      {% if view.suggestions %}
-      {% set x = view.suggestions[0] %}
-      <article class="card ob-sugg rise" aria-labelledby="sugg-text">
-        <p class="ob-sugg__who">{{ ui.icon('chat') }}Afterward noticed{% if view.suggestions|length > 1 %} <span class="pill-count">{{ view.suggestions|length - 1 }} more</span>{% endif %}</p>
-        <p class="ob-sugg__text" id="sugg-text">{{ x.text }}</p>
-        <p class="hint">{{ ui.icon('quote') }} {{ x.why }}</p>
-        {% if x.options %}
-        <form class="btn-row" method="post" action="/family/{{ token }}/onboarding/ownership">
-          <input type="hidden" name="account_id" value="{{ x.account_id }}">
-          {% for value, label in x.options %}<button class="btn{% if loop.first %} btn--primary{% endif %}" type="submit" name="choice" value="{{ value }}">{{ label }}</button>{% endfor %}
-        </form>
-        {% endif %}
-        <p class="xsmall muted">A suggestion only. Nothing is searched, sent or confirmed unless you choose it.</p>
-      </article>
-      {% else %}
-      <article class="card card--sunken ob-sugg ob-sugg--quiet rise"><p class="ob-sugg__who">{{ ui.icon('check') }}No suggestions right now.</p><p class="hint">New photos, forwards or a statement can always add more.</p></article>
-      {% endif %}
-
-      <article class="card ob-src" data-reveal id="src-household">
-        <header class="ob-src__head">{{ ui.icon('mail') }}<div><h2 class="h3">An inbox you control</h2><p class="hint">If his bills came to a shared or household address, connect it. You own it; we only read what you tick.</p></div></header>
-        <div class="stack">
-          {% for conn in view.connections if conn.account_of == 'household' %}
-          <p class="small">{{ ui.chip('holding', 'Connected') }} {{ conn.owner_label }}'s household inbox, read-only.</p>
-          {% endfor %}
-          <div class="field"><span class="label">I will search only for mail that names him</span>
-            <code class="ob-query">{{ view.query }}</code>
-            <p class="hint">Built by code from the case, not by the AI. The AI can narrow it, never widen it. Headers first; a message is read only after you tick it.</p></div>
-          <form class="btn-row" method="post" action="/connect/gmail/start">
-            <input type="hidden" name="token" value="{{ token }}">
-            <input type="hidden" name="account_of" value="household">
-            <button class="btn btn--primary" type="submit">{{ ui.icon('link') }}Connect Gmail</button>
-          </form>
-        </div>
-      </article>
-
-      <article class="card ob-src" data-reveal id="src-his-mail">
-        <header class="ob-src__head">{{ ui.icon('shield') }}<div><h2 class="h3">His own mailbox</h2><p class="hint">Only if you already have a legitimate way in.</p></div></header>
-        <div class="stack">
-          <p class="small">{{ view.his_wording }}</p>
-          {% for conn in view.connections if conn.account_of == 'deceased' %}
-          <p class="small">{{ ui.chip('holding', 'Connected') }} Connected by {{ conn.owner_label }}, read-only. You said: &ldquo;{{ conn.stated_authority }}&rdquo;</p>
-          {% endfor %}
-          <form class="stack" method="post" action="/connect/gmail/start">
-            <input type="hidden" name="token" value="{{ token }}">
-            <input type="hidden" name="account_of" value="deceased">
-            <div class="field"><label class="label" for="authority">Your authority</label>
-              <textarea class="textarea" id="authority" name="stated_authority" required aria-describedby="authority-hint" placeholder="For example: his email provider released an export to me as next of kin"></textarea>
-              <p class="hint" id="authority-hint">Required. This is recorded as what you told us, not as verified.</p></div>
-            <div class="btn-row"><button class="btn" type="submit">{{ ui.icon('link') }}Connect his mailbox, read-only</button></div>
-          </form>
-          <ul class="ob-list small">
-            <li><b>Google:</b> a trusted contact he set up, or a request about a deceased user's account</li>
-            <li><b>Apple:</b> a Legacy Contact with the access key</li>
-            <li><b>Microsoft:</b> a next-of-kin request</li>
-          </ul>
-        </div>
-      </article>
-
-      <article class="card ob-src" data-reveal>
-        <header class="ob-src__head">{{ ui.icon('photo') }}<div><h2 class="h3">Photos and forwarded emails</h2><p class="hint">Send them to the Afterward chat in Telegram, or forward mail to the case address. Bills, letters, renewal notices.</p></div></header>
-        <p class="hint">Phone photos are kept as photos, never as certified copies.</p>
-      </article>
-
-      <article class="card ob-src" data-reveal>
-        <header class="ob-src__head">{{ ui.icon('money') }}<div><h2 class="h3">A bank or card statement</h2><p class="hint">Recurring payments show accounts that never emailed anyone. We list payees; we do not use balances.</p></div></header>
-        <p class="hint">Send a photo of a statement in Telegram. Each new payee comes back here as a question.</p>
-      </article>
-
-      <article class="card ob-src" data-reveal>
-        <header class="ob-src__head">{{ ui.icon('building') }}<div><h2 class="h3">Searches you can run</h2><p class="hint">Official locators and registers. You run them; I prepare what they ask for.</p></div></header>
-        <ul class="ob-locs" role="list">
-          {% for item in view.locators %}
-          <li class="ob-loc">
-            <div class="cluster cluster--between"><span><b>{{ item.loc.name }}</b> <span class="sim-tag">{{ ui.icon('ring') }}Fictional</span></span>
-              {% if item.step == 'prepared' %}{{ ui.chip('info', 'Prepared') }}{% elif item.step == 'started' %}{{ ui.chip('waiting', 'Started by ' ~ item.by ~ ', waiting') }}{% endif %}</div>
-            <p class="small muted">{{ item.loc.finds }}</p>
-            {% if item.step == 'none' %}
-            <form class="btn-row" method="post" action="/family/{{ token }}/onboarding/locator"><input type="hidden" name="locator" value="{{ item.loc.id }}"><button class="btn btn--sm" name="step" value="prepare" type="submit">Prepare it</button></form>
-            {% elif item.step == 'prepared' %}
-            <dl class="deflist small"><dt>Name</dt><dd>{{ view.case.deceased_name }}</dd>{% if view.case.date_of_death %}<dt>Died</dt><dd>{{ view.case.date_of_death.strftime('%-d %B %Y') }}</dd>{% endif %}<dt>You</dt><dd>{{ view.owner }} (stated)</dd></dl>
-            <form class="btn-row" method="post" action="/family/{{ token }}/onboarding/locator"><input type="hidden" name="locator" value="{{ item.loc.id }}"><button class="btn btn--primary btn--sm" name="step" value="started" type="submit">I started it</button></form>
-            <p class="xsmall muted">You submit it yourself. We do not create accounts or fill forms on their site.</p>
-            {% else %}
-            <p class="hint">{{ item.loc.result_goes_to }} Forward or photograph the reply when it comes. &ldquo;No match&rdquo; means none was reported, not that none exists.</p>
-            {% endif %}
-          </li>
-          {% endfor %}
-        </ul>
-        <p class="xsmall muted">Real services vary by country. Pakistan: not researched yet.</p>
-      </article>
-
-      <article class="card ob-src" data-reveal>
-        <header class="ob-src__head">{{ ui.icon('mic') }}<div><h2 class="h3">Tell me yourself</h2><p class="hint">A name is enough, like &ldquo;he had a gym membership&rdquo;.</p></div></header>
-        <form class="ob-tell" method="post" action="/family/{{ token }}/onboarding/tell"><label class="visually-hidden" for="tell">Something he had</label><input class="input" id="tell" name="text" placeholder="He had…" autocomplete="off" maxlength="200"><button class="btn" type="submit">Add</button></form>
-      </article>
-    </section>
-
-    <aside class="ob__side stack-lg" aria-label="What we found and what we did not search">
-      <section class="card ob-panel" data-reveal aria-labelledby="ob-found-title">
-        <div class="panel__head"><h2 class="section-title" id="ob-found-title">{{ ui.icon('building') }}Possible accounts</h2><span class="small">{{ view.rows|length }} listed · {{ view.need }} need you</span></div>
+    <section class="ob__main stack-lg" aria-label="Possible accounts">
+      <div class="card ob-panel rise" aria-labelledby="ob-found-title">
+        <div class="panel__head"><h2 class="section-title" id="ob-found-title">{{ ui.icon('building') }}Possible accounts</h2></div>
         {% if view.rows %}
         <ul class="cands">
           {% for row in view.rows %}
           <li class="cand">
-            <span class="cand__name">{{ row.provider }} <span class="muted">· {{ row.label }}</span></span>
+            <span class="cand__name">{{ row.provider }} <span class="muted">&middot; {{ row.label }}</span></span>
             {{ ui.chip(row.state_chip[0], row.state_chip[1]) }}
-            <span class="cand__meta"><span>{{ ui.icon('link') }} {{ row.sources }}</span>{{ ui.chip(row.track_chip[0], row.track_chip[1]) }}</span>
+            <span class="cand__meta"><span title="Where it was seen">{{ ui.icon('link') }} {{ row.sources }}</span>{{ ui.chip(row.track_chip[0], row.track_chip[1]) }}</span>
             {% if row.state == 'proposed' %}
-            <form class="cand__ask" method="post" action="/family/{{ token }}/onboarding/ownership">
+            <form class="cand__ask cand__ask--big" method="post" action="/family/{{ token }}/onboarding/ownership">
               <input type="hidden" name="account_id" value="{{ row.id }}">
-              <button class="btn btn--sm btn--primary" type="submit" name="choice" value="his">Yes, his</button>
-              <button class="btn btn--sm" type="submit" name="choice" value="not_his">Not his</button>
-              <button class="btn btn--sm" type="submit" name="choice" value="not_sure">Shared or not sure</button>
+              <button class="btn btn--primary" type="submit" name="choice" value="his">Yes, his</button>
+              <button class="btn" type="submit" name="choice" value="not_his">Not his</button>
+              <button class="btn" type="submit" name="choice" value="not_sure">Shared or not sure</button>
             </form>
             {% endif %}
           </li>
           {% endfor %}
         </ul>
-        {% else %}<p class="hint">Nothing yet. Accounts appear here only from places you choose.</p>{% endif %}
-        <p class="xsmall muted">Nothing is planned or sent for an account until you say it is his.</p>
-      </section>
+        {% else %}<p class="hint">None yet. Add a place to look.</p>{% endif %}
+      </div>
 
-      <section class="card ob-panel" data-reveal aria-labelledby="ob-coverage-title">
-        <div class="panel__head"><h2 class="section-title" id="ob-coverage-title">{{ ui.icon('eye-off') }}What we did and did not search</h2></div>
+      <div class="card ob-panel rise" aria-labelledby="ob-sources-title">
+        <div class="panel__head"><h2 class="section-title" id="ob-sources-title">{{ ui.icon('mail') }}Places to look</h2></div>
+        <ul class="ob-steps" role="list">
+          <li><details class="ob-step" id="src-household"{% if not hh %} open{% endif %}>
+            <summary>{{ ui.icon('mail') }}<b>Household inbox</b>{% if hh %}{{ ui.chip('holding', 'Connected') }}{% else %}{{ ui.chip('neutral', 'Not yet') }}{% endif %}</summary>
+            <div class="stack">
+              {% for conn in hh %}<p class="small">{{ conn.owner_label }}'s inbox, read-only.</p>{% endfor %}
+              <p class="small muted" title="Built by code, never widened by the AI. Headers first; a message is read only after you tick it.">Only mail naming him: <code class="ob-query">{{ view.query }}</code></p>
+              <form class="btn-row" method="post" action="/connect/gmail/start">
+                <input type="hidden" name="token" value="{{ token }}">
+                <input type="hidden" name="account_of" value="household">
+                <button class="btn btn--primary" type="submit">{{ ui.icon('link') }}Connect Gmail</button>
+              </form>
+            </div>
+          </details></li>
+          <li><details class="ob-step" id="src-his-mail">
+            <summary>{{ ui.icon('shield') }}<b>His own mailbox</b>{% if his %}{{ ui.chip('holding', 'Connected') }}{% else %}{{ ui.chip('neutral', 'Optional') }}{% endif %}</summary>
+            <div class="stack">
+              <p class="small">{{ view.his_wording }}</p>
+              {% for conn in his %}<p class="small">Connected by {{ conn.owner_label }}, read-only. You said: &ldquo;{{ conn.stated_authority }}&rdquo;</p>{% endfor %}
+              <form class="stack" method="post" action="/connect/gmail/start">
+                <input type="hidden" name="token" value="{{ token }}">
+                <input type="hidden" name="account_of" value="deceased">
+                <div class="field"><label class="label" for="authority">Your authority</label>
+                  <textarea class="textarea" id="authority" name="stated_authority" required placeholder="For example: his email provider released an export to me as next of kin" title="Recorded as what you told us, not as verified"></textarea></div>
+                <div class="btn-row"><button class="btn" type="submit">{{ ui.icon('link') }}Connect his mailbox, read-only</button></div>
+              </form>
+            </div>
+          </details></li>
+          <li><details class="ob-step">
+            <summary>{{ ui.icon('photo') }}<b>Photos and forwarded emails</b>{{ ui.chip('neutral', 'In Telegram') }}</summary>
+            <p class="small">Send bills and letters to the Afterward chat, or forward mail to the case address. Photos stay photos, not certified copies.</p>
+          </details></li>
+          <li><details class="ob-step">
+            <summary>{{ ui.icon('money') }}<b>A bank or card statement</b>{{ ui.chip('neutral', 'In Telegram') }}</summary>
+            <p class="small">Send a photo in Telegram. Each new payee comes back here as a question. Balances are not used.</p>
+          </details></li>
+          <li><details class="ob-step">
+            <summary>{{ ui.icon('building') }}<b>Searches you can run</b>{{ ui.chip('neutral', 'You submit') }}</summary>
+            <ul class="ob-locs" role="list">
+              {% for item in view.locators %}
+              <li class="ob-loc">
+                <div class="cluster cluster--between"><span><b>{{ item.loc.name }}</b> <span class="sim-tag">{{ ui.icon('ring') }}Fictional</span></span>
+                  {% if item.step == 'prepared' %}{{ ui.chip('info', 'Prepared') }}{% elif item.step == 'started' %}{{ ui.chip('waiting', 'Started by ' ~ item.by ~ ', waiting') }}{% endif %}</div>
+                <p class="small muted">{{ item.loc.finds }}</p>
+                {% if item.step == 'none' %}
+                <form class="btn-row" method="post" action="/family/{{ token }}/onboarding/locator"><input type="hidden" name="locator" value="{{ item.loc.id }}"><button class="btn btn--sm" name="step" value="prepare" type="submit">Prepare it</button></form>
+                {% elif item.step == 'prepared' %}
+                <dl class="deflist small"><dt>Name</dt><dd>{{ view.case.deceased_name }}</dd>{% if view.case.date_of_death %}<dt>Died</dt><dd>{{ view.case.date_of_death.strftime('%-d %B %Y') }}</dd>{% endif %}<dt>You</dt><dd>{{ view.owner }} (stated)</dd></dl>
+                <form class="btn-row" method="post" action="/family/{{ token }}/onboarding/locator"><input type="hidden" name="locator" value="{{ item.loc.id }}"><button class="btn btn--primary btn--sm" name="step" value="started" type="submit">I started it</button></form>
+                {% else %}
+                <p class="hint">{{ item.loc.result_goes_to }} &ldquo;No match&rdquo; means none was reported, not that none exists.</p>
+                {% endif %}
+              </li>
+              {% endfor %}
+            </ul>
+          </details></li>
+          <li><details class="ob-step">
+            <summary>{{ ui.icon('mic') }}<b>Tell me yourself</b></summary>
+            <form class="ob-tell" method="post" action="/family/{{ token }}/onboarding/tell"><label class="visually-hidden" for="tell">Something he had</label><input class="input" id="tell" name="text" placeholder="He had a gym membership&hellip;" autocomplete="off" maxlength="200"><button class="btn btn--primary" type="submit">Add</button></form>
+          </details></li>
+        </ul>
+      </div>
+    </section>
+
+    <aside class="ob__side stack-lg" aria-label="Coverage">
+      <section class="card ob-panel rise" aria-labelledby="ob-coverage-title">
+        <div class="panel__head"><h2 class="section-title" id="ob-coverage-title">{{ ui.icon('eye-off') }}Coverage</h2></div>
         <div class="ob-cov">
           <div><h3 class="h4">{{ ui.icon('check') }} Searched</h3>{% if view.coverage.searched %}<ul>{% for i in view.coverage.searched %}<li>{{ i }}</li>{% endfor %}</ul>{% else %}<p class="hint">Nothing yet.</p>{% endif %}</div>
           {% if view.coverage.waiting %}<div><h3 class="h4">{{ ui.icon('clock') }} Started, waiting</h3><ul>{% for i in view.coverage.waiting %}<li>{{ i }}</li>{% endfor %}</ul></div>{% endif %}
           <div><h3 class="h4">{{ ui.icon('lock') }} Not searched, by design</h3><ul>{% for i in view.coverage.not_searched %}<li>{{ i }}</li>{% endfor %}</ul></div>
-          <div><h3 class="h4">{{ ui.icon('info') }} Where else to look</h3><ul>{% for i in view.coverage.where_else %}<li>{{ i }}</li>{% endfor %}</ul></div>
+          <details class="ob-more"><summary>Where else to look</summary><ul>{% for i in view.coverage.where_else %}<li>{{ i }}</li>{% endfor %}</ul></details>
         </div>
-        <p class="small">This list stays open. Anything you send later can add to it.</p>
+        <p class="xsmall muted">{{ view.boundary }}</p>
       </section>
 
-      <section class="card ob-panel" data-reveal aria-labelledby="ob-handback-title">
-        <div class="panel__head"><h2 class="section-title" id="ob-handback-title">{{ ui.icon('hand') }}Prepared for you, done by you</h2></div>
-        <p class="hint">Legal, government, tax and certified-document steps. We get them ready; a person does them.</p>
+      <details class="card ob-panel ob-more" aria-labelledby="ob-handback-title">
+        <summary id="ob-handback-title">{{ ui.icon('hand') }}Prepared for you, done by you</summary>
         <ul class="ob-hb" role="list">
           {% for title, body in view.handback %}
           <li><div class="cluster cluster--between"><b>{{ title }}</b>{{ ui.chip('neutral', 'You do this') }}</div><p class="small">{{ body }}</p></li>
           {% endfor %}
         </ul>
-      </section>
+      </details>
     </aside>
   </div>
   {% endif %}

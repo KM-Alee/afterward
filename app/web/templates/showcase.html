@@ -5,54 +5,69 @@
 {% block context %}<span class="brand__context">Showcase</span>{% endblock %}
 {% block main %}
 <style>
-  .sc-rail { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
-  .sc-step { border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface); padding: var(--s-4); }
-  .sc-step[data-state="next"] { border-color: var(--c-line-strong); box-shadow: var(--lift); }
-  .sc-step[data-state="todo"] { opacity: .72; }
-  .sc-step__head { display: flex; gap: var(--s-3); align-items: baseline; flex-wrap: wrap; }
-  .sc-step__n { font-family: var(--font-mono); color: var(--c-ink-3); min-width: 2ch; }
+  .sc { display: grid; gap: var(--s-5); align-items: start; }
+  @media (min-width: 56rem) { .sc { grid-template-columns: 17rem minmax(0, 1fr); } .sc-rail { position: sticky; top: calc(var(--header-h) + var(--s-4)); } }
+  .sc-rail { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-1); }
+  .sc-rail a { display: grid; grid-template-columns: 2ch 1fr auto; gap: var(--s-2); align-items: center; padding: var(--s-2) var(--s-3); border-radius: var(--r-md); color: var(--c-ink-2); text-decoration: none; border: 1px solid transparent; }
+  .sc-rail a:hover { background: var(--c-sunken); }
+  .sc-rail li[data-state="next"] a { border-color: var(--c-line-strong); background: var(--c-surface); color: var(--c-ink); font-weight: 700; }
+  .sc-rail li[data-state="todo"] a { opacity: .65; }
+  .sc-n { font-family: var(--font-mono); color: var(--c-ink-3); }
+  .sc-dot { width: .6rem; height: .6rem; border-radius: 50%; background: var(--c-line-strong); }
+  .sc-rail li[data-state="done"] .sc-dot { background: var(--c-moss, #3f7d5b); }
+  .sc-rail li[data-state="next"] .sc-dot { background: var(--c-dawn); }
+  .sc-body { display: grid; gap: var(--s-3); min-width: 0; }
+  .sc-step { border: 1px solid var(--c-line); border-radius: var(--r-md); background: var(--c-surface); padding: var(--s-3) var(--s-4); }
+  .sc-step > summary { cursor: pointer; display: flex; gap: var(--s-3); align-items: baseline; flex-wrap: wrap; }
   .sc-step__title { margin: 0; font-size: var(--fs-md); }
-  .sc-cols { display: grid; gap: var(--s-4); grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); margin-top: var(--s-3); }
+  .sc-cols { display: grid; gap: var(--s-4); grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); margin-top: var(--s-3); }
   .sc-cols h4 { margin: 0 0 var(--s-1); font-size: var(--fs-sm); color: var(--c-ink-2); }
-  .sc-cols ul, .sc-details { margin: 0; padding-left: 1.1rem; }
+  .sc-cols ul, .sc-details { margin: var(--s-2) 0 0; padding-left: 1.1rem; }
   .sc-chat { font-family: var(--font-mono); font-size: var(--fs-xs); white-space: pre-wrap; color: var(--c-ink-2); }
+  .sc-next { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; padding: var(--s-4); border: 1px dashed var(--c-line-strong); border-radius: var(--r-md); }
 </style>
 <div class="wrap page stack" id="showcase-root">
-  <header class="page-row">
-    <div>
-      <p class="eyebrow">Showcase</p>
-      <h1 class="page-title">The Malik case, one real step at a time</h1>
-      <p class="page-sub">Each step runs the real engine on real database rows. Only the outside world is simulated: Gmail, Telegram, the providers and the model readings. Every step says which is which.</p>
+  <header class="pagehead rise">
+    <div class="pagehead__main">
+      <h1 class="page-title">Showcase</h1>
+      <p class="page-sub">The Malik case, one step at a time. <span class="sim-tag" title="Gmail, Telegram, providers and model readings are simulated; the engine and database rows are real.">{{ ui.icon('ring') }}Outside world simulated</span></p>
     </div>
-    <div class="cluster">
+    <div class="toolbar">
       <form method="post" action="/api/showcase/next" data-loading>
         <button class="btn btn--primary" type="submit"{% if not started or finished or not has_db %} disabled{% endif %}>{{ ui.icon('fast-forward') }}{% if finished %}All steps done{% else %}Run next step{% endif %}</button>
       </form>
       <form method="post" action="/api/showcase/reset" data-loading>
-        <button class="btn btn--sim" type="submit">Reset to the start</button>
+        <button class="btn btn--sim btn--sm" type="submit">Reset to the start</button>
       </form>
     </div>
   </header>
 
   {% if error %}<p class="status status--violated" role="alert">{{ ui.icon('warning') }}{{ error }}</p>{% endif %}
   {% if not has_db %}
-  <p class="status status--review">{{ ui.icon('warning') }}The showcase needs the database. None is configured here.</p>
+  <p class="status status--review">{{ ui.icon('warning') }}Needs the database. None is configured.</p>
   {% elif not started %}
-  <p class="status status--neutral">{{ ui.icon('info') }}Nothing is seeded yet. Press <b>Reset to the start</b> to create the case before onboarding: a family, five declared providers and one inbox Sara has granted. No accounts exist until the steps find them.</p>
+  <p class="status status--neutral">{{ ui.icon('info') }}Nothing is seeded yet. Press <b>Reset to the start</b> to begin.</p>
   {% endif %}
 
-  <section aria-label="Progress" id="progress">
-    <ol class="sc-rail">
+  {% set ns = namespace(last=none) %}
+  {% for step in steps %}{% if step.result %}{% set ns.last = step.id %}{% endif %}{% endfor %}
+  <div class="sc" id="progress">
+    <ol class="sc-rail" aria-label="Steps">
       {% for step in steps %}
-      <li class="sc-step" data-state="{{ step.state }}" id="step-{{ step.id }}">
-        <div class="sc-step__head">
-          <span class="sc-step__n">{{ loop.index }}</span>
-          <h2 class="sc-step__title">{{ step.title }}</h2>
-          {% if step.state == 'done' %}{{ ui.chip('holding', 'Done') }}{% elif step.state == 'next' %}{{ ui.chip('progress', 'Next') }}{% else %}{{ ui.chip('neutral', 'Waiting') }}{% endif %}
-          <span class="small muted">{{ step.blurb }}</span>
-        </div>
-        {% if step.result %}
-        <p><b>{{ step.result.headline }}</b> <span class="xsmall muted">{{ step.result.ran_at }}</span></p>
+      <li data-state="{{ step.state }}"><a href="#step-{{ step.id }}"{% if step.state == 'next' %} aria-current="step"{% endif %}><span class="sc-n">{{ loop.index }}</span><span>{{ step.title }}</span><span class="sc-dot" title="{{ 'Done' if step.state == 'done' else ('Next' if step.state == 'next' else 'Waiting') }}"></span></a></li>
+      {% endfor %}
+    </ol>
+    <div class="sc-body">
+      {% for step in steps %}
+      {% if step.state == 'next' %}
+      <div class="sc-next" id="step-{{ step.id }}">
+        {{ ui.chip('progress', 'Next') }}<h2 class="sc-step__title">{{ loop.index }}. {{ step.title }}</h2>
+        <span class="small muted">{{ step.blurb }}</span>
+      </div>
+      {% elif step.result %}
+      <details class="sc-step" id="step-{{ step.id }}"{% if step.id == ns.last %} open{% endif %}>
+        <summary>{{ ui.chip('holding', 'Done') }}<h2 class="sc-step__title">{{ loop.index }}. {{ step.title }}</h2><span class="xsmall muted">{{ step.result.ran_at }}</span></summary>
+        <p><b>{{ step.result.headline }}</b></p>
         {% if step.result.details %}
         <ul class="sc-details small">
           {% for line in step.result.details %}<li>{{ line }}</li>{% endfor %}
@@ -63,18 +78,18 @@
           <div><h4><span class="sim-tag">Simulated</span></h4><ul>{% for line in step.result.simulated %}<li>{{ line }}</li>{% endfor %}</ul></div>
         </div>
         {% if step.result.chat %}
-        <details class="small"><summary>What the family sees in Telegram (simulated log)</summary>
+        <details class="small"><summary>Telegram log (simulated)</summary>
           <p class="sc-chat">{% for line in step.result.chat %}{{ line }}
 {% endfor %}</p>
         </details>
         {% endif %}
         {% if step.links %}
-        <p class="cluster cluster--tight small">See it: {% for link in step.links %}<a href="{{ link.href }}">{{ link.label }}</a>{% endfor %}</p>
+        <p class="cluster cluster--tight small">See it: {% for link in step.links %}<a class="btn btn--sm" href="{{ link.href }}">{{ link.label }}</a>{% endfor %}</p>
         {% endif %}
-        {% endif %}
-      </li>
+      </details>
+      {% endif %}
       {% endfor %}
-    </ol>
-  </section>
+    </div>
+  </div>
 </div>
 {% endblock %}

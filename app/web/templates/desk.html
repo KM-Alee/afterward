@@ -10,22 +10,20 @@
   {% if board.empty %}
   <header class="pagehead rise">
     <div class="pagehead__main">
-      <p class="eyebrow">Case desk</p>
       <h1 class="page-title">No case open</h1>
-      <p class="page-sub">Accounts appear once the family confirms the summary.</p>
     </div>
   </header>
   <section class="now now--quiet rise" style="--i:1" aria-labelledby="now-title">
     <div class="now__head"><h2 class="now__title" id="now-title">Waiting for the family to confirm</h2></div>
     <div class="now__empty">
       <svg class="empty__art" viewBox="2 14 60 36" aria-hidden="true"><path class="art-arc" d="M16.03 38.19A17 17 0 0 1 47.97 38.19M11.69 30.3A24.5 24.5 0 0 1 19.75 22.78M26.49 20.13A24.5 24.5 0 0 1 37.51 20.13M44.25 22.78A24.5 24.5 0 0 1 52.31 30.3" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M21 44A11 11 0 0 1 43 44Z" fill="var(--c-dawn)"/><path d="M8 44H56" stroke="currentColor" stroke-width="3.5" stroke-linecap="round"/></svg>
-      <p class="secondary">Nothing has been sent.</p>
+      <p class="secondary">Nothing sent.</p>
     </div>
   </section>
   <div class="desk desk--empty">
     <section class="panel-box rise" style="--i:2" aria-labelledby="acc-title">
       <div class="panel-box__head"><h2 class="panel-box__title" id="acc-title">Accounts</h2></div>
-      <div class="panel-box__body"><div class="empty"><p>Accounts appear once the family confirms the summary.</p></div></div>
+      <div class="panel-box__body"><div class="empty"><p>None yet.</p></div></div>
     </section>
     <section class="panel-box rise" style="--i:3" aria-label="Activity">
       <div class="panel-box__head"><h2 class="panel-box__title">Activity</h2></div>
@@ -45,38 +43,32 @@
   {% set n_attn = ns.attn %}
   <header class="pagehead rise">
     <div class="pagehead__main">
-      <p class="eyebrow">Case desk</p>
       <h1 class="page-title">{{ board.deceased }}</h1>
-      <p class="page-sub">Died {{ board.died }}. {{ board.handler }}</p>
-      <p class="small pagehead__source" data-source="{{ board.source }}">{% if board.source == 'database' %}{{ ui.chip('holding', board.source_label) }}{% else %}<span class="sim-tag">{{ ui.icon('ring') }}{{ board.source_label }}</span>{% endif %}{{ ui.chip('neutral', 'Confidential compute: not verified') }}</p>
+      <p class="page-sub">Died {{ board.died }} &middot; {{ board.handler }}</p>
+      <p class="pagehead__source" data-source="{{ board.source }}">{% if board.source == 'database' %}{{ ui.chip('holding', board.source_label) }}{% else %}<span class="sim-tag">{{ ui.icon('ring') }}{{ board.source_label }}</span>{% endif %}
+        <span class="status status--neutral" title="Accounts listed">{{ accounts | length }} accounts</span>
+        {% if n_attn %}<span class="status status--review">{{ n_attn }} need attention</span>{% endif %}
+        <span class="status status--holding">{{ n_done }} done</span>
+        {% if board.scheduled %}<span class="status status--neutral">{{ board.scheduled | length }} follow-ups scheduled</span>{% endif %}</p>
     </div>
     <div class="toolbar">
-      <span class="clock-pill" title="Demo clock. Only moves case time.">{{ ui.icon('clock') }}<span>{{ case_time }}</span>
-        <form method="post" action="/api/cases/{{ board.id }}/clock" style="display:inline" data-loading>
-          <button class="btn btn--sim btn--sm" type="submit" name="advance_days" value="14">+14 days</button>
-          <button class="btn btn--sim btn--sm" type="submit" name="advance_days" value="35">+35 days</button>
-        </form>
-      </span>
-      <button class="btn btn--sm" type="button" data-open="sum">{{ ui.icon('chat') }}Did we finish?</button>
+      <button class="btn btn--primary btn--sm" type="button" data-open="sum">{{ ui.icon('chat') }}Did we finish?</button>
       <button class="btn btn--sm" type="button" data-open="cov">{{ ui.icon('eye-off') }}Coverage</button>
       <button class="btn btn--sm" type="button" data-open="case">{{ ui.icon('user') }}Case</button>
-      <form method="post" action="/api/cases/{{ board.id }}/reset" style="display:inline" data-loading><button class="btn btn--sim btn--sm" type="submit" title="Start the demo story again">Reset demo</button></form>
-      <button class="icon-btn" type="button" data-projector aria-pressed="false" title="Projector mode" aria-label="Projector mode">{{ ui.icon('projector') }}</button>
+      <details class="menu">
+        <summary class="btn btn--sim btn--sm">Demo controls</summary>
+        <div class="menu__pop">
+          <p class="small muted">{{ ui.icon('clock') }}Case time: {{ case_time }}</p>
+          <form method="post" action="/api/cases/{{ board.id }}/clock" class="btn-row" data-loading>
+            <button class="btn btn--sim btn--sm" type="submit" name="advance_days" value="14">+14 days</button>
+            <button class="btn btn--sim btn--sm" type="submit" name="advance_days" value="35">+35 days</button>
+          </form>
+          <form method="post" action="/api/cases/{{ board.id }}/reset" data-loading><button class="btn btn--sim btn--sm" type="submit">Reset demo</button></form>
+          <button class="btn btn--quiet btn--sm" type="button" data-projector aria-pressed="false">{{ ui.icon('projector') }}Projector mode</button>
+        </div>
+      </details>
     </div>
   </header>
-
-  <details class="reality rise" style="--i:1" open>
-    <summary>{{ ui.icon('info') }}<b>What is real here</b>{{ ui.icon('chevron-down') }}</summary>
-    <p>Gmail, Telegram, and a browser call, not a phone call. The 14 proofs use a stand-in model. A restart keeps this desk. Reminders use Google Calendar unless a Fastn workflow is configured. <a href="https://docs.google.com/document/d/18cnj5XJ1pz1jFCk0CWtGWtuKwZElqs7jpd-PW7hg7-c/edit">This status note</a> was written once through Fastn. It has no message bodies.</p>
-    <p class="xsmall muted">{{ boundary_note }}</p>
-  </details>
-
-  <section class="metrics-row rise" style="--i:2" aria-label="Case at a glance">
-    <div class="mcard"><span class="mcard__icon">{{ ui.icon('building') }}</span><span class="mcard__value num" data-count="{{ accounts | length }}">{{ accounts | length }}</span><span class="mcard__label">Accounts listed</span></div>
-    <div class="mcard mcard--good"><span class="mcard__icon">{{ ui.icon('check') }}</span><span class="mcard__value num" data-count="{{ n_done }}">{{ n_done }}</span><span class="mcard__label">Done or kept</span></div>
-    <div class="mcard mcard--warn"><span class="mcard__icon">{{ ui.icon('warning') }}</span><span class="mcard__value num" data-count="{{ n_attn }}">{{ n_attn }}</span><span class="mcard__label">Need attention</span></div>
-    <div class="mcard"><span class="mcard__icon">{{ ui.icon('clock') }}</span><span class="mcard__value num" data-count="{{ board.scheduled | length }}">{{ board.scheduled | length }}</span><span class="mcard__label">Scheduled follow-ups</span></div>
-  </section>
 
   {% if board.monitoring == 'interrupted' %}
   <div class="banner-line banner-line--alert" role="alert">{{ ui.icon('eye-off') }}<span><b>Mailbox disconnected.</b> Replies aren't being read, so nothing can be checked.</span></div>
@@ -87,12 +79,12 @@
   <div class="banner-line banner-line--good">{{ ui.icon('check') }}<span><b>Found it.</b> The message went once.</span></div>
   {% endif %}
 
-  <div class="desk">
+  <div class="desk desk--stack">
     <div class="desk__col">
       {% if board.outcome %}
       <section class="now rise" style="--i:3" aria-labelledby="now-title">
         <div class="now__head">
-          <div><p class="eyebrow">Latest outcome</p><h2 class="now__title" id="now-title">{{ board.outcome.title }}</h2></div>
+          <div><p class="eyebrow">Latest reply</p><h2 class="now__title" id="now-title">{{ board.outcome.title }}</h2></div>
           <div class="cluster cluster--tight"><span class="status status--neutral">Plan v{{ board.outcome.plan_version }}</span></div>
         </div>
         <div class="compare-wrap"><div class="compare">
@@ -196,7 +188,7 @@
             {% endfor %}
           </ol>
           {% else %}
-          <p class="muted">No call yet. One starts only if Sara asks for it.</p>
+          <p class="muted">No call yet.</p>
           {% endif %}
           {% if room and room.latency %}
           <table class="latency">
@@ -262,7 +254,7 @@
       {% if board.coverage.needs_you %}<div class="drawer__group"><p class="drawer__label">Needs the family</p><ul class="facts" role="list">{% for item in board.coverage.needs_you %}<li>{{ ui.icon('question') }}<span>{{ item }}</span></li>{% endfor %}</ul></div>{% endif %}
       <div class="drawer__group"><p class="drawer__label">Not searched</p><ul class="facts" role="list">{% for item in board.coverage.not_searched %}<li>{{ ui.icon('eye-off') }}<span>{{ item }}</span></li>{% endfor %}</ul></div>
       {% if board.coverage.where_else %}<div class="drawer__group"><p class="drawer__label">Where else to look</p><ul class="facts" role="list">{% for item in board.coverage.where_else %}<li>{{ ui.icon('info') }}<span>{{ item }}</span></li>{% endfor %}</ul></div>{% endif %}
-      <p class="small muted">The list never closes. New accounts can turn up at any time.</p>
+      <p class="small muted">Never a complete list.</p>
       {% if family_token %}<p><a href="/family/{{ family_token }}/onboarding">Add a place to look</a></p>{% endif %}
     </div>
   </dialog>
@@ -283,15 +275,14 @@
     <div class="drawer__body" tabindex="0">
       <div class="drawer__group"><p class="drawer__label">People</p>
         <ul class="facts" role="list">
-          <li>{{ ui.icon('user') }}<span><b>Sara Malik</b>, his daughter. Handling the estate (stated). Approves requests.</span></li>
-          <li>{{ ui.icon('user') }}<span><b>Amina Malik</b>, his wife. Answers questions. She cannot approve.</span></li>
+          <li>{{ ui.icon('user') }}<span><b>Sara Malik</b>, daughter. Approves. Role stated, not verified.</span></li>
+          <li>{{ ui.icon('user') }}<span><b>Amina Malik</b>, wife. Answers questions only.</span></li>
         </ul>
       </div>
       <div class="drawer__group"><p class="drawer__label">Security</p>
         <p class="small">{{ ui.chip('neutral', 'Confidential compute: not verified') }}</p>
         <p class="small muted">{{ boundary_note }}</p>
       </div>
-      <p class="small muted">Demo clock. It only moves case time for this demo case.</p>
     </div>
   </dialog>
   {% endif %}

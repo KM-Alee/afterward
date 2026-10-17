@@ -53,15 +53,13 @@ TRACK_TEXT = {
     "unknown": ("unknown", "Not in our directory yet"),
 }
 BOUNDARY = (
-    "We never sign in as Yusuf, use his password, or search government, court or credit "
-    "records. Those steps are prepared here and handed to you. We also never say we have "
-    "found everything."
+    "We never sign in as him or search government, court or credit records. "
+    "We never say we have found everything."
 )
 HIS_MAIL_WORDING = (
-    "If you already have legitimate access to his mailbox (for example through his email "
-    "provider's own process for family, or an export they released to you), you can connect "
-    "it read-only. Say what gives you the right. We record what you tell us and cannot "
-    "verify it. We never use his password, and nothing is ever sent from it."
+    "Only if you already have a legitimate way in, such as his provider's family process "
+    "or a released export. Say what gives you the right. It is recorded as stated, not "
+    "verified. We never use his password."
 )
 _BANNED = ("all ", "every", "complete", "nothing else")
 

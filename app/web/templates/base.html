@@ -34,18 +34,6 @@
         {% endblock %}
       </nav>
       <div class="header-end">
-        {% if signed_in and page != 'index' %}
-        {% set case_name = board.deceased if (board is defined and board and board.deceased) else 'Malik family demo' %}
-        <details class="switcher" data-switcher>
-          <summary aria-label="Open case: {{ case_name }}"><span class="avatar avatar--sara" aria-hidden="true">{{ case_name[:1] }}</span><span class="switcher__name">{{ case_name }}</span>{{ ui.icon('chevron-down') }}</summary>
-          <div class="switcher__menu">
-            <p class="eyebrow">Open case</p>
-            <div class="switcher__item"><span class="avatar avatar--sara" aria-hidden="true">{{ case_name[:1] }}</span><span><b>{{ case_name }}</b><small>{% if board is defined and board and board.source_label %}{{ board.source_label }}{% else %}Fictional demo family{% endif %}</small></span></div>
-            <hr class="switcher__sep">
-            <p class="switcher__note">This build opens one fictional demo case. Nothing here is a real person or organisation.</p>
-          </div>
-        </details>
-        {% endif %}
         <div class="protobar__theme" role="group" aria-label="Colour theme">
           <button type="button" data-theme-set="auto" title="Auto theme"><span class="visually-hidden">Auto theme</span>{{ ui.icon('contrast') }}</button>
           <button type="button" data-theme-set="light" title="Light theme"><span class="visually-hidden">Light theme</span>{{ ui.icon('sun') }}</button>
@@ -62,7 +50,7 @@
   <footer class="site-footer">
     <div class="wrap{% block footer_wrap %}{% endblock %} site-footer__inner">
       <span>Afterward &middot; Agentika 2.0, NaSCon&rsquo;26</span>
-      <span>Fictional Malik demo. A browser call is not a phone call. The speech check is not a guarantee.</span>
+      <span>Fictional demo &middot; Simulated parts are labelled &middot; A browser call is not a phone call &middot; The speech check is not a guarantee</span>
     </div>
   </footer>
   {% endif %}

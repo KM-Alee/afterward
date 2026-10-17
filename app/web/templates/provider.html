@@ -7,17 +7,15 @@
 <div class="wrap page">
   <header class="pagehead rise">
     <div class="pagehead__main">
-      <p class="eyebrow">Provider console</p>
       <h1 class="page-title">Reply as a provider</h1>
-      <p class="page-sub">Pick an organisation and answer Afterward's email.</p>
+      <p class="page-sub">Answer Afterward's email.</p>
     </div>
-    <span class="sim-tag">{{ ui.icon('ring') }}Simulated provider</span>
   </header>
   {% if board.empty %}
   <div class="empty empty--card rise" style="--i:1">
     <span class="empty__icon">{{ ui.icon('mail') }}</span>
     <p class="empty__title">Nothing to answer yet</p>
-    <p>Afterward writes to an organisation only after the family approves that request.</p>
+    <p>Waiting for an approved request.</p>
   </div>
   {% else %}
   {% if error %}
@@ -45,7 +43,7 @@
     <label class="label" for="reply-text">Reply</label>
     <textarea class="textarea" id="reply-text" name="text" placeholder="Your reply"></textarea>
     <div class="compose__foot">
-      <span class="small muted">This is a simulator, not a real organisation. With a mailbox set up it sends real mail to the family mailbox and waits for the inbox check; without one it records the reply in the demo only and says so.</span>
+      <span class="sim-tag" title="With a mailbox it sends real mail to the family mailbox; without one it records the reply in the demo only.">{{ ui.icon('ring') }}Simulated provider</span>
       <button class="btn btn--primary" type="submit">{{ ui.icon('send') }}Send reply</button>
     </div>
   </form>

@@ -93,9 +93,8 @@ def _nav(request: Request, current: str, *, reveal: bool = False) -> list[dict[s
     surface = get_surface(request)
     demo = surface.demo_case_id
     items = [
-        {"id": "index", "href": "/", "label": "Start", "icon": "horizon"},
         {"id": "showcase", "href": "/showcase", "label": "Showcase", "icon": "fast-forward"},
-        {"id": "desk", "href": f"/desk/{demo}", "label": "Case desk", "icon": "desk"},
+        {"id": "desk", "href": f"/desk/{demo}", "label": "Desk", "icon": "desk"},
         {
             "id": "family",
             "href": f"/family/{_token_for(surface.family_tokens, demo)}",
@@ -111,13 +110,13 @@ def _nav(request: Request, current: str, *, reveal: bool = False) -> list[dict[s
         {
             "id": "provider",
             "href": f"/provider/{_token_for(surface.provider_tokens, demo)}",
-            "label": "Provider console",
+            "label": "Provider",
             "icon": "building",
         },
         {"id": "proofs", "href": "/proofs", "label": "Proofs", "icon": "flask"},
     ]
     if not signed_in(request) and not reveal:
-        items = [item for item in items if item["id"] == "index"]
+        items = []
     for item in items:
         item["current"] = "true" if item["id"] == current else ""
     return items

@@ -15,7 +15,7 @@
     <div class="hero__copy">
       <p class="pill rise" style="--i:0">{{ ui.icon('horizon') }}For the months after someone dies</p>
       <h1 class="hero__title rise" id="hero-title" style="--i:1">You tell it once. <em>We'll tell everyone else.</em></h1>
-      <p class="lede rise" style="--i:2">After someone dies, Afterward writes to every organisation for the family, follows up for months, and checks each "done" against what the family actually asked for.</p>
+      <p class="lede rise" style="--i:2">Afterward writes to the organisations, follows up, and checks each &ldquo;done&rdquo; against what the family approved.</p>
 
       <div class="access rise" style="--i:3">
         {% if not signed_in %}
@@ -26,14 +26,14 @@
         </form>
         <p class="pass-status small{% if error %} pass-status--error{% endif %}" id="pass-status" role="status">{% if error %}{{ ui.icon('warning') }}{{ error }}{% else %}The passcode is in the submission PDF.{% endif %}</p>
         {% else %}
-        <p class="pass-status small" id="pass-status" role="status">{{ ui.icon('check') }}You're in. Pick where to go.</p>
+        <p class="pass-status small" id="pass-status" role="status">{{ ui.icon('check') }}Signed in.</p>
         {% endif %}
       </div>
 
       <ul class="trust rise" style="--i:4" role="list">
-        <li>{{ ui.icon('lock') }}Nothing is sent without the family's approval</li>
-        <li>{{ ui.icon('eye-off') }}No claim to find every account</li>
-        <li>{{ ui.icon('user') }}People keep every decision</li>
+        <li>{{ ui.icon('lock') }}Nothing sent without approval</li>
+        <li>{{ ui.icon('eye-off') }}Never claims every account found</li>
+        <li>{{ ui.icon('user') }}People decide</li>
       </ul>
     </div>
 
@@ -62,7 +62,7 @@
           <li><span>Keep the voicemail</span>{{ ui.chip('violated', 'Broken') }}</li>
           <li><span>24-month plan</span>{{ ui.chip('unauthorised', 'Not approved') }}</li>
         </ul>
-        <p class="peek__verdict">{{ ui.icon('cross') }}Not done. The family decides what happens next.</p>
+        <p class="peek__verdict">{{ ui.icon('cross') }}Not done. The family decides.</p>
       </figure>
     </div>
   </div>
@@ -81,30 +81,28 @@
 <section class="band" id="value" aria-labelledby="value-title">
   <div class="wrap">
     <header class="band__head" data-reveal>
-      <p class="eyebrow">What it does</p>
-      <h2 class="h1" id="value-title">The repetitive part, carried for you.</h2>
-      <p class="lede">The family says the hardest sentence once. Afterward does the notifying, the chasing and the checking, and asks only the questions that need a person.</p>
+      <h2 class="h1" id="value-title">What it does</h2>
     </header>
     <div class="values" data-stagger>
       <article class="card card--hover value" data-reveal>
         <span class="value__icon">{{ ui.icon('chat') }}</span>
         <h3 class="h3">Say it once</h3>
-        <p class="secondary">A voice note, a photo of a letter or a tap on a button in Telegram. No forms to learn, and nothing to repeat to each organisation.</p>
+        <p class="secondary">A voice note, a photo or a tap in Telegram.</p>
       </article>
       <article class="card card--hover value" data-reveal>
         <span class="value__icon">{{ ui.icon('mail') }}</span>
         <h3 class="h3">Writes to each organisation</h3>
-        <p class="secondary">Banks, phone companies, utilities and subscriptions get a complete, correctly referenced request, but only the ones the family has approved.</p>
+        <p class="secondary">Only to organisations the family approved.</p>
       </article>
       <article class="card card--hover value" data-reveal>
         <span class="value__icon">{{ ui.icon('clock') }}</span>
         <h3 class="h3">Follows up for months</h3>
-        <p class="secondary">Replies are logged, silence triggers a follow-up, and promised refunds are tracked until there is evidence they arrived.</p>
+        <p class="secondary">Replies logged, silence chased, refunds tracked.</p>
       </article>
       <article class="card card--hover value value--accent" data-reveal>
         <span class="value__icon">{{ ui.icon('shield') }}</span>
         <h3 class="h3">Checks "done" against your plan</h3>
-        <p class="secondary">When a provider says "completed", Afterward compares it with what the family approved, and refuses to mark it done if it is not.</p>
+        <p class="secondary">&ldquo;Completed&rdquo; is compared with the approved plan.</p>
       </article>
     </div>
   </div>
@@ -113,14 +111,13 @@
 <section class="band band--tint" id="how" aria-labelledby="how-title">
   <div class="wrap">
     <header class="band__head" data-reveal>
-      <p class="eyebrow">How it works</p>
-      <h2 class="h1" id="how-title">From one conversation to a checked outcome.</h2>
+      <h2 class="h1" id="how-title">How it works</h2>
     </header>
     <ol class="journey" role="list" data-stagger>
-      <li class="journey__step" data-reveal><span class="journey__n">1</span><h3 class="h4">Tell it once</h3><p class="secondary small">The family shares what they want to stop, keep and protect.</p></li>
-      <li class="journey__step" data-reveal><span class="journey__n">2</span><h3 class="h4">Confirm the plan</h3><p class="secondary small">Each organisation gets a conditional plan. Anything consequential waits for an explicit approval.</p></li>
-      <li class="journey__step" data-reveal><span class="journey__n">3</span><h3 class="h4">We write and follow up</h3><p class="secondary small">Requests go out through the provider's accepted channel. Replies and deadlines are tracked.</p></li>
-      <li class="journey__step" data-reveal><span class="journey__n">4</span><h3 class="h4">Check against the plan</h3><p class="secondary small">A reply that does not match the approval is shown as a conflict, not as done.</p></li>
+      <li class="journey__step" data-reveal><span class="journey__n">1</span><h3 class="h4">Tell it once</h3><p class="secondary small">Stop, keep, protect.</p></li>
+      <li class="journey__step" data-reveal><span class="journey__n">2</span><h3 class="h4">Confirm the plan</h3><p class="secondary small">Approve each conditional plan.</p></li>
+      <li class="journey__step" data-reveal><span class="journey__n">3</span><h3 class="h4">We write and follow up</h3><p class="secondary small">Requests go out; replies are tracked.</p></li>
+      <li class="journey__step" data-reveal><span class="journey__n">4</span><h3 class="h4">Check against the plan</h3><p class="secondary small">A mismatch shows as a conflict, not done.</p></li>
     </ol>
   </div>
 </section>
@@ -131,15 +128,14 @@
       <header class="limits__head">
         <span class="value__icon">{{ ui.icon('info') }}</span>
         <div>
-          <h2 class="h2" id="limits-title">What Afterward does not promise</h2>
-          <p class="secondary">Said plainly, because this is a hard time to be misled.</p>
+          <h2 class="h2" id="limits-title">Honest limits</h2>
         </div>
       </header>
       <ul class="limits__list" role="list">
-        <li>{{ ui.icon('eye-off') }}<span>It does not promise to find every account. The list stays open, and the desk shows what was searched and what was not.</span></li>
-        <li>{{ ui.icon('hand') }}<span>It never signs, moves money or impersonates anyone. Legal, tax and certified-document steps are prepared for a person to do.</span></li>
+        <li>{{ ui.icon('eye-off') }}<span>No promise to find every account.</span></li>
+        <li>{{ ui.icon('hand') }}<span>Never signs, moves money or impersonates. Legal and tax steps are done by people.</span></li>
         <li>{{ ui.icon('phone') }}<span>The call room is a browser call, not a phone call. The speech check is not a guarantee.</span></li>
-        <li>{{ ui.icon('photo') }}<span>A phone photo is kept as a photo, not a certified copy. Parts of this demo are simulated and are labelled as such.</span></li>
+        <li>{{ ui.icon('photo') }}<span>A phone photo is not a certified copy. Simulated parts are labelled.</span></li>
       </ul>
     </div>
   </div>
