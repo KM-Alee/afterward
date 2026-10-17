@@ -33,6 +33,23 @@
     });
   }
 
+  // Silent boxes: what the full product does at each stop (shown, not spoken).
+  var CAPS = {
+    welcome: ["Families talk to it in Telegram: voice notes, photos, buttons", "Works for months: follow-ups, final bills, refunds", "Every step is a real database row you can audit"],
+    intake: ["Real voice notes are transcribed, then read by the model", "Any fact without a quote from the family is dropped", "One summary card to confirm; nothing is sent before that"],
+    discover: ["Connect a household inbox, or his own mailbox with stated authority", "Headers first; a message is read only when the family ticks it", "Photos of bills and bank statements add accounts too"],
+    confirm: ["Nothing is planned until the family says an account is his", "Not his / Shared or not sure are recorded and audited", "Legal, tax and government bodies are hand-back only"],
+    dependency: ["Asks what could be lost: shared use, login codes, memories", "The answer becomes enforced conditions, not notes", "Linked accounts stay protected until the link is resolved"],
+    send: ["Approval is bound to the exact plan version", "Sent through Gmail to approved addresses only", "A durable job runner follows up and reconciles uncertain sends"],
+    provider: ["Replies are polled from the inbox automatically", "Unapproved or spoofed senders are held, never read by the model", "The model reads the reply; code checks it against the plan"],
+    caught: ["“Done” needs evidence plus every condition holding", "Unapproved contracts and broken conditions are flagged", "The family decides the next step with one tap"],
+    call: ["Live voice agent over WebRTC; you talk, it answers", "It can note an offer but has no way to accept one", "Only a server-built, family-approved sentence is ever spoken as acceptance"],
+    clock: ["Real follow-ups fire on schedule, months later if needed", "The family is asked before anything is sent again", "Money is tracked as promised vs evidenced"],
+    handback: ["Probate, tax, benefits and certified copies are prepared, not filed", "A phone photo is never treated as a certified copy", "The family marks a hand-back step done; it stays 'stated' until evidenced"],
+    finish: ["Honest answer: what is done with evidence, what is open", "No 'we found everything' claim, ever", "Coverage shows what was and was not searched"]
+  };
+  var FAST = "Fast-forward demo: lines are typed for you and weeks are skipped to save time. Every step runs the real system.";
+
   // ---------- shell ----------
   function build() {
     if (ui) return;
@@ -52,10 +69,13 @@
     var bPause = el("button", "", "Pause"), bSkip = el("button", "", "Skip"), bExit = el("button", "", "Exit");
     [bPause, bSkip, bExit].forEach(function (b) { b.type = "button"; bar.appendChild(b); });
     var card = el("div", "ap-card"); card.hidden = true;
+    var know = el("aside", "ap-know");
+    var fast = el("div", "ap-fast", FAST);
     root.appendChild(spot); root.appendChild(tag); root.appendChild(live); root.appendChild(cap);
     root.appendChild(prog); root.appendChild(bar); root.appendChild(card);
+    root.appendChild(know); root.appendChild(fast);
     document.body.appendChild(root);
-    ui = { root: root, spot: spot, tag: tag, cap: cap, capText: capText, live: live, liveMeta: liveMeta, liveBox: liveBox, liveOut: liveOut, bar: bar, fill: fill, card: card, bPause: bPause };
+    ui = { root: root, spot: spot, tag: tag, cap: cap, capText: capText, live: live, liveMeta: liveMeta, liveBox: liveBox, liveOut: liveOut, bar: bar, fill: fill, card: card, bPause: bPause, know: know };
     bPause.onclick = togglePause;
     bSkip.onclick = skip;
     bExit.onclick = exit;
@@ -214,6 +234,15 @@
     ui.card.hidden = true; ui.live.classList.remove("is-in"); ui.liveBox.textContent = ""; ui.liveOut.textContent = "";
     ui.tag.textContent = (st.idx + 1) + " / " + cfg.stops.length + "  " + s.title;
     ui.tag.classList.remove("is-in"); void ui.tag.offsetWidth; ui.tag.classList.add("is-in");
+    var items = CAPS[s.id] || [];
+    ui.know.innerHTML = "";
+    if (items.length) {
+      ui.know.appendChild(el("p", "ap-know__h", "In the full product"));
+      var ul = el("ul");
+      items.forEach(function (t) { ul.appendChild(el("li", "", t)); });
+      ui.know.appendChild(ul);
+    }
+    ui.know.classList.remove("is-in"); void ui.know.offsetWidth; if (items.length) ui.know.classList.add("is-in");
     var t0 = Date.now();
     if (!st.idx && !st.titled) {
       st.titled = true; write();
