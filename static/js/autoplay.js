@@ -119,6 +119,22 @@
   }
   function focusTarget(name) {
     var node = name ? document.querySelector('[data-tour="' + name + '"]') : null;
+    // A button that opens a panel ("Did we finish?"): open it and show the panel itself.
+    var opens = node && node.getAttribute("data-open");
+    var panel = opens ? document.getElementById(opens) : null;
+    if (panel) {
+      // Non-modal, so the demo's captions stay above it (a modal dialog would cover them).
+      if (!panel.open) {
+        try {
+          panel.show();
+          panel.style.cssText += ";position:fixed;inset:0 0 0 auto;margin:0;z-index:8999;";
+        } catch (e) { node.click(); }
+      }
+      return sleep(reduce ? 0 : 700).then(function () {
+        var body = panel.querySelector(".drawer__body") || panel;
+        place(body);
+      });
+    }
     if (node) {
       node.style.scrollMarginTop = "90px";
       node.scrollIntoView({ behavior: reduce ? "auto" : "smooth", block: "start" });
