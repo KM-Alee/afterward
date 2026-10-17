@@ -23,7 +23,7 @@
   {% if error %}<div class="banner-line banner-line--alert" role="alert">{{ ui.icon('warning') }}<span>{{ error }}</span></div>{% endif %}
   <div class="ob">
     <section class="ob__main stack-lg" aria-label="Possible accounts">
-      <div class="card ob-panel rise" aria-labelledby="ob-found-title">
+      <div class="card ob-panel rise" data-tour="ob-found" aria-labelledby="ob-found-title">
         <div class="panel__head"><h2 class="section-title" id="ob-found-title">{{ ui.icon('building') }}Possible accounts</h2></div>
         {% if view.rows %}
         <ul class="cands">
@@ -46,7 +46,7 @@
         {% else %}<p class="hint">None yet. Add a place to look.</p>{% endif %}
       </div>
 
-      <div class="card ob-panel rise" aria-labelledby="ob-sources-title">
+      <div class="card ob-panel rise" data-tour="ob-sources" aria-labelledby="ob-sources-title">
         <div class="panel__head"><h2 class="section-title" id="ob-sources-title">{{ ui.icon('mail') }}Places to look</h2></div>
         <ul class="ob-steps" role="list">
           <li><details class="ob-step" id="src-household"{% if not hh %} open{% endif %}>
@@ -112,7 +112,7 @@
     </section>
 
     <aside class="ob__side stack-lg" aria-label="Coverage">
-      <section class="card ob-panel rise" aria-labelledby="ob-coverage-title">
+      <section class="card ob-panel rise" data-tour="ob-coverage" aria-labelledby="ob-coverage-title">
         <div class="panel__head"><h2 class="section-title" id="ob-coverage-title">{{ ui.icon('eye-off') }}Coverage</h2></div>
         <div class="ob-cov">
           <div><h3 class="h4">{{ ui.icon('check') }} Searched</h3>{% if view.coverage.searched %}<ul>{% for i in view.coverage.searched %}<li>{{ i }}</li>{% endfor %}</ul>{% else %}<p class="hint">Nothing yet.</p>{% endif %}</div>
@@ -123,7 +123,7 @@
         <p class="xsmall muted">{{ view.boundary }}</p>
       </section>
 
-      <details class="card ob-panel ob-more" aria-labelledby="ob-handback-title">
+      <details class="card ob-panel ob-more" data-tour="ob-handback" aria-labelledby="ob-handback-title">
         <summary id="ob-handback-title">{{ ui.icon('hand') }}Prepared for you, done by you</summary>
         <ul class="ob-hb" role="list">
           {% for title, body in view.handback %}

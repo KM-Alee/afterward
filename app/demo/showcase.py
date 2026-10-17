@@ -37,9 +37,16 @@ from app.ai.schemas import (
     QuotedStr,
     ReplyOut,
 )
-from app.ai.verify import quote_in_text, strip_quoted_history, verify_intake
+from app.ai.verify import (
+    quote_in_text,
+    strip_quoted_history,
+    verify_dependency,
+    verify_intake,
+)
 from app.call.guard import commitment_tripped
 from app.contracts import ContractError, ImageInput, MailMessage, SqlEventBus
+from app.conversation.dependency import dependency_messages
+from app.conversation.intake import intake_messages
 from app.demo import showcase_data as data
 from app.discovery.agent import DiscoveryTools, run_discovery
 from app.discovery.candidates import Candidate, ingest_photo, set_ownership
@@ -50,9 +57,13 @@ from app.discovery.sync import sync_candidates, sync_locators
 from app.engine.actions import reserve_action
 from app.engine.clock import advance_case_clock
 from app.engine.dependencies import apply_dependency, effect_for
-from app.engine.errors import AlreadyDecided, DependencyRequired, StalePlan
+from app.engine.errors import AlreadyDecided, CrisisPaused, DependencyRequired, StalePlan
 from app.engine.jobs import case_now, enqueue, schedule_followup
-from app.engine.pipeline import extraction_messages, match_document_requirement
+from app.engine.pipeline import (
+    extract_verified_reply,
+    extraction_messages,
+    match_document_requirement,
+)
 from app.engine.plans import approve, latest_plan, revise_plan
 from app.engine.runner import RunContext, now_utc, register_executor, run_due_jobs
 from app.engine.status import finish_summary
@@ -128,6 +139,8 @@ class ShowcaseEnv:
     mailbox: ShowcaseMailbox = field(default_factory=ShowcaseMailbox)
     ai: FakeAI = field(default_factory=FakeAI)
     chat: list[str] = field(default_factory=list)
+    # Typed-in moments from the guided tour, and the result cards they produce.
+    live: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         for message in data.household_inbox():
@@ -256,6 +269,7 @@ def reset_showcase(session: Session) -> UUID:
     session.flush()
     case = seed_showcase_start(session)
     _save_progress(session, case.id, [])
+    clear_tour_live(session)
     return case.id
 
 
@@ -354,10 +368,9 @@ def _sorted_refs(refs: set[str]) -> list[str]:
 # --------------------------------------------------------------------------------------
 # 1. Intent
 # --------------------------------------------------------------------------------------
-async def step_intent(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) -> StepResult:
-    """Sara's voice note: every fact is kept only if its quote is really in the transcript."""
-    transcript = data.SARA_TRANSCRIPT
-    reading = IntakeOut(
+def _recorded_intake() -> IntakeOut:
+    """The recorded reading of Sara's scripted voice note (used when no live model is available)."""
+    return IntakeOut(
         deceased_name=QuotedStr(value="Yusuf Malik", quote="My father, Yusuf Malik"),
         date_of_death=QuotedStr(value="2026-03-03", quote="died on the third of March"),
         speaker_name=QuotedStr(value="Sara", quote="I'm Sara"),
@@ -382,21 +395,63 @@ async def step_intent(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) 
         ],
         missing_fields=[],
     )
+
+
+def _parse_date(value: str | None):
+    try:
+        return datetime.fromisoformat(value).date() if value else None
+    except ValueError:
+        return None
+
+
+def _qs(item: QuotedStr) -> dict[str, str] | None:
+    return {"value": item.value, "quote": item.quote} if item.value else None
+
+
+def _qlist(items: list[QuotedStr]) -> list[dict[str, str]]:
+    return [row for row in (_qs(i) for i in items) if row]
+
+
+async def step_intent(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) -> StepResult:
+    """Sara's voice note: every fact is kept only if its quote is really in the transcript."""
+    live = env.live.get("intake")
+    if live:
+        transcript, reading = str(live["text"]), live["reading"]
+    else:
+        transcript, reading = data.SARA_TRANSCRIPT, _recorded_intake()
     verified = verify_intake(reading, transcript)
-    dropped = (len(reading.household_members) - len(verified.household_members)) + (
-        len(reading.intent_protect) - len(verified.intent_protect)
+    dropped = (
+        (len(reading.household_members) - len(verified.household_members))
+        + (len(reading.intent_keep) - len(verified.intent_keep))
+        + (len(reading.intent_stop) - len(verified.intent_stop))
+        + (len(reading.intent_protect) - len(verified.intent_protect))
     )
+    died = _parse_date(verified.date_of_death.value)
+    env.live["intake_card"] = {
+        "deceased": _qs(verified.deceased_name),
+        "died": _qs(verified.date_of_death),
+        "role": _qs(verified.stated_role),
+        "keep": _qlist(verified.intent_keep),
+        "stop": _qlist(verified.intent_stop),
+        "protect": _qlist(verified.intent_protect),
+        "dropped": dropped,
+        "date_kept_on_file": died is None,
+    }
     with factory() as session:
         case = _case(session, case_id)
         sara = _member(session, case.id, SARA)
-        if verified.date_of_death.value:
-            case.date_of_death = datetime.fromisoformat(verified.date_of_death.value).date()
+        # Code decides: a date the words do not support never changes the case; the file date stays.
+        case.date_of_death = died or data.DATE_OF_DEATH
         keep = [q.value for q in verified.intent_keep if q.value]
         stop = [q.value for q in verified.intent_stop if q.value]
         protect = [q.value for q in verified.intent_protect if q.value]
         case.intent = {"keep": keep, "stop": stop, "protect": protect}
         case.intent_text = (
-            "Stop " + ", ".join(s.lower() for s in stop) + "; keep " + " and ".join(keep) + "."
+            "Stop "
+            + (", ".join(s.lower() for s in stop) or "nothing stated")
+            + "; keep "
+            + (" and ".join(keep) or "nothing stated")
+            + "."
         )
         sara.stated_role_text = verified.stated_role.value or ""
         sara.consent = {
@@ -406,11 +461,12 @@ async def step_intent(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) 
         }
         _event(session, case.id, "intent.captured", "Sara", facts=5, dropped=dropped)
         session.commit()
+    model_live = bool(live) and live.get("source") == "live"
     chat = [
-        f"Sara (voice note, simulated): {transcript}",
-        "Afterward (simulated Telegram): Thank you, Sara. I have: Yusuf Malik, 3 March 2026; "
-        "you are handling things (as you told me). Stop: the bills that don't matter. Keep: Mum's "
-        "phone and Dad's voicemail. I will ask before anything is sent. Is that right?",
+        f"Sara ({'typed by the presenter' if live else 'voice note, simulated'}): {transcript}",
+        "Afterward (simulated Telegram): Thank you, Sara. "
+        f"Stop: {', '.join(stop) or 'nothing stated'}. Keep: {' and '.join(keep) or 'nothing stated'}. "
+        "I will ask before anything is sent. Is that right?",
     ]
     return StepResult(
         step_id="intent",
@@ -419,14 +475,26 @@ async def step_intent(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) 
         details=[
             f"Kept: {', '.join(keep)}. Stopped: {', '.join(stop)}. Protected: {', '.join(protect)}.",
             "Her role is recorded as stated by her, never as 'executor'.",
-            "Two readings the model 'offered' had no matching words in the transcript and were removed.",
+            f"{dropped} readings the model offered had no matching words in what was said and were removed."
+            if dropped
+            else "Every fact kept has a quote that appears in what was said.",
         ],
         real=[
             "verify_intake drops every fact whose quote is not in the transcript",
             "Case date of death, intent and consent are written to Postgres",
+            *(
+                ["A live model read the words that were typed or spoken (intake role)"]
+                if model_live
+                else []
+            ),
         ],
         simulated=[
-            "The voice note, its transcription and the intake reading are scripted (no model call)",
+            (
+                "The words were typed or spoken by the presenter; the reading is "
+                + ("live" if model_live else "recorded model output")
+                if live
+                else "The voice note, its transcription and the intake reading are scripted (no model call)"
+            ),
             "Telegram is not connected; the chat lines are a labelled log",
         ],
         chat=chat,
@@ -665,7 +733,13 @@ def _plan_conditions(effects: list[dict[str, str]]) -> list[dict[str, Any]]:
 
 async def step_dependency(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) -> StepResult:
     """Ask who still uses each service. Amina's answer rewrites the 4417 plan."""
-    del env
+    live = env.live.get("dependency")
+    said = str(live["text"]) if live else data.AMINA_QUOTE
+    answers = (
+        [live["answer"]]
+        if live
+        else [DependencyOut.model_validate(r) for r in (data.AMINA_ACCESS, data.AMINA_MEMORY)]
+    )
     details: list[str] = []
     with factory() as session:
         case = _case(session, case_id)
@@ -706,10 +780,9 @@ async def step_dependency(factory: SessionFactory, env: ShowcaseEnv, case_id: UU
         )
         # Amina's answer. Quotes are checked against her words; conditions come from code.
         added: list[dict[str, str]] = []
-        for raw in (data.AMINA_ACCESS, data.AMINA_MEMORY):
-            if not quote_in_text(raw["evidence_quote"], data.AMINA_QUOTE):
+        for answer in answers:
+            if not quote_in_text(answer.evidence_quote, said):
                 raise ShowcaseError("Amina's quote is not in her words")
-            answer = DependencyOut.model_validate(raw)
             already = session.scalar(
                 select(Dependency.id).where(
                     Dependency.account_id == northline.id,
@@ -804,11 +877,22 @@ async def step_dependency(factory: SessionFactory, env: ShowcaseEnv, case_id: UU
         _event(session, case.id, "dependency.answered", "Amina", plan_version=final.version)
         session.commit()
         conds = ", ".join(c["key"].replace("_", " ") for c in final.conditions)
-    details.insert(0, f"Amina: “{data.AMINA_QUOTE}”")
+    details.insert(0, f"Amina: “{said}”")
     details.insert(
         1,
         f"The 4417 plan changed from v1 (transfer, no conditions) to v{final.version}: transfer to Amina with conditions: {conds}. The access answer is linked to {link}.",
     )
+    env.live["dependency_card"] = {
+        "quote": said,
+        "answers": [{"kind": a.kind, "statement": a.statement} for a in answers],
+        "before": {"version": 1, "action": "transfer", "conditions": []},
+        "after": {
+            "version": final.version,
+            "action": final.action.value,
+            "conditions": [str(c["key"]) for c in final.conditions],
+        },
+        "linked": link,
+    }
     return StepResult(
         step_id="dependency",
         title="Amina's answer changes the plan",
@@ -821,11 +905,15 @@ async def step_dependency(factory: SessionFactory, env: ShowcaseEnv, case_id: UU
             "revise_plan versions the plan; each version has its own hash",
         ],
         simulated=[
-            "Amina's voice note and its reading are scripted; her quote is verified against her words"
+            (
+                "Amina's words were typed or spoken by the presenter; the quote is verified against them"
+                if live
+                else "Amina's voice note and its reading are scripted; her quote is verified against her words"
+            )
         ],
         chat=[
             "Afterward (simulated Telegram) to Amina: Does anyone still use the line ending 4417?",
-            f"Amina (voice note, simulated): {data.AMINA_QUOTE}",
+            f"Amina ({'typed by the presenter' if live else 'voice note, simulated'}): {said}",
         ],
         links=["desk", "family"],
     )
@@ -1205,6 +1293,63 @@ def _replies() -> list[tuple[str, str, str, str, ReplyOut]]:
     ]
 
 
+_CONDITION_LABELS = {
+    "number_kept": "The number stays the same",
+    "voicemail_preserved": "The voicemail is kept",
+    "contract_months": "No longer contract",
+    "monthly_price": "Price unchanged",
+    "new_holder": "New holder is Amina",
+    "new_contract": "A new contract",
+    "price_change": "A different price",
+}
+_EXTRA_FACT = {"new_contract": "contract_months", "price_change": "monthly_price"}
+
+
+def _reply_card(check: OutcomeCheck, reading: ReplyOut) -> dict[str, Any]:
+    """One row per plan condition: what the reply says about it, with the supporting quote."""
+    quotes: dict[str, str] = {}
+    for commitment in reading.commitments:
+        for fact in commitment.facts:
+            quotes.setdefault(fact.key, fact.evidence_quote)
+    state_of = {"matched": "Holding", "violated": "Broken", "missing": "Not stated"}
+    rows: list[dict[str, str]] = []
+    action_quote = next((c.evidence_quote for c in reading.commitments), "")
+    action_state = str(check.results.get("action", "missing"))
+    rows.append(
+        {
+            "key": "action",
+            "label": "The transfer itself",
+            "state": {"completed": "Holding"}.get(action_state, "Not stated"),
+            "quote": action_quote if action_state != "missing" else "",
+        }
+    )
+    for key, value in check.results.items():
+        if key in {"action", "unauthorised"}:
+            continue
+        rows.append(
+            {
+                "key": key,
+                "label": _CONDITION_LABELS.get(key, key.replace("_", " ").capitalize()),
+                "state": state_of.get(str(value), "Not stated"),
+                "quote": quotes.get(key, "") if value != "missing" else "",
+            }
+        )
+    for key in check.results.get("unauthorised") or []:
+        rows.append(
+            {
+                "key": str(key),
+                "label": _CONDITION_LABELS.get(str(key), str(key).replace("_", " ").capitalize())
+                + " (not in the plan)",
+                "state": "Not approved",
+                "quote": quotes.get(_EXTRA_FACT.get(str(key), str(key)), ""),
+            }
+        )
+    verdict = {"resolved": "Done, with evidence", "open": "Not done yet"}.get(
+        check.verdict, "Not done: needs the family's decision"
+    )
+    return {"verdict": verdict, "kind": check.verdict, "rows": rows}
+
+
 async def step_reply(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) -> StepResult:
     """Replies arrive through the polling path. Each is checked against the approved plan."""
     with factory() as session:
@@ -1224,8 +1369,16 @@ async def step_reply(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) -
                 raise ShowcaseError(f"{ref} was not sent yet. Run the send step first.")
             threads[ref] = str(action.request.get("thread_id"))
     base = datetime.now(UTC)
+    rows = _replies()
+    override = env.live.get("reply")
+    if override:  # the presenter played Northline: their words and their reading replace the script
+        rows = [
+            (r[0], r[1], r[2], str(override["text"]), override["reading"]) if r[0] == "4417" else r
+            for r in rows
+        ]
+    northline_reading = next(r[4] for r in rows if r[0] == "4417")
     for index, (ref, sender, subject, text, reading) in enumerate(
-        sorted(_replies(), key=lambda row: row[0] == "4417")
+        sorted(rows, key=lambda row: row[0] == "4417")
     ):
         _register_reply(env, text, reading)
         env.mailbox.inject(
@@ -1277,6 +1430,8 @@ async def step_reply(factory: SessionFactory, env: ShowcaseEnv, case_id: UUID) -
                 continue
             bad = [k for k, v in check.results.items() if v == "violated"]
             extras = list(check.results.get("unauthorised") or [])
+            if ref == "4417":
+                env.live["reply_card"] = _reply_card(check, northline_reading)
             if check.verdict == "needs_decision":
                 caught += 1
                 has_card = session.scalar(
@@ -1697,14 +1852,221 @@ async def run_next(factory: SessionFactory, env: ShowcaseEnv) -> StepResult | No
     return None
 
 
+# --------------------------------------------------------------------------------------
+# Guided tour: state and the "you play the role" moments
+# --------------------------------------------------------------------------------------
+TOUR_ID = "showcase_tour"
+LIVE_LABEL = "Live model"
+RECORDED_LABEL = "Recorded model output"
+
+
+class LiveInputError(ShowcaseError):
+    """What the presenter typed cannot be used. The message says what to try."""
+
+
+def tour_state(session: Session) -> dict[str, Any]:
+    """Tour position and the cards of the live moments already played (survives page loads)."""
+    row = session.get(DeskSnapshot, TOUR_ID)
+    payload = dict(row.payload) if row is not None else {}
+    return {
+        "active": bool(payload.get("active")),
+        "index": int(payload.get("index") or 0),
+        "live": dict(payload.get("live") or {}),
+    }
+
+
+def save_tour_state(session: Session, patch: dict[str, Any]) -> dict[str, Any]:
+    """Merge a position update; `live` entries are merged per moment."""
+    state = tour_state(session)
+    if "active" in patch:
+        state["active"] = bool(patch["active"])
+    if "index" in patch:
+        state["index"] = max(0, min(int(patch["index"]), len(data.TOUR) - 1))
+    if isinstance(patch.get("live"), dict):
+        state["live"].update(patch["live"])
+    row = session.get(DeskSnapshot, TOUR_ID)
+    if row is None:
+        session.add(DeskSnapshot(id=TOUR_ID, payload=state))
+    else:
+        row.payload = state
+    session.flush()
+    return state
+
+
+def clear_tour_live(session: Session) -> None:
+    """A reset forgets the typed-in moments but keeps where the tour is."""
+    if session.get(DeskSnapshot, TOUR_ID) is not None:
+        save_tour_state(session, {})
+        row = session.get(DeskSnapshot, TOUR_ID)
+        row.payload = {**row.payload, "live": {}}
+        session.flush()
+
+
+def _later_steps_done(factory: SessionFactory, step_id: str) -> bool:
+    later = set(STEP_IDS[STEP_IDS.index(step_id) + 1 :])
+    with factory() as session:
+        return any(item["step_id"] in later for item in progress(session))
+
+
+def _guard_replay(factory: SessionFactory, step_id: str) -> None:
+    if _later_steps_done(factory, step_id):
+        raise LiveInputError(
+            "That moment is already behind us. Reset the showcase to play it again."
+        )
+
+
+async def live_intake(
+    factory: SessionFactory, env: ShowcaseEnv, text: str, ai: Any | None
+) -> dict[str, Any]:
+    """Sara's words through the real intake reading, then the same quote check as the scripted step."""
+    text = text.strip()
+    if not text:
+        raise LiveInputError("Say or type what Sara would say first.")
+    _guard_replay(factory, "intent")
+    label, reading, note = RECORDED_LABEL, None, ""
+    if ai is not None:
+        try:
+            reading = await ai.structured("intake", IntakeOut, intake_messages(text))
+            label = LIVE_LABEL
+        except CrisisPaused:
+            raise LiveInputError(
+                "That sounds like Sara may need support. The assistant pauses here and a person takes over."
+            ) from None
+        except Exception:
+            logger.info("showcase live", extra={"kind": "showcase.live.intake", "ok": False})
+            note = "The live model did not answer, so the recorded reading is shown."
+    if reading is not None:
+        env.live["intake"] = {"text": text, "reading": reading, "source": "live"}
+    else:
+        env.live.pop("intake", None)
+        note = (
+            note
+            or "No model key is configured, so the recorded reading of the scripted voice note is shown."
+        )
+    result = await run_step(factory, env, "intent")
+    return {
+        "source": label,
+        "note": note,
+        "text": text if reading is not None else data.SARA_TRANSCRIPT,
+        "card": env.live.get("intake_card"),
+        "headline": result.headline,
+    }
+
+
+async def live_dependency(
+    factory: SessionFactory, env: ShowcaseEnv, text: str, ai: Any | None
+) -> dict[str, Any]:
+    """Amina's answer through the real dependency reading; code turns it into plan conditions."""
+    text = text.strip()
+    if not text:
+        raise LiveInputError("Say or type what Amina would answer first.")
+    _guard_replay(factory, "dependency")
+    label, answer, note = RECORDED_LABEL, None, ""
+    if ai is not None:
+        try:
+            raw = await ai.structured("dependency", DependencyOut, dependency_messages(text))
+            answer = verify_dependency(raw, text)
+            label = LIVE_LABEL
+        except Exception:
+            logger.info("showcase live", extra={"kind": "showcase.live.dependency", "ok": False})
+            note = "The live model did not answer, so the recorded reading is shown."
+        else:
+            if answer is None or answer.kind not in {"access", "memory", "shared_service"}:
+                raise LiveInputError(
+                    "No supported answer found in those words. Say who uses the line, "
+                    "for example: that is my number, and his voice is on the voicemail."
+                )
+    if answer is not None:
+        env.live["dependency"] = {"text": text, "answer": answer, "source": "live"}
+    else:
+        env.live.pop("dependency", None)
+        note = (
+            note
+            or "No model key is configured, so the recorded reading of Amina's answer is shown."
+        )
+    result = await run_to(factory, env, "dependency")
+    card = dict(env.live.get("dependency_card") or {})
+    return {"source": label, "note": note, "card": card, "headline": result.headline}
+
+
+async def live_reply(
+    factory: SessionFactory, env: ShowcaseEnv, text: str, ai: Any | None
+) -> dict[str, Any]:
+    """The presenter plays Northline. The real reply reader and outcome check judge the words."""
+    text = text.strip()
+    if not text:
+        raise LiveInputError("Type the reply Northline would send first.")
+    with factory() as session:
+        if "reply" in {item["step_id"] for item in progress(session)}:
+            raise LiveInputError(
+                "Northline has already replied. Reset the showcase to play it again."
+            )
+    label, reading, note = RECORDED_LABEL, None, ""
+    if ai is not None:
+        try:
+            reading = await extract_verified_reply(
+                ai, strip_quoted_history(text), ["4417"], thread_ref="4417"
+            )
+            label = LIVE_LABEL
+        except Exception:
+            logger.info("showcase live", extra={"kind": "showcase.live.reply", "ok": False})
+            note = "The live model did not answer, so the recorded reading is shown."
+    if reading is not None:
+        env.live["reply"] = {"text": text, "reading": reading, "source": "live"}
+    else:
+        env.live.pop("reply", None)
+        note = (
+            note
+            or "No model key is configured, so the recorded Northline reply and its reading are shown."
+        )
+    result = await run_to(factory, env, "reply")
+    return {
+        "source": label,
+        "note": note,
+        "text": text if reading is not None else data.NORTHLINE_REPLY.split("\n\nOn ")[0],
+        "card": env.live.get("reply_card"),
+        "headline": result.headline,
+    }
+
+
+async def run_to(factory: SessionFactory, env: ShowcaseEnv, step_id: str) -> StepResult:
+    """Run every step up to and including `step_id` that is not done yet; return that step's result."""
+    if step_id not in STEP_IDS:
+        raise ShowcaseError("Unknown step")
+    result: StepResult | None = None
+    for step in STEPS:
+        with factory() as session:
+            done = {item["step_id"] for item in progress(session)}
+        if step.id not in done:
+            result = await run_step(factory, env, step.id)
+        if step.id == step_id:
+            break
+    if result is None or result.step_id != step_id:
+        with factory() as session:
+            row = next((i for i in progress(session) if i["step_id"] == step_id), None)
+        if row is None:
+            raise ShowcaseError("That step has not run.")
+        return StepResult(**row)
+    return result
+
+
 __all__ = [
     "STEPS",
     "STEP_IDS",
     "ContractError",
+    "LIVE_LABEL",
+    "RECORDED_LABEL",
+    "LiveInputError",
     "ShowcaseEnv",
     "ShowcaseError",
     "StepResult",
     "is_showcase_case",
+    "live_dependency",
+    "live_intake",
+    "live_reply",
+    "run_to",
+    "save_tour_state",
+    "tour_state",
     "progress",
     "reset_showcase",
     "run_next",

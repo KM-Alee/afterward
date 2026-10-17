@@ -12,7 +12,7 @@
 <section class="hero" aria-labelledby="hero-title">
   <div class="hero__glow" aria-hidden="true"></div>
   <div class="wrap hero__inner">
-    <div class="hero__copy">
+    <div class="hero__copy" data-tour="home-hero">
       <p class="pill rise" style="--i:0">{{ ui.icon('horizon') }}For the months after someone dies</p>
       <h1 class="hero__title rise" id="hero-title" style="--i:1">You tell it once. <em>We'll tell everyone else.</em></h1>
       <p class="lede rise" style="--i:2">Afterward writes to the organisations, follows up, and checks each &ldquo;done&rdquo; against what the family approved.</p>
@@ -113,7 +113,7 @@
     <header class="band__head" data-reveal>
       <h2 class="h1" id="how-title">How it works</h2>
     </header>
-    <ol class="journey" role="list" data-stagger>
+    <ol class="journey" role="list" data-stagger data-tour="home-how">
       <li class="journey__step" data-reveal><span class="journey__n">1</span><h3 class="h4">Tell it once</h3><p class="secondary small">Stop, keep, protect.</p></li>
       <li class="journey__step" data-reveal><span class="journey__n">2</span><h3 class="h4">Confirm the plan</h3><p class="secondary small">Approve each conditional plan.</p></li>
       <li class="journey__step" data-reveal><span class="journey__n">3</span><h3 class="h4">We write and follow up</h3><p class="secondary small">Requests go out; replies are tracked.</p></li>
@@ -122,7 +122,7 @@
   </div>
 </section>
 
-<section class="band" id="limits" aria-labelledby="limits-title">
+<section class="band" id="limits" data-tour="home-limits" aria-labelledby="limits-title">
   <div class="wrap wrap--narrow">
     <div class="limits card" data-reveal>
       <header class="limits__head">

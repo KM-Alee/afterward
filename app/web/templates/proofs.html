@@ -14,7 +14,7 @@
       <button class="btn btn--primary" type="submit">{{ ui.icon('fast-forward') }}Run proofs</button>
     </form>
   </header>
-  <section class="panel-box rise" style="--i:1" aria-label="Cases">
+  <section class="panel-box rise" data-tour="proofs-list" style="--i:1" aria-label="Cases">
     <div class="panel-box__body" id="proof-body">
       <ol class="proof-list" role="list">
         {% set rows = report.results if report else none %}

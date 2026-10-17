@@ -23,7 +23,7 @@
   </header>
 
   <div class="vc-grid">
-    <section class="vc-stage" aria-label="Voice call">
+    <section class="vc-stage" data-tour="call-stage" aria-label="Voice call">
       <p class="vc-disclose">{{ ui.icon('shield') }}You are talking to <b>Afterward, an AI assistant</b> acting for the Malik family. It can note an offer. It cannot accept one.</p>
 
       <div class="vc-orb" id="orb" data-state="idle" aria-hidden="true">
@@ -87,7 +87,7 @@
       <p class="vc-fine">The speech check reduces the chance of an implied agreement. It is not a guarantee. Phone calls are {% if phone_calls_enabled %}enabled{% else %}off{% endif %}.</p>
     </section>
 
-    <section class="vc-side" aria-labelledby="tr-title">
+    <section class="vc-side" data-tour="call-transcript" aria-labelledby="tr-title">
       <div class="vc-offer" id="offer"{% if not room.terms %} hidden{% endif %}>
         <p class="vc-offer__label">Offer on the table</p>
         <ul class="terms" role="list" id="terms">

@@ -32,7 +32,8 @@
       <h1 class="page-title">Showcase</h1>
       <p class="page-sub">The Malik case, one step at a time. <span class="sim-tag" title="Gmail, Telegram, providers and model readings are simulated; the engine and database rows are real.">{{ ui.icon('ring') }}Outside world simulated</span></p>
     </div>
-    <div class="toolbar">
+    <div class="toolbar" data-tour="sc-controls">
+      <button class="btn btn--primary" type="button" data-tour-start{% if not has_db %} disabled{% endif %}>{{ ui.icon('arrow-right') }}Start the guided tour</button>
       <form method="post" action="/api/showcase/next" data-loading>
         <button class="btn btn--primary" type="submit"{% if not started or finished or not has_db %} disabled{% endif %}>{{ ui.icon('fast-forward') }}{% if finished %}All steps done{% else %}Run next step{% endif %}</button>
       </form>

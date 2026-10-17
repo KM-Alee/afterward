@@ -370,3 +370,199 @@ SPOOF_REPLY = (
     "to finish the transfer of line ending 4417.\n"
 )
 SPOOF_SENDER = "records@northline-support.example"
+
+
+# --------------------------------------------------------------------------------------
+# The guided tour: one stop per beat. `page` is resolved to a URL by the web layer.
+#   run   a showcase step to run (or "reset"); the page then reloads and the result animates in
+#   live  a "you play the role" moment: the presenter types or speaks, the real model answers
+#   show  "details" prints the step's own lines under the narration
+# Keep every text short: the audience reads this while the page does the talking.
+# --------------------------------------------------------------------------------------
+LIVE_INTAKE_HINT = (
+    "My dad Yusuf Malik died on 3 March 2026. I'm Sara, his daughter, handling things. "
+    "Keep Mum's phone and Dad's voicemail, stop the bills nobody needs."
+)
+LIVE_REPLY_HINT = "Done — line moved to Mrs Malik on a new 24-month plan, voicemail will be reset."
+
+TOUR: tuple[dict[str, Any], ...] = (
+    {
+        "id": "welcome",
+        "page": "home",
+        "target": "home-hero",
+        "title": "A family tells it once",
+        "text": "Afterward is a case manager for the paperwork after a death. We will walk one real case, page by page.",
+    },
+    {
+        "id": "how",
+        "page": "home",
+        "target": "home-how",
+        "title": "Four honest steps",
+        "text": "Tell it once, approve each plan, we write and follow up, then every reply is checked against the plan.",
+    },
+    {
+        "id": "limits",
+        "page": "home",
+        "target": "home-limits",
+        "title": "What it does not claim",
+        "text": "No complete discovery, no certified-photo claim, no phone call unless one is made. Simulated parts are labelled.",
+    },
+    {
+        "id": "reset",
+        "page": "showcase",
+        "target": "sc-controls",
+        "title": "Start from a clean case",
+        "text": "The Malik case, seeded in Postgres. Gmail, Telegram and providers are simulated; the engine is real.",
+        "run": "reset",
+        "run_label": "Reset to the start",
+    },
+    {
+        "id": "intake",
+        "page": "family",
+        "target": "family-phone",
+        "title": "You are Sara",
+        "text": "Say what Sara would say, once. The real model reads it, then code keeps only facts with a quote.",
+        "live": "intake",
+        "hint": LIVE_INTAKE_HINT,
+        "placeholder": "Speak or type as Sara",
+    },
+    {
+        "id": "discover-pre",
+        "page": "onboarding",
+        "target": "ob-sources",
+        "title": "Where may we look?",
+        "text": "Sara granted one inbox, read-only. Nothing has been searched yet.",
+    },
+    {
+        "id": "discover",
+        "page": "onboarding",
+        "target": "ob-found",
+        "title": "Candidates, not conclusions",
+        "text": "Headers first, Sara ticks what may be read. Everything found is Unconfirmed.",
+        "run": "discover",
+        "run_label": "Search her inbox",
+        "show": "details",
+    },
+    {
+        "id": "coverage",
+        "page": "onboarding",
+        "target": "ob-coverage",
+        "title": "What we did not search",
+        "text": "Coverage says what was searched and what was not, by design. It is never a complete list.",
+    },
+    {
+        "id": "confirm",
+        "page": "onboarding",
+        "target": "ob-found",
+        "title": "Only the family decides",
+        "text": "Sara marks each one: his, not his, or shared. The agent cannot confirm ownership.",
+        "run": "confirm",
+        "run_label": "Sara decides",
+    },
+    {
+        "id": "dependency",
+        "page": "desk",
+        "target": "desk-accounts",
+        "title": "You are Amina",
+        "text": "Does anyone still use the line ending 4417? Answer as Amina; her words change the plan.",
+        "live": "dependency",
+        "hint": AMINA_QUOTE,
+        "placeholder": "Speak or type as Amina",
+    },
+    {
+        "id": "approve",
+        "page": "desk",
+        "target": "desk-accounts",
+        "title": "Approve the exact plan",
+        "text": "Sara approves a plan by its hash. Change a word and the approval is void.",
+        "run": "approve",
+        "run_label": "Sara approves",
+    },
+    {
+        "id": "send",
+        "page": "desk",
+        "target": "desk-activity",
+        "title": "The job runner sends",
+        "text": "Autopilot is Steady. The runner re-checks approval and recipient, then sends through simulated Gmail.",
+        "run": "send",
+        "run_label": "Send the requests",
+        "show": "details",
+    },
+    {
+        "id": "provider",
+        "page": "provider",
+        "target": "provider-compose",
+        "title": "You are Northline",
+        "text": "Reply to the request. The real reply reader and outcome check judge your words against the plan.",
+        "live": "reply",
+        "hint": LIVE_REPLY_HINT,
+        "placeholder": "Type the reply Northline would send",
+    },
+    {
+        "id": "caught",
+        "page": "desk",
+        "target": "desk-now",
+        "title": "'Done' was not done",
+        "text": "The desk shows what Northline said next to what the plan allows. It is a decision for the family.",
+    },
+    {
+        "id": "callchoice",
+        "page": "desk",
+        "target": "desk-activity",
+        "title": "Sara: call them for me",
+        "text": "The agent can ask, but it has no tool to accept terms. Wording checks are a heuristic, not a guarantee.",
+        "run": "call",
+        "run_label": "Choose 'Call them'",
+        "show": "details",
+    },
+    {
+        "id": "call",
+        "page": "call",
+        "target": "call-stage",
+        "title": "You are the Northline rep",
+        "text": "Talk to the realtime agent. Offer terms and try to get it to say yes. It is a browser call, not a phone call.",
+    },
+    {
+        "id": "clock",
+        "page": "desk",
+        "target": "desk-activity",
+        "title": "+14 days, by itself",
+        "text": "Case time moves forward. Follow-ups fire inside the approved plan; answered ones are cancelled.",
+        "run": "clock",
+        "run_label": "Move 14 days on",
+        "show": "details",
+    },
+    {
+        "id": "handback",
+        "page": "onboarding",
+        "target": "ob-handback",
+        "title": "A person does these",
+        "text": "Probate, certified copies and government forms are prepared and handed back. Afterward never files them.",
+        "run": "handback",
+        "run_label": "Prepare the hand-back",
+    },
+    {
+        "id": "proofs",
+        "page": "proofs",
+        "target": "proofs-list",
+        "title": "14 proof cases",
+        "text": "Tricky replies and spoofs, checked by code. Each shows whether the model output was live or recorded.",
+    },
+    {
+        "id": "finish",
+        "page": "desk",
+        "target": "desk-finish",
+        "title": "Did we finish everything?",
+        "text": "Answered from stored rows, not by a model.",
+        "run": "finish",
+        "run_label": "Ask it",
+        "show": "details",
+    },
+    {
+        "id": "close",
+        "page": "showcase",
+        "target": "",
+        "title": "Not everything. That is the point.",
+        "text": "AI proposes, code decides, the family approves, and the reply is checked. Thank you.",
+    },
+)

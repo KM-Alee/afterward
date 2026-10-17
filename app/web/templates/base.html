@@ -16,6 +16,7 @@
   <link rel="stylesheet" href="/static/css/base.css?v={{ asset_v }}">
   <link rel="stylesheet" href="/static/css/components.css?v={{ asset_v }}">
   <link rel="stylesheet" href="/static/css/pages.css?v={{ asset_v }}">
+  <link rel="stylesheet" href="/static/css/tour.css?v={{ asset_v }}">
   <script>document.documentElement.classList.add("js"); try { if (localStorage.getItem("afterward.projector") === "on") document.documentElement.classList.add("is-projector"); var theme = localStorage.getItem("afterward.theme"); if (theme && theme !== "auto") document.documentElement.setAttribute("data-theme", theme); } catch (e) {}</script>
 </head>
 <body data-page="{{ page }}" class="{% block body_mode %}fit{% endblock %}{% block body_class %}{% endblock %}">
@@ -55,6 +56,7 @@
   </footer>
   {% endif %}
   <script src="/static/js/app.js?v={{ asset_v }}"></script>
+  <script src="/static/js/tour.js?v={{ asset_v }}" defer></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

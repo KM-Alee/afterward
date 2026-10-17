@@ -25,7 +25,7 @@
   <div class="banner-line banner-line--good" role="status">{{ ui.icon('check') }}<span><b>Sent.</b> {{ notice }} A real organisation was not contacted.</span></div>
   {% endif %}
   <div class="console">
-  <form class="compose rise" style="--i:1" data-loading method="post" action="/api/provider/send" novalidate aria-label="Your reply">
+  <form class="compose rise" data-tour="provider-compose" style="--i:1" data-loading method="post" action="/api/provider/send" novalidate aria-label="Your reply">
     <input type="hidden" name="token" value="{{ token }}">
     <label class="label" for="provider">Organisation</label>
     <select class="input" id="provider" name="provider">

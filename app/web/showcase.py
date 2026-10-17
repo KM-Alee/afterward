@@ -9,15 +9,24 @@ from uuid import UUID
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
+from app.demo import showcase_data
 from app.demo.showcase import (
+    LIVE_LABEL,
     STEPS,
+    LiveInputError,
     ShowcaseEnv,
     ShowcaseError,
     StepResult,
+    live_dependency,
+    live_intake,
+    live_reply,
     progress,
     reset_showcase,
     run_next,
+    run_to,
+    save_tour_state,
     showcase_case,
+    tour_state,
 )
 from app.web.render import render
 from app.web.router import _error, _page, _require_desk, _token_for, get_surface
@@ -198,3 +207,211 @@ async def showcase_reset(request: Request):
         surface.demo_case_id, "demo.reset", {"summary": "Showcase reset"}, actor="showcase"
     )
     return _done(request, {"ok": True, "reset": True})
+
+
+# --------------------------------------------------------------------------------------
+# Guided tour
+# --------------------------------------------------------------------------------------
+_AI_KEY = "showcase_ai"
+_MAX_TEXT = 1500
+
+
+def _live_ai(request: Request):
+    """The real model client when a key is configured (or one was injected); else None."""
+    injected = getattr(request.app.state, _AI_KEY, None)
+    if injected is not None:
+        return injected
+    settings = getattr(request.app.state, "settings", None)
+    if settings is None or not settings.openai_api_key.get_secret_value():
+        return None
+    from app.ai.client import AgentsSDKClient
+
+    client = AgentsSDKClient(settings, timeout_s=45, max_retries=1)
+    setattr(request.app.state, _AI_KEY, client)
+    return client
+
+
+def _tour_links(request: Request) -> dict[str, str]:
+    surface = get_surface(request)
+    demo: UUID = surface.demo_case_id
+    family = _token_for(surface.family_tokens, demo)
+    return {
+        "home": "/",
+        "showcase": "/showcase",
+        "desk": f"/desk/{demo}",
+        "family": f"/family/{family}",
+        "onboarding": f"/family/{family}/onboarding",
+        "provider": f"/provider/{_token_for(surface.provider_tokens, demo)}",
+        "call": f"/call/{_token_for(surface.call_tokens, demo)}",
+        "proofs": "/proofs",
+    }
+
+
+def _step_payload(row: dict | None) -> dict | None:
+    if not row:
+        return None
+    return {
+        "step": row["step_id"],
+        "headline": row["headline"],
+        "details": list(row.get("details") or [])[:6],
+        "real": list(row.get("real") or [])[:3],
+        "simulated": list(row.get("simulated") or [])[:2],
+    }
+
+
+@router.get("/api/showcase/tour")
+def tour_config(request: Request):
+    """The tour script with resolved page URLs, step progress and saved position."""
+    denied = _require_desk(request)
+    if denied is not None:
+        return denied
+    surface = get_surface(request)
+    factory = surface.session_factory
+    links = _tour_links(request)
+    state = {"active": False, "index": 0, "live": {}}
+    done: dict[str, dict] = {}
+    started = False
+    if factory is not None:
+        with factory() as session:  # type: ignore[operator]
+            state = tour_state(session)
+            done = {item["step_id"]: item for item in progress(session)}
+            started = showcase_case(session) is not None
+    stops = [{**stop, "url": links.get(stop["page"], "/")} for stop in showcase_data.TOUR]
+    return JSONResponse(
+        {
+            "stops": stops,
+            "state": state,
+            "done": {key: _step_payload(value) for key, value in done.items()},
+            "model": LIVE_LABEL if _live_ai(request) is not None else "Recorded model output",
+            "has_db": factory is not None,
+            "started": started,
+            "links": links,
+        }
+    )
+
+
+@router.post("/api/showcase/tour/state")
+async def tour_save(request: Request):
+    denied = _require_desk(request)
+    if denied is not None:
+        return denied
+    factory = get_surface(request).session_factory
+    if factory is None:
+        return JSONResponse({"ok": False, "error": "The showcase needs the database."}, 503)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    if not isinstance(body, dict):
+        body = {}
+    patch = {k: body[k] for k in ("active", "index") if k in body}
+    if isinstance(body.get("live"), dict):
+        patch["live"] = body["live"]
+    try:
+        with factory() as session:  # type: ignore[operator]
+            state = save_tour_state(session, patch)
+            session.commit()
+    except (TypeError, ValueError):
+        return JSONResponse({"ok": False, "error": "Bad tour state."}, 422)
+    return JSONResponse({"ok": True, "state": state})
+
+
+async def _text_of(request: Request) -> str | None:
+    try:
+        body = await request.json()
+    except ValueError:
+        return None
+    text = body.get("text") if isinstance(body, dict) else None
+    return text.strip()[:_MAX_TEXT] if isinstance(text, str) and text.strip() else None
+
+
+async def _live(request: Request, name: str):
+    """Shared wrapper: desk auth, input check, one showcase lock, model-or-recorded run."""
+    denied = _require_desk(request)
+    if denied is not None:
+        return denied
+    surface = get_surface(request)
+    factory = surface.session_factory
+    if factory is None:
+        return JSONResponse({"ok": False, "error": "The showcase needs the database."}, 503)
+    text = await _text_of(request)
+    if text is None:
+        return JSONResponse({"ok": False, "error": "Say or type something first."}, 422)
+    runner = {"intake": live_intake, "dependency": live_dependency, "reply": live_reply}[name]
+    async with _lock(request):
+        try:
+            result = await runner(factory, _env(request), text, _live_ai(request))  # type: ignore[arg-type]
+        except LiveInputError as exc:
+            return JSONResponse({"ok": False, "error": str(exc)}, 422)
+        except ShowcaseError as exc:
+            return JSONResponse({"ok": False, "error": str(exc)}, 409)
+        except Exception:
+            logger.info("showcase live", extra={"kind": f"showcase.live.{name}", "ok": False})
+            return JSONResponse(
+                {"ok": False, "error": "That moment failed. Reset and try again."}, 500
+            )
+        with factory() as session:  # type: ignore[operator]
+            save_tour_state(session, {"live": {name: result}})
+            session.commit()
+    _blank_overlay(request)
+    surface.live.publish(
+        surface.demo_case_id,
+        "showcase.step",
+        {"summary": result["headline"], "step": name},
+        actor="showcase",
+    )
+    return JSONResponse({"ok": True, **result})
+
+
+@router.post("/api/showcase/live/intake")
+async def live_intake_route(request: Request):
+    return await _live(request, "intake")
+
+
+@router.post("/api/showcase/live/dependency")
+async def live_dependency_route(request: Request):
+    return await _live(request, "dependency")
+
+
+@router.post("/api/showcase/live/reply")
+async def live_reply_route(request: Request):
+    return await _live(request, "reply")
+
+
+@router.post("/api/showcase/run-to")
+async def showcase_run_to(request: Request):
+    """Run every step up to the named one (the tour's 'Run it'). Returns that step's result."""
+    denied = _require_desk(request)
+    if denied is not None:
+        return denied
+    surface = get_surface(request)
+    factory = surface.session_factory
+    if factory is None:
+        return JSONResponse({"ok": False, "error": "The showcase needs the database."}, 503)
+    try:
+        body = await request.json()
+    except ValueError:
+        body = {}
+    step_id = body.get("step") if isinstance(body, dict) else None
+    if not isinstance(step_id, str):
+        return JSONResponse({"ok": False, "error": "Name a step."}, 422)
+    async with _lock(request):
+        try:
+            result = await run_to(factory, _env(request), step_id)  # type: ignore[arg-type]
+        except ShowcaseError as exc:
+            return JSONResponse({"ok": False, "error": str(exc)}, 409)
+        except Exception:
+            logger.info("showcase step", extra={"kind": "showcase.step", "ok": False})
+            return JSONResponse(
+                {"ok": False, "error": "That step failed. Reset and try again."}, 500
+            )
+    _blank_overlay(request)
+    surface.live.publish(
+        surface.demo_case_id,
+        "showcase.step",
+        {"summary": result.headline, "step": result.step_id},
+        actor="showcase",
+    )
+    from dataclasses import asdict
+
+    return JSONResponse({"ok": True, **(_step_payload(asdict(result)) or {})})

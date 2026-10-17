@@ -7,7 +7,7 @@
 {% block main %}
 <div class="wrap page">
   <div class="family">
-    <section class="phone" aria-labelledby="persona-name">
+    <section class="phone" data-tour="family-phone" aria-labelledby="persona-name">
       <div class="persona rise">
         <span class="avatar avatar--sara" aria-hidden="true">S</span>
         <div>
@@ -49,7 +49,7 @@
         </div>
       </section>
       {% endif %}
-      <section class="needs" aria-labelledby="needs-you">
+      <section class="needs" data-tour="family-needs" aria-labelledby="needs-you">
         <div class="needs__head"><h2 class="needs__title" id="needs-you">{% if board.empty or board.family_choice %}Nothing needs you{% else %}Needs you{% endif %}</h2></div>
         {% if board.empty %}
         <div class="calm">{{ ui.icon('horizon') }}<p>All clear.</p></div>
