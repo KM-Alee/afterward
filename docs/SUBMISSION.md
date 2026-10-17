@@ -76,24 +76,24 @@ recorded model output when no key). The browser call is not a phone call. The sp
 reduces the risk of an implied agreement; it is not a guarantee. We never claim to find every
 account. Legal, tax and government steps are prepared, not filed.
 
-## Video script (≈2:30)
+## Video script (≈2:30) — follows the 12-stop guided tour
 
-Record the screen of the live deployment. Hide the passcode field and any dashboard env values.
+Record the live deployment (or the laptop app) from Showcase → **Start the guided tour**.
+Hide the passcode field and any dashboard env values. Full spoken lines are in `docs/SHOWCASE.md`.
 
-1. **0:00–0:15 — Hook.** Landing page. "When someone dies, the family tells the same story to
-   forty organisations — and then has to check none of them got it wrong."
-2. **0:15–0:40 — Tell it once.** Showcase → Start the guided tour → *live: you are Sara*. Type
-   or say the voice note; the summary appears with quotes.
-3. **0:40–1:05 — Honest discovery.** Finding accounts: candidates from the sources Sara chose,
-   big Yes / Not his buttons, and the list of what was *not* searched.
-4. **1:05–1:25 — The human changes the plan.** *Live: you are Amina* — "I still use that
-   number and my bank codes go to it." Plan v1 → v2 with the new conditions.
-5. **1:25–1:55 — "Done" that isn't.** *Live: you are Northline* — "Done, moved to a new 24-month
-   plan, voicemail will reset." Conditions flip to Broken / Not approved; verdict: not done.
-6. **1:55–2:20 — The call.** Call room: talk to the agent as Northline, offer "12 months at $30".
-   It records the offer and says the family decides; Sara approves on her card.
-7. **2:20–2:35 — It keeps going.** +14 days → the follow-up fires by itself; "Did we finish
-   everything?" gives the honest answer. Close on the tagline.
+1. **0:00–0:15 Paperwork after a death** — the problem in one sentence; press "Start a fresh case".
+2. **0:15–0:35 You are Sara** — type/say the voice note; the summary appears with her quotes.
+3. **0:35–0:55 Accounts found, and not found** — accounts from the inbox she allowed, and what was *not* searched.
+4. **0:55–1:05 Sara confirms each one.**
+5. **1:05–1:25 You are Amina** — "I still use that number, my bank codes go to it" → plan v1 becomes v2.
+6. **1:25–1:35 Approve, send, keep checking.**
+7. **1:35–1:55 You are Northline** — "Done — new 24-month plan, voicemail will reset."
+8. **1:55–2:05 Done, but not really** — conditions broken; verdict: not done.
+9. **2:05–2:20 Talk to the agent** — offer "12 months at $30"; it notes it and says the family decides.
+10. **2:20–2:35 Two weeks later, by itself → people do the legal steps → "Did we finish everything?"**
+
+LinkedIn screenshots (fictional demo data, page-only) are in `submission/screenshots/` — local
+only; skim each before posting.
 
 ## Before 12:45
 

@@ -1,169 +1,145 @@
 # Showcase: presenter script
 
-A guided tour of the Malik case, about 8 minutes. The tour walks the real website page by page
-with a spotlight and a short narration card. Every effect it shows is a real database change made
-by the real engine. Where the outside world is normally simulated, **you play that role live** and
+A 4-minute guided tour of the Malik case in 12 stops. The tour walks the real website page by page
+with a spotlight and one short sentence per stop. Every effect is a real database change made by
+the real engine. Where the outside world is normally simulated, **you play that role live** and
 the real model answers.
 
-Honest-claims rule: say only what the screen shows. Do not say it finds every account, that a
-photo is a certified copy, that the speech guard is perfect, that delivery is exactly-once, or
-that a phone call was made. The call room is a browser call.
+Honest-claims rule: say only what the screen shows. Never say it finds every account, that a
+photo is a certified copy, that the speech check is a guarantee, that delivery is exactly-once, or
+that a phone call was made. The call room is a browser call, not a phone call.
 
 ## Before you go on
 
-1. Open the app, sign in with the demo passcode. On the landing page a **Start the guided tour**
-   pill appears (signed-in only). You can also open **Showcase** and press **Start the guided tour**.
-2. Check the model tag. On each live moment the card shows **Live model** when an OpenAI key is
-   configured on the server, and **Recorded model output** when it is not (or when the live call
-   failed). Never say "live" over a recorded tag; the card says which it was.
-3. Rehearse once end to end. The tour's second page resets the case (**Reset to the start**).
-   Reset is safe at any time and only touches the demo case.
-4. Use Chrome or Edge if you want the **Speak** button (browser speech input). Without it the card
-   is typing only. The projector toggle on the desk helps in a big room.
-5. The card shows the stop count ("5 / 21") and a row of progress dots; **Exit** is always at its
-   top right. The card docks in the corner that hides the least of the highlighted area. Keys: Right arrow = next, Left arrow = back, Esc = exit. The tour position survives page changes
-   and reloads. **Next** on a stop that was not run runs it silently so the next page is not empty.
+1. Sign in with the demo passcode. On the landing page press **Start the guided tour**
+   (signed-in only). It is also on the **Showcase** page.
+2. Check the model tag on each live card: **Live model** (a key is configured) or **Recorded model
+   output**. Never say "live" over a recorded tag.
+3. Rehearse once. Stop 1 resets the case; reset is safe at any time and only touches the demo case.
+4. Use Chrome or Edge for the **Speak** button; otherwise type. Keys: Right = next, Left = back,
+   Esc = exit. **Next** on a stop you did not run runs it silently, so the next page is never empty.
 
-## 30-second pitch
+## 20-second pitch
 
-> When someone dies, the family has to tell dozens of organisations, one by one, and then
-> work out whether each "done" is really done. Afterward takes the family's wishes once,
-> finds candidate accounts from sources they grant, asks the people who actually know what
-> depends on what, and writes to each organisation only after the family approves that exact
-> request. When an organisation replies, we check the reply against the approved plan, not the
-> company's word. It follows up by itself, hands legal and government steps back to a person,
-> and answers "did you finish everything?" honestly: not yet, and here is why.
+> When someone dies, a family has to tell dozens of organisations, then work out whether each
+> "done" is really done. Afterward takes the family's wishes once, finds possible accounts only
+> where they allow, asks the right person what depends on what, and writes only after the family
+> approves the exact request. Every reply is checked against that approval, it follows up by
+> itself, hands legal steps back to a person, and answers "did you finish?" honestly.
 
 ## The tour, stop by stop
 
-Stops marked **LIVE** turn the card into an input. Press **Use suggested line** to fill the
-exact line below, or say your own. Ctrl+Enter sends.
+Live stops turn the card into an input. **Use suggested line** fills the exact line; Ctrl+Enter sends.
 
-| # | Page | Stop | What you do |
+| # | Page | Stop (tag) | Click / do |
 |---|---|---|---|
-| 1 | Landing | A family tells it once | Next |
-| 2 | Landing | Four honest steps | Next |
-| 3 | Landing | What it does not claim | Next |
-| 4 | Showcase | Start from a clean case | **Reset to the start** |
-| 5 | Family page | **LIVE: you are Sara** | say or type the intake line |
-| 6 | Finding accounts | Where may we look? | Next |
-| 7 | Finding accounts | Candidates, not conclusions | **Search her inbox** |
-| 8 | Finding accounts | What we did not search | Next |
-| 9 | Finding accounts | Only the family decides | **Sara decides** |
-| 10 | Case desk | **LIVE: you are Amina** | say or type her answer |
-| 11 | Case desk | Approve the exact plan | **Sara approves** |
-| 12 | Case desk | The job runner sends | **Send the requests** |
-| 13 | Provider console | **LIVE: you are Northline** | type the reply |
-| 14 | Case desk | "Done" was not done | Next |
-| 15 | Case desk | Sara: call them for me | **Choose "Call them"** |
-| 16 | Call room | **LIVE: you are the Northline rep** | talk to the agent |
-| 17 | Case desk | +14 days, by itself | **Move 14 days on** |
-| 18 | Finding accounts | A person does these | **Prepare the hand-back** |
-| 19 | Proofs | 14 proof cases | Next |
-| 20 | Case desk | Did we finish everything? | **Ask it** |
-| 21 | Showcase | Not everything. That is the point. | Finish |
+| 1 | Landing | Paperwork after a death | **Start a fresh case** |
+| 2 | Family page | You are Sara (LIVE) | say or type the line |
+| 3 | Finding accounts | Accounts found, and not found | **Search her inbox** |
+| 4 | Finding accounts | Sara confirms each one | **Sara decides** |
+| 5 | Case desk | You are Amina (LIVE) | say or type the line |
+| 6 | Case desk | Approve, send, keep checking | **Approve and send** |
+| 7 | Provider console | You are Northline (LIVE) | type the line |
+| 8 | Case desk | Done, but not really | Next |
+| 9 | Call room | Talk to the agent (LIVE) | **Sara asks for a call**, then talk |
+| 10 | Case desk | Two weeks later, by itself | **Move 14 days on** |
+| 11 | Finding accounts | People do the legal steps | **Prepare the hand-back** |
+| 12 | Case desk | Did we finish everything? | **Ask it** |
 
-### Landing (stops 1 to 3, 30 s)
-- **Say:** the pitch. "Everything you will see is a real database row. The fakes are Gmail,
-  Telegram, the organisations and, if no key is set, the model. Every card says which."
-- **Audience sees:** a spotlight moving over the hero, the four steps and the honest limits.
+### 1. Paperwork after a death (20 s)
+- **Click:** Start a fresh case. **Say:** "A family should not chase twenty companies while
+  grieving. Everything you see is a real database row; Gmail, Telegram and the companies are
+  simulated, and each card says which." **See:** "Clean case seeded."
 
-### Stop 4: reset (10 s)
-- **Click:** Reset to the start. **Audience sees:** "Clean case seeded."
-
-### Stop 5, LIVE: you are Sara (50 s)
-- **Say/type exactly:** *My dad Yusuf Malik died on 3 March 2026. I'm Sara, his daughter, handling
+### 2. You are Sara (30 s)
+- **Type/say exactly:** *My dad Yusuf Malik died on 3 March 2026. I'm Sara, his daughter, handling
   things. Keep Mum's phone and Dad's voicemail, stop the bills nobody needs.*
-  (The shorter line, *My dad Yusuf died on 3 March. Keep Mum's phone and Dad's voicemail, stop the
-  bills nobody needs.*, works too: with no year, the date on file is kept and the card says so.)
-- **Audience sees:** the real model's reading as a card: who, when, her role as *stated by her*,
-  each keep and stop with the quote that supports it, and a counter of claims dropped for lacking
-  a quote. Tagged **Live model** (or **Recorded model output**).
-- **Say:** "She says it once. The model proposes; code keeps a fact only if her own words contain
-  the quote. Her role is recorded as stated, never as 'executor'."
-- **Fallback:** without a key the card shows the recorded reading of the scripted voice note, and
-  says "No model key is configured".
+- **Say:** "She says it once. The model proposes; code keeps a fact only if her own words back it."
+- **See:** the reading as a card: who, when, each keep and stop with its supporting quote, tagged
+  **Live model** or **Recorded model output**. Without a key the recorded reading is shown.
 
-### Stops 6 to 9: finding accounts (2 min)
-- **Stop 7, Search her inbox:** the candidate list fills in with a pop animation. **Audience
-  sees:** "9 candidate accounts found from 7 inbox headers and 4 photos; nothing is called his
-  yet", two messages never read, and the query built by code.
-- **Stop 8:** the coverage panel: what was searched, what was not, by design.
-- **Stop 9, Sara decides:** "6 of 9 confirmed; 1 not his, 1 shared, 2 left unconfirmed".
-- **Say:** "Headers first. Sara ticks what may be read; the cousin's note and the flyer were never
-  opened. Candidates stay Unconfirmed until the family decides. We do not claim this list is
-  complete, and the page lists what we did not search."
+### 3. Accounts found, and not found (35 s)
+- **Click:** Search her inbox. **See:** 9 candidate accounts, all Unconfirmed, two messages never
+  read, and the coverage panel listing what was not searched.
+- **Say:** "Only where Sara allowed. We do not claim this list is complete, and the page says what
+  we did not search."
 
-### Stop 10, LIVE: you are Amina (60 s)  *the theme moment*
-- **Say/type exactly:** *That's my number, the bank sends my codes there, and his voice is on the
+### 4. Sara confirms each one (15 s)
+- **Click:** Sara decides. **See:** "6 of 9 confirmed; 1 not his, 1 shared, 2 left unconfirmed".
+- **Say:** "Only the family can say which accounts were his."
+
+### 5. You are Amina (40 s), the theme moment
+- **Type/say exactly:** *That's my number, the bank sends my codes there, and his voice is on the
   voicemail.*
-- **Audience sees:** her quote, then the plan diff animate: **Plan v1** (transfer, no conditions)
-  to **Plan v2** with *+ Number kept* and *+ Voicemail kept*, and "Crescent Bank 0932 depends on
-  this number". The desk behind it shows Northline now "With family: approve the revised plan".
-- **Say:** "Amina knows what depends on the line. The model reads her answer; code decides the
-  conditions. A transfer cannot be approved until someone has answered this question, and a card
-  built from the old draft is refused as stale."
-- **Variation:** say only "his voice is on the voicemail" and the plan gets only the voicemail
-  condition. The conditions always follow the words.
-- **Fallback:** without a key the recorded two-part answer is used and labelled.
+- **See:** Plan v1 become Plan v2 with *+ Number kept* and *+ Voicemail kept*.
+- **Say:** "Amina knows what depends on that line. Her answer changes the plan."
+- **Variation:** say only the voicemail part and only that condition is added.
 
-### Stops 11 and 12: approve and send (45 s)
-- **Approve:** four approvals on exact plan hashes. **Send:** the job runner sends four requests
-  (Autopilot Steady is set on the way), each with a follow-up date.
-- **Say:** "Sara approves a specific request: recipient, conditions, documents, bound to a hash.
-  The runner re-checks the approval and recipient at send time. Gmail is simulated; nothing left
-  this machine."
+### 6. Approve, send, keep checking (25 s)
+- **Click:** Approve and send. **See:** four approvals, four requests sent, each with a follow-up date.
+- **Say:** "Sara approves one exact request. Afterward sends it and keeps checking. Gmail is
+  simulated; nothing left this machine."
 
-### Stop 13, LIVE: you are Northline (60 s)  *the core*
+### 7. You are Northline (40 s)
 - **Type exactly:** *Done — line moved to Mrs Malik on a new 24-month plan, voicemail will be reset.*
-- **Audience sees:** your text on the provider console, then a card with one row per plan
-  condition: **Holding** (the transfer), **Not stated** (number kept), **Broken** (voicemail kept,
-  with the quote *voicemail will be reset*), **Not approved** (a new 24-month contract), and the
-  verdict **Not done: needs the family's decision**.
-- **Say:** "Northline says done. The reader turns it into commitments, code checks every quote
-  against the text, and compares with the plan Sara approved. 'Done' is not the company's word."
-- **Try:** a clean reply that satisfies the plan (new holder, number kept, voicemail kept, with
-  evidence) to show the opposite: a different verdict. Reset to play again.
-- **Fallback:** without a key the recorded Northline reply is shown (not your text), labelled.
-  The StreamBox and City Power replies and a lookalike sender arrive in the same step.
+- **See:** one row per promised condition, with **Broken** (voicemail kept) and **Not approved**
+  (a new 24-month contract), and "Not done: needs the family's decision".
+- **Say:** "Northline says done. We compare it to what the family approved."
+- **Fallback:** without a key the recorded Northline reply is shown, labelled.
 
-### Stop 14: the desk (30 s)
-- **Audience sees:** Northline's quote beside what the plan allows, "Not done. Broken: voicemail
-  kept." StreamBox and City Power are Done with their evidence; City Power's refund is *issued,
-  awaiting receipt*; a lookalike sender asking for the will was held and nothing was disclosed.
+### 8. Done, but not really (15 s)
+- **See:** Northline's quote beside what the plan allows. StreamBox and City Power are done with
+  evidence; a lookalike sender asking for the will was held.
 
-### Stop 15 and 16, LIVE: you are the representative (90 s)
-- **Stop 15, Choose "Call them":** the family's choice; the agent's lines pass through the guard
-  and the acceptance wording is blocked. **Say:** "A paraphrase can slip past a wording guard.
-  The protection is structural: the agent has no tool that accepts."
-- **Stop 16:** the real call room. Join the call and talk (or type if audio fails). Offer
-  *"12 months at $30 and we keep the voicemail"* and try to get the agent to say yes. It reports
-  the offer to Sara; it does not accept. **It is a browser call, not a phone call.**
+### 9. Talk to the agent (45 s)
+- **Click:** Sara asks for a call, then join the call and talk (or type if audio fails). Offer
+  *"12 months at $30 and we keep the voicemail"* and try to get a yes.
+- **Say:** "It reports your offer to Sara; it has no way to accept. This is a browser call, not a
+  phone call. Our speech check helps but is not a guarantee; the protection is that there is no
+  accept tool."
 
-### Stop 17: +14 days (35 s)
-- **Audience sees:** "Clock moved +14 days; 1 follow-up sent (FitLife), the others cancelled
-  because they were answered."
-- **Say:** "Fourteen days did not pass; we moved the demo clock. The runner woke on its own and
-  followed up only where nobody had answered."
+### 10. Two weeks later, by itself (20 s)
+- **Click:** Move 14 days on. **See:** one follow-up sent (FitLife), the others cancelled
+  because they were answered. **Say:** "We moved the demo clock; no days really passed."
 
-### Stops 18 to 20: hand-back, proofs, the honest answer (90 s)
-- **Hand-back:** the bank needs a certified copy and Sara holds a photo; no-email providers get a
-  prepared hand-off; probate, certified copies and government steps are the family's. We never
-  file, sign or move money.
-- **Proofs:** 14 adversarial cases; each shows whether the model output was live or recorded.
-- **Did we finish everything?** "Not everything. Only 1 of 8 accounts is done with written
-  evidence", counted from rows, plus what was not searched. **Say:** "That is the honest answer."
+### 11. People do the legal steps (15 s)
+- **Click:** Prepare the hand-back. **Say:** "Probate, certified copies and government forms are
+  prepared and handed back. We never file, sign or move money."
 
-### Stop 21: close (10 s)
-- "AI proposes, code decides, the family approves, and every reply is checked."
+### 12. Did we finish everything? (20 s)
+- **Click:** Ask it. **See:** "Not everything. Only 1 of 8 accounts is done with written evidence",
+  counted from saved rows, plus what was not searched.
+- **Say (close):** "That honesty is the point. AI proposes, code decides, the family approves, and
+  every reply is checked."
 
 ## Wow moments to land
 
-1. **Dependency changes the plan** (stop 10), with two refusals.
-2. **The wrong "done" is caught** (stops 13 and 14), with the exact violated conditions.
-3. **The agent cannot accept on a call** (stops 15 and 16).
-4. **Honest coverage** (stops 3, 8 and 20): what was read, what was not, what was never searched.
-5. **The follow-up runs by itself** (stop 17), and cancels itself when no longer needed.
+1. Amina's answer changes the plan (stop 5).
+2. A wrong "done" is caught (stops 7 and 8).
+3. The agent cannot accept on a call (stop 9).
+4. The follow-up fires by itself (stop 10).
+5. The honest "not everything" (stop 12).
+
+## Likely judge questions
+
+**Is the model doing the work or is it faked?** At the three live stops (2, 5, 7) the real model
+reads what you typed and the card says **Live model**. With no key it says **Recorded model
+output**. The rules around it (quote check, approval, sending, reply check) are real code.
+
+**How do you know a company really did it?** "Done" needs a reply with the evidence the approved
+plan asks for. A promise stays *promised*, a refund stays *issued, awaiting receipt*, and an
+unclear reply is *not accepted*.
+
+**What stops the AI agreeing to something on a call?** It has no accept tool. Acceptance only comes
+from a server-built sentence bound to terms the family approved. The wording check is a help, not
+a guarantee.
+
+**Do you find every account?** No, and we show it. Findings stay unconfirmed until the family
+decides, and the coverage list shows what was not searched.
+
+**Did you make a phone call? Can it sign or pay?** No phone call was made; the call room is a
+browser call. It never signs, moves money or files forms; it prepares and hands back. Delivery is
+not claimed to be exactly-once.
 
 ## What is real and what is simulated
 
@@ -178,51 +154,6 @@ exact line below, or say your own. Ctrl+Enter sends.
 
 Mailbox sends go to an in-memory mailbox by design, so the showcase works offline and on stage.
 Nothing is sent to a real provider.
-
-## Likely judge questions
-
-**Is the model doing the work or are you faking it?** At the three live stops the real model reads
-what you just said or typed, and the card is tagged **Live model**. If no key is configured the
-card says **Recorded model output** and shows a recorded reading instead. The other steps use
-recorded readings and say so. Everything around them is the real code path:
-the quote check, plan hash, approval, job runner, recipient check and outcome check. The proof
-panel runs the adversarial cases against the reply reader, and it labels whether a live model or a
-stand-in ran.
-
-**How do you know an organisation really did it?** Done means a reply that carries the completion
-evidence the plan needs and satisfies every approved condition. A promise is *promised*, a refund
-is *issued, awaiting receipt* until a statement shows it, and an ambiguous reply is *not accepted*.
-
-**What stops the AI approving something on a call?** There is no accept tool. Acceptance is a
-server-built sentence bound to the exact terms the family approved. If the terms change mid-call,
-the approval is voided. The wording guard on free speech reduces risk; it is not perfect, and we
-do not claim it is.
-
-**Do you find every account?** No, and we show it. Candidates stay unconfirmed until the family
-decides. The coverage list shows what was read, what was not, and what we never search (his own
-inbox unless the family has a legitimate way in, government and court records, credit files).
-
-**Can it impersonate the family or sign things?** No. Emails say an AI assistant prepared them on
-behalf of the family member, with a visible reference. We never sign, never move money, and never
-file probate, tax or government forms. We prepare and hand back.
-
-**Is delivery guaranteed?** No. Sends are recorded as actions, an uncertain send is reconciled
-against the Sent folder, and we do not claim exactly-once delivery.
-
-**Which countries?** The engine is country-neutral; provider profiles are data. The demo uses a
-fictional, labelled provider set and USD.
-
-**Did you make a phone call?** No. The call room is a browser call. We only say a phone call
-happened if one really did.
-
-**What about privacy?** Only ticked messages are read, headers first. Confidential compute covers
-our side only; it does not extend to the AI provider, chat platforms or recipients, and we say so.
-Deleting our data does not delete what organisations already received.
-
-**What if something breaks on stage?** Press Esc to leave the tour, then **Reset to the start** and
-start the tour again. If the model is slow or down, the live stop falls back to the recorded reading
-and says so. Typed turns work in the call room if audio fails. The step list on `/showcase` still
-runs the same steps one at a time (**Run next step**) and is a fallback to read from.
 
 ## Notes for the operator
 
