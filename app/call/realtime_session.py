@@ -113,7 +113,20 @@ class OpenAIRealtimeSession:
         self._tripped: set[str] = set()
         self._turn_pending_since: float | None = None
         self._typed: list[str] = []  # typed lines already in the transcript
+        # Counters the call page shows, so a silent call says where it stopped. No content.
+        self.stats: dict[str, Any] = {
+            "audio_in_bytes": 0,
+            "audio_out_chunks": 0,
+            "model_events": 0,
+            "last_event": "",
+            "last_error": "",
+            "connected": False,
+        }
         self.on_event: Callable[[CallEvent], None] | None = None
+        self.lost = False
+        # Interface-only frames for the call page: live captions and who is speaking.
+        # They carry no decisions; the transcript of record is the room's turns.
+        self.live: list[dict[str, Any]] = []
 
     def attach_room(self, room: Any) -> None:
         self.room = room
@@ -129,6 +142,7 @@ class OpenAIRealtimeSession:
         self.transport = transport
         self.started = True
         self.stopped = False
+        self.lost = False
         self._task = asyncio.create_task(self._pump())
 
     async def _sdk_factory(self) -> Any:
@@ -155,6 +169,7 @@ class OpenAIRealtimeSession:
     # audio and turns -----------------------------------------------------------------
     async def relay_audio_in(self, pcm: bytes) -> None:
         self._require_open()
+        self.stats["audio_in_bytes"] += len(pcm)
         await self._rt.send_audio(pcm)
 
     async def relay_audio_out(self) -> AsyncIterator[bytes]:
@@ -236,20 +251,46 @@ class OpenAIRealtimeSession:
                 self._audio.get_nowait()
 
     async def _pump(self) -> None:
+        """Read model events until the connection ends. One bad event never stops the call."""
         if self.room is not None:
             bind_room(self.room)
+        self.stats["connected"] = True
         try:
             async for event in self._rt:
-                await self._handle(event)
+                self.stats["model_events"] += 1
+                self.stats["last_event"] = str(getattr(event, "type", ""))[:40]
+                try:
+                    await self._handle(event)
+                except Exception as exc:
+                    self.stats["last_error"] = type(exc).__name__
+                    logger.info(
+                        "realtime event",
+                        extra={
+                            "kind": "call.realtime_event",
+                            "ok": False,
+                            "error": type(exc).__name__,
+                        },
+                    )
         except asyncio.CancelledError:
             raise
-        except Exception:
-            logger.info("realtime pump", extra={"kind": "call.realtime", "ok": False})
+        except Exception as exc:
+            self.stats["last_error"] = type(exc).__name__
+            logger.info(
+                "realtime pump",
+                extra={"kind": "call.realtime", "ok": False, "error": type(exc).__name__},
+            )
+        finally:
+            self.stats["connected"] = False
+        if not self.stopped:
+            # The model connection ended on its own. Mark it so the room reconnects.
+            self.stopped = True
+            self.lost = True
 
     async def _handle(self, event: Any) -> None:
         kind = getattr(event, "type", "")
         if kind == "audio":
             self._note_latency()
+            self.stats["audio_out_chunks"] += 1
             self._enqueue_audio(bytes(event.audio.data))
         elif kind == "audio_interrupted":
             self._clear_audio()
@@ -262,8 +303,58 @@ class OpenAIRealtimeSession:
             self._on_tool_end(event)
         elif kind == "history_updated":
             await self._on_history(getattr(event, "history", []))
+        elif kind == "raw_model_event":
+            self._on_raw(getattr(event, "data", None))
         elif kind == "error":
-            logger.info("realtime error", extra={"kind": "call.realtime", "ok": False})
+            self.stats["last_error"] = _error_code(getattr(event, "error", None))
+            logger.info(
+                "realtime error",
+                extra={"kind": "call.realtime", "ok": False, "error": self.stats["last_error"]},
+            )
+
+    def _on_raw(self, data: Any) -> None:
+        """Live captions and speaking state from the model's own stream."""
+        kind = str(getattr(data, "type", ""))
+        if kind == "transcript_delta":
+            delta = str(getattr(data, "delta", "") or "")
+            if delta:
+                item = str(getattr(data, "item_id", ""))
+                self.live.append({"kind": "caption", "who": "agent", "item": item, "delta": delta})
+            return
+        if kind != "raw_server_event":
+            return
+        inner = getattr(data, "data", None)
+        if not isinstance(inner, dict):
+            return
+        server = str(inner.get("type", ""))
+        if server == "input_audio_buffer.speech_started":
+            self._clear_audio()  # barge-in: the representative talks over the agent
+            self.live.append({"kind": "speech", "who": "rep", "state": "start"})
+        elif server == "input_audio_buffer.speech_stopped":
+            self.live.append({"kind": "speech", "who": "rep", "state": "stop"})
+        elif server == "conversation.item.input_audio_transcription.delta":
+            delta = str(inner.get("delta") or "")
+            if delta:
+                item = str(inner.get("item_id", ""))
+                self.live.append({"kind": "caption", "who": "rep", "item": item, "delta": delta})
+        elif server == "response.created":
+            self.live.append({"kind": "agent", "state": "thinking"})
+        elif server == "response.done":
+            response = inner.get("response") if isinstance(inner.get("response"), dict) else {}
+            if response.get("status") == "failed":
+                details = response.get("status_details") or {}
+                error = details.get("error") if isinstance(details, dict) else None
+                self.stats["last_error"] = _error_code(error or details or "response_failed")
+            self.live.append({"kind": "agent", "state": "done"})
+        elif server == "error":
+            self.stats["last_error"] = _error_code(inner.get("error"))
+
+    async def interrupt(self) -> None:
+        """Stop the agent now: drop queued audio and cancel its current reply."""
+        self._require_open()
+        self._clear_audio()
+        with contextlib.suppress(Exception):
+            await self._rt.interrupt()
 
     async def _decide_tool(self, event: Any) -> None:
         """Approve the recording tool only. Anything off the contract list is rejected."""
@@ -328,7 +419,7 @@ class OpenAIRealtimeSession:
         if self.room is not None:
             await self.room.screen_model_speech(text)
             if self.room.turns and self.room.turns[-1].who == "agent":
-                self.room.turns[-1].via = "realtime"
+                self.room.turns[-1].via = "realtime_voice"
         self.push_event(CallEvent(CallEventKind.transcript, {"who": "agent", "text": text}))
 
     async def _trip(self, text: str, *, source: str) -> None:
@@ -386,6 +477,20 @@ class OpenAIRealtimeSession:
         self._require_started()
         if self.stopped:
             raise CallSessionError("The call session is stopped")
+
+
+def _error_code(error: Any) -> str:
+    """A short code or type from a model error event. The message text is not kept."""
+    for source in (error, getattr(error, "error", None)):
+        if isinstance(source, dict):
+            for key in ("code", "type"):
+                if source.get(key):
+                    return str(source[key])[:60]
+        for key in ("code", "type"):
+            value = getattr(source, key, None)
+            if isinstance(value, str) and value:
+                return value[:60]
+    return "model_error"
 
 
 def _item_text(item: Any) -> str:

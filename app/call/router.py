@@ -306,7 +306,7 @@ async def call_socket(websocket: WebSocket, token: str):
         }
     )
     case_id = surface.call_tokens[token]
-    sender = asyncio.create_task(_send_out(websocket, room))
+    sender = asyncio.create_task(_send_out(websocket, room, token))
     try:
         while True:
             incoming = await websocket.receive()
@@ -363,6 +363,10 @@ async def _socket_message(websocket: WebSocket, room: CallRoom, token: str, case
         )
     elif kind == "continue":
         await room.try_play_acceptance()
+    elif kind == "interrupt":
+        interrupt = getattr(room.session, "interrupt", None)
+        if interrupt is not None and not room.session.stopped:
+            await interrupt()
 
 
 def _turn_frame(turn: Turn) -> dict:
@@ -381,13 +385,45 @@ def _state_frame(room: CallRoom) -> dict:
     }
 
 
-async def _send_out(websocket: WebSocket, room: CallRoom) -> None:
-    """Stream new transcript lines, offer/approval changes, events and agent audio."""
+async def _send_out(websocket: WebSocket, room: CallRoom, token: str) -> None:
+    """Stream new transcript lines, offer/approval changes, events, counters and agent audio.
+
+    If the model connection drops on its own, reconnect the room instead of going silent.
+    """
     sent_events = len(room.session.events())
     sent_turns = len(room.turns)
+    sent_live = len(getattr(room.session, "live", []))
     last_state: dict | None = None
+    last_stats = 0.0
     try:
         while True:
+            if room.session.stopped and getattr(room.session, "lost", False):
+                await websocket.send_json(
+                    {"kind": "error", "text": "The model connection dropped. Reconnecting…"}
+                )
+                await start_room(websocket, room, token)
+                sent_events = len(room.session.events())
+                sent_live = len(getattr(room.session, "live", []))
+                await websocket.send_json(
+                    {
+                        "kind": "call.ready",
+                        "mode": room.mode,
+                        "label": room.mode_label,
+                        "note": room.mode_note,
+                        "transport": "browser",
+                        "phone": False,
+                    }
+                )
+            live = getattr(room.session, "live", None)
+            if isinstance(live, list):
+                for frame in live[sent_live:]:
+                    await websocket.send_json(frame)
+                sent_live = len(live)
+            now = asyncio.get_running_loop().time()
+            stats = getattr(room.session, "stats", None)
+            if isinstance(stats, dict) and now - last_stats >= 2:
+                await websocket.send_json({"kind": "stats", **stats})
+                last_stats = now
             for turn in room.turns[sent_turns:]:
                 await websocket.send_json(_turn_frame(turn))
             sent_turns = len(room.turns)

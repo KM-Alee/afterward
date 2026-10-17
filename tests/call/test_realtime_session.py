@@ -279,3 +279,105 @@ async def test_request_tool_reads_plan_or_marks_scripted():
     room.request_provider = lambda: None
     again = json.loads(await tools.read_request_and_conditions(room))
     assert again["via"] == "scripted"
+
+
+class _EndingRealtime(FakeRealtime):
+    """A model connection that closes after the queued events."""
+
+    async def __anext__(self):
+        if self.q.empty():
+            raise StopAsyncIteration
+        return await self.q.get()
+
+
+async def test_a_bad_event_does_not_stop_the_call_and_counts_are_kept():
+    rt, session, room = await _make()
+    await session.start(CallTransport.browser)
+    rt.feed(type="history_updated", history=None)  # tolerated
+    rt.feed(type="tool_end", tool=None, arguments="{not json")  # handled, not fatal
+    rt.feed(type="audio", audio=SimpleNamespace(data=b"\x01\x00"))
+    await session.relay_audio_in(b"\x00" * 64)
+    await _settle()
+    assert session.stopped is False
+    assert session.stats["audio_out_chunks"] == 1
+    assert session.stats["audio_in_bytes"] == 64
+    assert session.stats["connected"] is True
+
+
+async def test_error_event_keeps_only_a_code():
+    rt, session, _ = await _make()
+    await session.start(CallTransport.browser)
+    rt.feed(type="error", error={"type": "invalid_request_error", "message": "secret detail"})
+    await _settle()
+    assert session.stats["last_error"] == "invalid_request_error"
+    assert "secret" not in str(session.stats)
+
+
+async def test_dropped_connection_is_marked_lost_for_reconnect():
+    rt = _EndingRealtime()
+
+    async def factory():
+        return rt
+
+    session = OpenAIRealtimeSession(realtime_factory=factory, speak=None)
+    await session.start(CallTransport.browser)
+    await _settle()
+    assert session.stopped is True and session.lost is True
+    assert session.stats["connected"] is False
+
+
+async def test_approved_sentence_is_never_recorded_twice():
+    _, session, room = await _make()
+    await room.start()
+    terms = OfferedTerms(12, "30", "yes", "yes")
+    await room.report_offered_terms(terms)
+    room.approve(room.terms_hash)
+    await room.queue_acceptance()
+    assert await room.try_play_acceptance() is True
+    assert await room.try_play_acceptance() is True
+    said = [t for t in room.turns if t.kind == "template"]
+    assert len(said) == 1
+    assert session.played.count(room.sentence) == 1
+
+
+async def test_live_captions_and_barge_in_from_the_model_stream():
+    rt, session, _ = await _make()
+    await session.start(CallTransport.browser)
+    session._enqueue_audio(b"\x01\x00" * 10)
+
+    def raw(**inner):
+        return SimpleNamespace(type="raw_server_event", data=inner)
+
+    rt.feed(type="raw_model_event", data=raw(type="input_audio_buffer.speech_started"))
+    rt.feed(
+        type="raw_model_event",
+        data=raw(
+            type="conversation.item.input_audio_transcription.delta", item_id="u1", delta="Hi"
+        ),
+    )
+    rt.feed(
+        type="raw_model_event",
+        data=SimpleNamespace(type="transcript_delta", item_id="a1", delta="Hello", response_id="r"),
+    )
+    rt.feed(
+        type="raw_model_event",
+        data=raw(
+            type="response.done",
+            response={"status": "failed", "status_details": {"error": {"code": "rate_limited"}}},
+        ),
+    )
+    await _settle()
+    kinds = [(f["kind"], f.get("who"), f.get("state")) for f in session.live]
+    assert ("speech", "rep", "start") in kinds
+    assert ("caption", "rep", None) in kinds and ("caption", "agent", None) in kinds
+    assert session._audio.empty()  # barge-in dropped the queued agent audio
+    assert session.stats["last_error"] == "rate_limited"
+
+
+async def test_interrupt_stops_the_agent():
+    rt, session, _ = await _make()
+    await session.start(CallTransport.browser)
+    session._enqueue_audio(b"\x01\x00" * 10)
+    await session.interrupt()
+    assert rt.interrupts == 1
+    assert session._audio.empty()

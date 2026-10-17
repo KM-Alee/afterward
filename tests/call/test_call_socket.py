@@ -61,7 +61,7 @@ def test_line_over_socket_streams_turns_without_a_duplicate(monkeypatch):
             ]
             fake.feed(type="history_updated", history=history)
             agent, seen = _receive_until(ws, lambda f: f["kind"] == "turn" and f["who"] == "agent")
-            assert agent["via"] == "realtime"
+            assert agent["via"] == "realtime_voice"
             assert not [f for f in seen if f["kind"] == "turn" and f["who"] == "rep"]
         room = client.app.state.surface.calls[token]
         reps = [t for t in room.turns if t.who == "rep"]

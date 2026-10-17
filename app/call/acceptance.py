@@ -214,7 +214,8 @@ class CallRoom:
         if self.sentence not in self.session.played:
             await self.session.play_approved_sentence(self.sentence)
         self.acceptance_played = self.sentence in self.session.played
-        if self.acceptance_played:
+        already = any(t.kind == "template" and t.text == self.sentence for t in self.turns)
+        if self.acceptance_played and not already:  # never record the sentence twice
             self.turns.append(Turn(who="agent", text=self.sentence, kind="template"))
         return self.acceptance_played
 
