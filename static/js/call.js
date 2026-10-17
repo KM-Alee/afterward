@@ -131,13 +131,18 @@
   }
   function kb(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.round(n / 1024) + " KB"; }
   function showStats(st) {
-    var parts = [st.connected ? "model connected" : "model not connected",
-      "sent " + kb(st.audio_in_bytes || 0), "received " + (st.audio_out_chunks || 0) + " audio chunks"];
-    if (st.last_event) parts.push("last event " + st.last_event);
+    var parts = [st.connected ? "model connected" : "model NOT connected",
+      "sent " + kb(st.audio_in_bytes || 0),
+      "heard you " + (st.heard || 0) + "×",
+      "turns ended " + (st.turns_ended || 0),
+      "replies " + (st.replies || 0) + " started / " + (st.replies_done || 0) + " finished"
+        + (st.replies_cut ? " / " + st.replies_cut + " cut" : ""),
+      "audio back " + (st.audio_out_chunks || 0)];
+    if (st.guard_trips) parts.push("speech check stops " + st.guard_trips);
+    if (st.last_reply_status && st.last_reply_status !== "completed") parts.push("last reply " + st.last_reply_status);
     if (st.last_error) parts.push("error " + st.last_error);
     diag.textContent = parts.join(" · ");
   }
-
   /* ---------- audio out ---------- */
   function ensureCtx() {
     if (ctx) return ctx;

@@ -66,7 +66,15 @@ def build_runner(settings: Any) -> Any:
                 "input_audio_format": "pcm16",
                 "output_audio_format": "pcm16",
                 "input_audio_transcription": {"model": settings.realtime_transcribe_model},
-                "turn_detection": {"type": "semantic_vad", "interrupt_response": True},
+                # A fixed silence rule answers promptly; semantic detection can wait seconds.
+                "turn_detection": {
+                    "type": "server_vad",
+                    "threshold": 0.5,
+                    "prefix_padding_ms": 300,
+                    "silence_duration_ms": 550,
+                    "create_response": True,
+                    "interrupt_response": True,
+                },
             },
             "output_guardrails": [_commitment_guardrail()],
             "guardrails_settings": {"debounce_text_length": 40},
@@ -121,6 +129,14 @@ class OpenAIRealtimeSession:
             "last_event": "",
             "last_error": "",
             "connected": False,
+            "heard": 0,  # times the model detected the representative start speaking
+            "turns_ended": 0,  # times it decided they had finished
+            "transcribed": 0,
+            "replies": 0,  # replies the model started
+            "replies_done": 0,
+            "replies_cut": 0,  # cancelled or cut off before finishing
+            "guard_trips": 0,
+            "last_reply_status": "",
         }
         self.on_event: Callable[[CallEvent], None] | None = None
         self.lost = False
@@ -328,20 +344,37 @@ class OpenAIRealtimeSession:
             return
         server = str(inner.get("type", ""))
         if server == "input_audio_buffer.speech_started":
+            self.stats["heard"] += 1
             self._clear_audio()  # barge-in: the representative talks over the agent
             self.live.append({"kind": "speech", "who": "rep", "state": "start"})
         elif server == "input_audio_buffer.speech_stopped":
+            self.stats["turns_ended"] += 1
             self.live.append({"kind": "speech", "who": "rep", "state": "stop"})
         elif server == "conversation.item.input_audio_transcription.delta":
             delta = str(inner.get("delta") or "")
             if delta:
                 item = str(inner.get("item_id", ""))
                 self.live.append({"kind": "caption", "who": "rep", "item": item, "delta": delta})
+        elif server == "conversation.item.input_audio_transcription.completed":
+            self.stats["transcribed"] += 1
+        elif server == "conversation.item.input_audio_transcription.failed":
+            self.stats["last_error"] = "transcription_failed"
         elif server == "response.created":
+            self.stats["replies"] += 1
             self.live.append({"kind": "agent", "state": "thinking"})
         elif server == "response.done":
             response = inner.get("response") if isinstance(inner.get("response"), dict) else {}
-            if response.get("status") == "failed":
+            status = str(response.get("status") or "")
+            self.stats["last_reply_status"] = status[:20]
+            if status == "completed":
+                self.stats["replies_done"] += 1
+            elif status in {"cancelled", "incomplete"}:
+                self.stats["replies_cut"] += 1
+                details = response.get("status_details") or {}
+                reason = details.get("reason") if isinstance(details, dict) else None
+                if reason:
+                    self.stats["last_reply_status"] = f"{status}:{reason}"[:40]
+            if status == "failed":
                 details = response.get("status_details") or {}
                 error = details.get("error") if isinstance(details, dict) else None
                 self.stats["last_error"] = _error_code(error or details or "response_failed")
@@ -427,6 +460,7 @@ class OpenAIRealtimeSession:
         key = text.strip()
         if key in self._tripped:
             return
+        self.stats["guard_trips"] += 1
         self._tripped.add(key)
         self.suspended = True
         self.discarded.extend(self._queued)

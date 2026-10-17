@@ -109,3 +109,24 @@ def test_typed_turn_end_to_end_on_fakes():
         refused = client.post(f"/api/calls/{token}/dial")
         assert refused.status_code == 403
         assert "not a phone call" in refused.text
+
+
+def test_speech_check_keeps_call_manners_and_stops_agreement():
+    from app.call.guard import commitment_tripped
+
+    for fine in (
+        "Please go ahead, I'm listening.",
+        "Nothing has been agreed yet; the family decides.",
+        "Go ahead whenever you're ready.",
+        "I can't accept terms myself.",
+    ):
+        assert not commitment_tripped(fine), fine
+    for stop in (
+        "We accept the 24-month plan.",
+        "Agreed, go ahead.",
+        "Yes, go ahead with the transfer.",
+        "It's a deal.",
+        "Okay, go ahead and set it up.",
+        "We'll take it.",
+    ):
+        assert commitment_tripped(stop), stop
