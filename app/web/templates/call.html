@@ -65,8 +65,9 @@
       </form>
       <form class="typed__row" method="post" action="/api/calls/{{ token }}/turn">
         <label class="visually-hidden" for="typed">Type instead</label>
-        <input class="input" id="typed" name="text" autocomplete="off" placeholder="Or type what you would say">
+        <input class="input" id="typed" name="text" autocomplete="off" placeholder="Or type what you would say" required>
         <button class="btn" type="submit">{{ ui.icon('send') }}Send</button>
+        <p class="xsmall muted" data-typed-status>Send posts that sentence to the agent. It can note an offer. It cannot accept one.</p>
       </form>
       {% elif room.status == 'ended' %}
       <div>

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
@@ -128,7 +129,11 @@ async def typed_turn(request: Request, token: str):
     settings = getattr(request.app.state, "settings", None)
     via = await agent_turn(settings, room, text)
     if room.turns and room.turns[-1].who == "agent":
-        room.spoken_b64 = await speak_aloud(settings, room.turns[-1].text)
+        try:
+            room.spoken_b64 = await asyncio.wait_for(speak_aloud(settings, room.turns[-1].text), 8)
+        except Exception:
+            logger.info("call speech", extra={"kind": "call.tts", "ok": False})
+            room.spoken_b64 = None
     surface.live.publish(
         case_id,
         "call.turn",

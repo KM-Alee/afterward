@@ -103,14 +103,13 @@
     });
   }
 
-  var ptt = document.querySelector("[data-ptt]");
-  var talk = document.getElementById("talk-form");
-  if (ptt && talk) {
-    talk.addEventListener("submit", function () {
-      ptt.disabled = true;
-      ptt.setAttribute("aria-busy", "true");
-      var note = talk.querySelector("[data-ptt-status]");
-      if (note) note.textContent = "Sending that line…";
+  document.querySelectorAll("#talk-form, .typed__row").forEach(function (form) {
+    form.addEventListener("submit", function () {
+      var button = form.querySelector("button[type=submit]");
+      if (button) {
+        button.disabled = true;
+        button.textContent = "Sending…";
+      }
     });
-  }
+  });
 })();

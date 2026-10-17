@@ -108,6 +108,24 @@ def test_realtime_reply_is_labelled(monkeypatch):
         assert "live realtime model, text" in page
 
 
+def test_a_stuck_model_still_answers(monkeypatch):
+    import asyncio
+
+    async def hang(settings, room, text):
+        await asyncio.sleep(30)
+        return "too late"
+
+    monkeypatch.setattr("app.call.live.realtime_reply", hang)
+    monkeypatch.setattr("app.call.live.REALTIME_TIMEOUT_S", 0.05)
+    app = create_surface_app(demo_passcode="fixture-passcode")
+    with TestClient(app) as client:
+        call, _family = _tokens(client)
+        page = client.post(f"/api/calls/{call}/turn", data={"text": "Hello there."})
+        assert page.status_code == 200
+        assert "Hello there." in page.text
+        assert "fixed fallback line" in page.text
+
+
 def test_voice_history_keeps_the_assistant_line_only():
     from app.call.live import _last_assistant
 

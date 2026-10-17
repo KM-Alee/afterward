@@ -15,7 +15,7 @@ from app.call.tools import CALL_INSTRUCTIONS
 
 logger = logging.getLogger(__name__)
 
-REALTIME_TIMEOUT_S = 15.0
+REALTIME_TIMEOUT_S = 8.0
 FALLBACK_OFFER = (
     "Thank you. I've noted {months} months at ${price} a month. "
     "I can't accept terms myself, so I'm asking the family now."
@@ -95,10 +95,11 @@ async def _agents_voice_reply(settings: Any, room: CallRoom, rep_text: str) -> s
             "model_settings": {"model_name": settings.realtime_model, "output_modalities": ["text"]}
         },
     )
-    session = await runner.run()
     spoken = ""
     pending = 0
+    session = None
     try:
+        session = await asyncio.wait_for(runner.run(), REALTIME_TIMEOUT_S)
         await session.send_message(rep_text)
 
         async def _listen() -> str:
@@ -121,7 +122,8 @@ async def _agents_voice_reply(settings: Any, room: CallRoom, rep_text: str) -> s
 
         return await asyncio.wait_for(_listen(), REALTIME_TIMEOUT_S) or None
     finally:
-        await session.close()
+        if session is not None:
+            await session.close()
 
 
 async def realtime_reply(settings: Any, room: CallRoom, rep_text: str) -> str | None:
@@ -194,7 +196,11 @@ async def speak_aloud(settings: Any, text: str) -> str | None:
 
 async def agent_turn(settings: Any, room: CallRoom, rep_text: str) -> str:
     """Speak one agent reply through the speech check. Returns how it was produced."""
-    reply = await realtime_reply(settings, room, rep_text)
+    try:
+        reply = await asyncio.wait_for(realtime_reply(settings, room, rep_text), REALTIME_TIMEOUT_S)
+    except Exception:
+        logger.info("voice agent", extra={"kind": "call.agent", "ok": False})
+        reply = None
     via = "realtime" if reply else "scripted"
     text = reply or fallback_reply(room)
     tripped = await room.screen_model_speech(text)
