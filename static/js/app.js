@@ -104,12 +104,15 @@
   }
 
   document.querySelectorAll("#talk-form, .typed__row").forEach(function (form) {
-    form.addEventListener("submit", function () {
+    form.addEventListener("submit", function (e) {
       var button = form.querySelector("button[type=submit]");
-      if (button) {
-        button.disabled = true;
-        button.textContent = "Sending…";
-      }
+      // The live call sends over its socket and stays on the page; only a real post waits.
+      window.setTimeout(function () {
+        if (!e.defaultPrevented && button) {
+          button.disabled = true;
+          button.textContent = "Sending…";
+        }
+      }, 0);
     });
   });
 })();

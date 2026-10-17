@@ -3,7 +3,7 @@
 {% block title %}Call room · Afterward{% endblock %}
 {% block context %}<span class="brand__context">Call room</span>{% endblock %}
 {% block main %}
-<div class="wrap" id="root" data-events="{{ board.id }}" data-reload>
+<div class="wrap" id="root" data-call data-token="{{ token }}" data-status="{{ room.status }}" data-mode="{{ room.mode }}">
   <div class="page-row">
     <div>
       <h1 class="page-title">Call with Northline</h1>
@@ -29,46 +29,47 @@
         <p class="agent-state" id="agent-state">No call yet</p>
         <p class="agent-sub">A call starts only when Sara asks for one.</p>
       </div>
-      {% elif room.status == 'ready' or room.status == 'live' %}
+      {% elif room.status == 'ready' %}
       <div aria-live="polite">
-        {% if room.status == 'ready' %}
         <p class="agent-state" id="agent-state">Ready</p>
-        <p class="agent-sub">You are the Northline representative. The agent will introduce itself.</p>
-        {% else %}
-        <p class="agent-state" id="agent-state">Your turn</p>
-        <p class="agent-sub">Pick a line, then hold the button, or type instead.</p>
-        {% endif %}
+        <p class="agent-sub">You are the Northline representative. When you join, the agent introduces itself and you can talk to it out loud.</p>
       </div>
-      {% if room.status == 'ready' %}
       <form method="post" action="/call/{{ token }}/join">
         <button class="btn btn--primary btn--lg" type="submit">{{ ui.icon('phone') }}Join the call</button>
       </form>
+      {% elif room.status == 'live' %}
+      <div aria-live="polite">
+        <p class="agent-state" id="agent-state">{% if room.mode == 'realtime' %}Talk to the agent{% else %}Your turn{% endif %}</p>
+        <p class="agent-sub" id="agent-sub">{% if room.mode == 'realtime' %}Press Start talking and speak as the Northline representative. The agent hears you and answers out loud.{% else %}Rehearsal: no model is connected. Send a line and a fixed reply comes back as text.{% endif %}</p>
+      </div>
+      {% if room.mode == 'realtime' %}
+      <button class="btn btn--primary ptt" type="button" id="mic" aria-pressed="false" disabled>{{ ui.icon('mic') }}<span data-mic-label>Start talking</span></button>
       {% endif %}
+      <p class="xsmall muted" id="call-status" role="status">Connecting to the call…</p>
       {% if room.spoken_b64 %}
       <audio controls autoplay src="data:audio/ogg;base64,{{ room.spoken_b64 }}">Spoken reply</audio>
-      <p class="small muted">Spoken in this browser. This is not a phone call.</p>
       {% endif %}
-      {% if room.approval_status == 'approved' and not room.acceptance_played %}
-      <form method="post" action="/api/calls/{{ token }}/continue">
+      <form id="continue-form" method="post" action="/api/calls/{{ token }}/continue"{% if not (room.approval_status == 'approved' and not room.acceptance_played) %} hidden{% endif %}>
         <button class="btn btn--primary" type="submit">{{ ui.icon('speaker') }}Let the agent continue</button>
+        <p class="xsmall muted">Sara approved this exact offer. The agent says the fixed sentence only after the terms are checked again.</p>
       </form>
-      <p class="small muted">It speaks the approved sentence only after the terms are checked again. If you speak first, it stops.</p>
-      {% endif %}
-      <form id="talk-form" method="post" action="/api/calls/{{ token }}/turn">
-        <div class="say__chips" role="group" aria-label="What you will say">
-          {% for line_id, label, text in lines %}
-          <label class="say__chip"><input type="radio" name="line" value="{{ text }}"{% if loop.first %} checked{% endif %}> {{ label }}</label>
-          {% endfor %}
-        </div>
-        <button class="btn btn--primary ptt" type="submit" data-ptt>Send this line</button>
-        <p class="xsmall muted" data-ptt-status>Press the button once. It sends the line you picked. The agent hears that text, not the microphone.</p>
-      </form>
-      <form class="typed__row" method="post" action="/api/calls/{{ token }}/turn">
-        <label class="visually-hidden" for="typed">Type instead</label>
-        <input class="input" id="typed" name="text" autocomplete="off" placeholder="Or type what you would say" required>
-        <button class="btn" type="submit">{{ ui.icon('send') }}Send</button>
-        <p class="xsmall muted" data-typed-status>Send posts that sentence to the agent. It can note an offer. It cannot accept one.</p>
-      </form>
+      <details class="call-lines"{% if room.mode != 'realtime' %} open{% endif %}>
+        <summary class="small">Quick lines and typing</summary>
+        <form id="talk-form" class="stack-sm" method="post" action="/api/calls/{{ token }}/turn">
+          <div class="say__chips" role="group" aria-label="Quick lines">
+            {% for line_id, label, text in lines %}
+            <label class="say__chip"><input type="radio" name="line" value="{{ text }}"{% if loop.first %} checked{% endif %}> {{ label }}</label>
+            {% endfor %}
+          </div>
+          <button class="btn" type="submit">{{ ui.icon('send') }}Send this line</button>
+        </form>
+        <form id="typed-form" class="typed__row" method="post" action="/api/calls/{{ token }}/turn">
+          <label class="visually-hidden" for="typed">Type what you would say</label>
+          <input class="input" id="typed" name="text" autocomplete="off" placeholder="Or type what you would say" required>
+          <button class="btn" type="submit">{{ ui.icon('send') }}Send</button>
+        </form>
+        <p class="xsmall muted">The agent can note an offer. It cannot accept one.</p>
+      </details>
       {% elif room.status == 'ended' %}
       <div>
         <p class="agent-state" id="agent-state">Call ended</p>
@@ -83,14 +84,11 @@
     </section>
     <section class="panel-box" aria-labelledby="tr-title">
       <div class="panel-box__head"><h2 class="panel-box__title" id="tr-title">Transcript</h2><span class="sim-tag">{{ ui.icon('ring') }}Browser call</span></div>
-      {% if room.terms %}
-      <ul class="terms" role="list">
-        <li><span>{{ room.terms.months }} months at ${{ room.terms.price }}/month</span>{{ ui.chip('review' if room.approval_status != 'void' else 'void', 'Void: offer changed' if room.approval_status == 'void' else room.approval_status) }}</li>
+      <ul class="terms" role="list" id="terms">
+        {% if room.terms %}<li><span>{{ room.terms.months }} months at ${{ room.terms.price }}/month</span>{{ ui.chip('review' if room.approval_status != 'void' else 'void', 'Void: offer changed' if room.approval_status == 'void' else room.approval_status) }}</li>{% endif %}
       </ul>
-      {% endif %}
       <div class="panel-box__body scroll chat-scroll" tabindex="0" aria-label="Transcript">
-        {% if room.turns %}
-        <ol class="chat" role="list">
+        <ol class="chat" role="list" id="chat">
           {% for turn in room.turns %}
           <li class="bubble bubble--{{ 'system' if turn.who == 'system' else turn.who }}{% if turn.kind == 'discarded' %} bubble--discarded{% endif %}">
             {% if turn.who == 'agent' %}<span class="bubble__who">{% if turn.kind == 'template' %}Afterward (AI), approved wording{% elif turn.via == 'realtime' %}Afterward (AI), live realtime model, text{% elif turn.via == 'scripted' %}Afterward (AI), fixed fallback line{% else %}Afterward (AI){% endif %}</span>
@@ -100,9 +98,7 @@
           </li>
           {% endfor %}
         </ol>
-        {% else %}
-        <p class="muted">Nothing said yet.</p>
-        {% endif %}
+        {% if not room.turns %}<p class="muted" id="chat-empty">Nothing said yet.</p>{% endif %}
       </div>
     </section>
   </div>
@@ -126,4 +122,4 @@
   </div>
 </dialog>
 {% endblock %}
-{% block scripts %}<script src="/static/js/call.js" defer></script>{% endblock %}
+{% block scripts %}<script src="/static/js/call.js?v={{ asset_v }}" defer></script>{% endblock %}

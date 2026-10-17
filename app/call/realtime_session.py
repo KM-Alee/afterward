@@ -112,6 +112,7 @@ class OpenAIRealtimeSession:
         self._seen_text: dict[str, str] = {}
         self._tripped: set[str] = set()
         self._turn_pending_since: float | None = None
+        self._typed: list[str] = []  # typed lines already in the transcript
         self.on_event: Callable[[CallEvent], None] | None = None
 
     def attach_room(self, room: Any) -> None:
@@ -167,6 +168,7 @@ class OpenAIRealtimeSession:
     async def send_typed_turn(self, text: str) -> None:
         self._require_open()
         self._turn_pending_since = time.monotonic()
+        self._typed.append(" ".join(text.split()))
         await self._rt.send_message(text)
 
     # acceptance ----------------------------------------------------------------------
@@ -308,6 +310,10 @@ class OpenAIRealtimeSession:
     def _rep_line(self, text: str) -> None:
         from app.call.acceptance import Turn
 
+        norm = " ".join(text.split())
+        if norm in self._typed:  # the model echoes typed lines back as user items
+            self._typed.remove(norm)
+            return
         self._turn_pending_since = time.monotonic()  # measured from the heard transcript
 
         if self.room is not None:

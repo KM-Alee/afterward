@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
+import json
 import logging
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
@@ -272,16 +274,23 @@ async def dial(request: Request, token: str):
 
 @router.websocket("/ws/calls/{token}")
 async def call_socket(websocket: WebSocket, token: str):
-    """Relay browser mic audio to the call session and its audio and events back.
+    """The live call: mic audio in, agent audio and transcript out, typed lines both ways.
 
-    Binary frames are PCM16 mono 24 kHz. Text frames are typed turns. Server JSON frames are
-    `call.ready`, `event`, `ended`. A rehearsal room has no model and returns no audio.
+    Binary frames are PCM16 mono 24 kHz. Text frames are JSON: `{"type": "line", "text"}`
+    sends what the representative says, `{"type": "continue"}` asks for the approved sentence
+    (re-checked against the terms first). Plain text is treated as a line. Server frames:
+    `call.ready`, `turn` (one transcript line), `state` (offer and approval), `event`, `ended`.
+    A browser call is not a phone call.
     """
     await websocket.accept()
     surface = get_surface(websocket)
     room = surface.calls.get(token)
     if room is None or token not in surface.call_tokens:
         await websocket.send_json({"kind": "missing"})
+        await websocket.close(code=1008)
+        return
+    if room.status == "none":
+        await websocket.send_json({"kind": "not_started"})
         await websocket.close(code=1008)
         return
     await start_room(websocket, room, token)
@@ -293,44 +302,107 @@ async def call_socket(websocket: WebSocket, token: str):
             "label": room.mode_label,
             "note": room.mode_note,
             "phone": False,
+            "turns": len(room.turns),
         }
     )
+    case_id = surface.call_tokens[token]
     sender = asyncio.create_task(_send_out(websocket, room))
     try:
         while True:
             incoming = await websocket.receive()
             if incoming.get("type") == "websocket.disconnect":
                 break
-            if room.session.stopped:
-                break
             payload = incoming.get("bytes")
             if payload:
+                if room.session.stopped:
+                    continue
                 await room.on_representative_speech()
                 await room.session.relay_audio_in(payload)
                 continue
             text = incoming.get("text")
             if text:
-                await room.handle_typed_turn(text)
-                await websocket.send_json({"kind": "turn", "via": "typed"})
+                await _socket_message(websocket, room, token, case_id, text)
     except WebSocketDisconnect:
         pass
-    except Exception:
-        logger.info("call socket", extra={"kind": "call.ws", "ok": False})
+    except Exception as exc:
+        logger.info(
+            "call socket", extra={"kind": "call.ws", "ok": False, "error": type(exc).__name__}
+        )
+        with contextlib.suppress(Exception):
+            await websocket.send_json(
+                {"kind": "error", "text": "The call connection had a problem. Reconnecting."}
+            )
     finally:
         sender.cancel()
 
 
+async def _socket_message(websocket: WebSocket, room: CallRoom, token: str, case_id, raw: str):
+    try:
+        message = json.loads(raw)
+    except ValueError:
+        message = {"type": "line", "text": raw}
+    if not isinstance(message, dict):
+        return
+    kind = message.get("type")
+    if kind == "line":
+        text = " ".join(str(message.get("text") or "").split())[:500]
+        if not text:
+            return
+        if room.session.stopped:
+            await start_room(websocket, room, token)
+        await room.handle_typed_turn(text)
+        app = websocket.app
+        surface = get_surface(websocket)
+        if room.mode != "realtime":
+            settings = getattr(app.state, "settings", None)
+            await agent_turn(settings, room, text)
+        if ask_family_once(room) and room.terms is not None:
+            await _tell_owner(app, surface, case_id, room)
+        surface.live.publish(
+            case_id, "call.turn", {"via": "typed", "summary": "Call turn recorded"}, actor="call"
+        )
+    elif kind == "continue":
+        await room.try_play_acceptance()
+
+
+def _turn_frame(turn: Turn) -> dict:
+    return {"kind": "turn", "who": turn.who, "text": turn.text, "via": turn.via, "type": turn.kind}
+
+
+def _state_frame(room: CallRoom) -> dict:
+    terms = room.terms
+    return {
+        "kind": "state",
+        "approval": room.approval_status,
+        "terms": (
+            {"months": terms.months, "price": str(terms.price)} if terms is not None else None
+        ),
+        "can_continue": room.approval_status == "approved" and not room.acceptance_played,
+    }
+
+
 async def _send_out(websocket: WebSocket, room: CallRoom) -> None:
-    """Forward new call events and agent audio until the call stops."""
-    sent = 0
+    """Stream new transcript lines, offer/approval changes, events and agent audio."""
+    sent_events = len(room.session.events())
+    sent_turns = len(room.turns)
+    last_state: dict | None = None
     try:
         while True:
+            for turn in room.turns[sent_turns:]:
+                await websocket.send_json(_turn_frame(turn))
+            sent_turns = len(room.turns)
+            state = _state_frame(room)
+            if state != last_state:
+                await websocket.send_json(state)
+                last_state = state
             events = room.session.events()
-            for event in events[sent:]:
+            for event in events[sent_events:]:
+                if event.kind is CallEventKind.transcript:
+                    continue  # the room's turns carry the transcript
                 await websocket.send_json(
                     {"kind": "event", "event": event.kind.value, "payload": dict(event.payload)}
                 )
-            sent = len(events)
+            sent_events = len(events)
             heard = False
             if not room.session.stopped:
                 async for chunk in room.session.relay_audio_out():

@@ -12,10 +12,10 @@
   <link rel="manifest" href="/static/site.webmanifest">
   <link rel="preload" href="/static/fonts/newsreader-latin-500-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="/static/fonts/atkinson-hyperlegible-next-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="/static/css/tokens.css">
-  <link rel="stylesheet" href="/static/css/base.css">
-  <link rel="stylesheet" href="/static/css/components.css">
-  <link rel="stylesheet" href="/static/css/pages.css">
+  <link rel="stylesheet" href="/static/css/tokens.css?v={{ asset_v }}">
+  <link rel="stylesheet" href="/static/css/base.css?v={{ asset_v }}">
+  <link rel="stylesheet" href="/static/css/components.css?v={{ asset_v }}">
+  <link rel="stylesheet" href="/static/css/pages.css?v={{ asset_v }}">
   <script>try { if (localStorage.getItem("afterward.projector") === "on") document.documentElement.classList.add("is-projector"); var theme = localStorage.getItem("afterward.theme"); if (theme && theme !== "auto") document.documentElement.setAttribute("data-theme", theme); } catch (e) {}</script>
 </head>
 <body data-page="{{ page }}" class="fit{% block body_class %}{% endblock %}">
@@ -42,7 +42,7 @@
   <main id="main" tabindex="-1">
     {% block main %}{% endblock %}
   </main>
-  <script src="/static/js/app.js"></script>
+  <script src="/static/js/app.js?v={{ asset_v }}"></script>
   {% block scripts %}{% endblock %}
 </body>
 </html>

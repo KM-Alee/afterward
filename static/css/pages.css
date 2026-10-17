@@ -331,3 +331,11 @@ pre.fixture { margin: 0; padding: var(--s-3); background: var(--c-sunken); borde
 .ob-log code { font-family: var(--font-mono); overflow-wrap: anywhere; }
 body.fit.ob-page { height: auto; overflow: visible; display: block; }
 body.fit.ob-page > main > .wrap { display: block; }
+
+/* Call room: the microphone is the main control; lines and typing fold away. */
+.call-lines { width: min(100%, 34rem); text-align: center; }
+.call-lines > summary { cursor: pointer; min-height: var(--tap); display: inline-flex; align-items: center; color: var(--c-ink-2); }
+.call-lines[open] > summary { margin-bottom: var(--s-2); }
+.call-lines .typed__row { margin: var(--s-3) auto var(--s-1); }
+.ptt .icon { width: 1.4em; height: 1.4em; }
+#call-status { min-height: 1.4em; max-width: 30rem; }

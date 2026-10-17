@@ -86,8 +86,7 @@ def test_typed_turn_end_to_end_on_fakes():
         assert page.status_code == 200
         assert "Browser call, not a phone call" in page.text
         assert "not a guarantee" in page.text
-        assert "Send this line" in page.text
-        assert "Type instead" in page.text
+        assert "Join the call" in page.text  # controls appear once the call is live
         sent = client.post(
             f"/api/calls/{token}/turn",
             data={"text": "We can keep the number."},
@@ -95,6 +94,8 @@ def test_typed_turn_end_to_end_on_fakes():
         assert sent.status_code == 200
         assert "We can keep the number." in sent.text
         assert "You, typed" in sent.text
+        assert "Send this line" in sent.text
+        assert "Type what you would say" in sent.text
         room = surface.calls[token]
         assert room.session.typed_turns == ["We can keep the number."]
         assert room.session.suspended is True
