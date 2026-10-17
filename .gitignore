@@ -20,3 +20,6 @@ dist/
 # Local run logs
 .run/
 *.log
+
+# Private submission details
+submission/team-details.md

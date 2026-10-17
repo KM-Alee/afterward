@@ -19,10 +19,8 @@ Everything in [brackets] is for you to fill in. The LinkedIn post is written by 
 
 ## PDF template
 
-**Team**
-- [Name 1] — [email] — Discord [username]
-- [Name 2] — [email] — Discord [username]
-- WhatsApp contact: [number]
+**Team KMForge** — names, emails, Discord usernames and the WhatsApp contact are in
+`submission/team-details.md` (local only, git-ignored, since this repo is public).
 
 **Project:** Afterward
 **One-liner:** You tell it once. Afterward tells every organisation, follows up for months,
