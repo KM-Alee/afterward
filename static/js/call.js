@@ -36,7 +36,15 @@
   function say(text) { if (status) status.textContent = text; }
   function micOn() { return !!(micTrack && micTrack.enabled); }
   function setLevel(v) { if (orb) orb.style.setProperty("--level", Math.min(1, v).toFixed(3)); }
-  function setState(state, label) {
+  var shownState = "", shownAt = 0;
+  function setState(state, label, force) {
+    var now = Date.now();
+    if (state === shownState && !force) return;
+    // Hold each state briefly so pauses between words don't make the orb and label flicker.
+    if (!force && now - shownAt < 350 && (shownState === "speaking" || shownState === "user")
+        && (state === "listening" || state === "idle")) return;
+    shownState = state;
+    shownAt = now;
     if (orb) orb.setAttribute("data-state", state);
     if (stateEl && label) stateEl.textContent = label;
   }
@@ -222,10 +230,11 @@
       case "output_audio_buffer.started":
         if (!playingApproved) { agentBusy = true; setState("speaking", "Afterward is speaking"); }
         break;
-      case "output_audio_buffer.stopped":
       case "output_audio_buffer.cleared":
-        agentBusy = false; setLevel(0); idle();
+        agentBusy = false; lastRemoteLoud = 0; setLevel(0); idle();
         break;
+      case "output_audio_buffer.stopped":
+        break; // the level meter ends "speaking" once the audio has really gone quiet
       case "response.output_audio_transcript.delta": {
         var st = items[ev.item_id] || (items[ev.item_id] = { text: "", tripped: false, posted: false });
         if (st.tripped || playingApproved) break;
@@ -280,16 +289,20 @@
     for (var i = 0; i < buf.length; i++) { var v = (buf[i] - 128) / 128; sum += v * v; }
     return Math.sqrt(sum / buf.length);
   }
+  var lastRemoteLoud = 0;
   function meter() {
     if (ended) return;
     var m = micAnalyser && micOn() ? rms(micAnalyser) : 0;
     var r = remoteAnalyser ? rms(remoteAnalyser) : 0;
     diagState.mic = Math.min(1, m * 4);
-    if (r > 0.02 && !playingApproved) {
+    var now = Date.now();
+    if (r > 0.02 && !playingApproved) lastRemoteLoud = now;
+    var agentAudible = now - lastRemoteLoud < 900; // pauses between words count as speaking
+    if (agentAudible && !playingApproved) {
       if (!agentBusy) { agentBusy = true; setState("speaking", "Afterward is speaking"); }
       setLevel(r * 5);
-    } else if (agentBusy && r <= 0.02 && !responseActive) {
-      agentBusy = false; idle();
+    } else if (agentBusy && !responseActive) {
+      agentBusy = false; setLevel(0); idle();
     } else if (!agentBusy) {
       setLevel(m * 6);
     }
