@@ -99,21 +99,20 @@ async def get_request_and_conditions() -> str:
     return await read_request_and_conditions(_room())
 
 
-@function_tool
-async def report_offered_terms(
+async def do_report_offered_terms(
+    room: CallRoom | None,
     months: int,
     monthly_price: str,
     number_kept: str,
     voicemail_preserved: str,
 ) -> str:
-    """Record terms the representative offered. This does not accept them."""
-    room = _room()
+    """Record offered terms on the room. Never accepts them."""
     if room is None:
         return "No call is bound. Nothing was accepted."
     digest = await room.report_offered_terms(
         OfferedTerms(
             months=months,
-            price=monthly_price,
+            price=str(monthly_price).lstrip("$"),
             number_kept=number_kept,
             voicemail_preserved=voicemail_preserved,
         )
@@ -121,12 +120,9 @@ async def report_offered_terms(
     return f"Recorded. Terms hash {digest[:12]}. Not accepted."
 
 
-@function_tool(needs_approval=True)
-async def request_family_decision(
-    summary: str, option_one: str, option_two: str, option_three: str
+def do_request_family_decision(
+    room: CallRoom | None, summary: str, option_one: str, option_two: str, option_three: str
 ) -> str:
-    """Ask the family. At most three options. Acceptance is not a tool result."""
-    room = _room()
     labels = "; ".join((option_one, option_two, option_three))
     if room is not None and room.approval_status != "void":
         room.approval_status = "pending"
@@ -141,25 +137,52 @@ async def request_family_decision(
     return "The family has been asked. Nothing was accepted."
 
 
-@function_tool
-async def request_human_help(reason: str) -> str:
-    """The organisation will not deal with the assistant. Hand the step back."""
-    room = _room()
+def do_request_human_help(room: CallRoom | None, reason: str) -> str:
     if room is not None:
         room.turns.append(Turn(who="system", text=f"A person is needed. {reason}", kind="handoff"))
     return "A person will take this step. Nothing was accepted."
 
 
-@function_tool
-async def end_call(reason: str) -> str:
-    """End the call without agreeing to terms."""
-    room = _room()
+async def do_end_call(room: CallRoom | None, reason: str) -> str:
     if room is not None:
         room.status = "ended"
         room.turns.append(Turn(who="system", text=f"Call ended. {reason}", kind="ended"))
         if room.session.started and not room.session.stopped:
             await room.session.stop()
     return "The call has ended. Nothing was accepted."
+
+
+@function_tool
+async def report_offered_terms(
+    months: int,
+    monthly_price: str,
+    number_kept: str,
+    voicemail_preserved: str,
+) -> str:
+    """Record terms the representative offered. This does not accept them."""
+    return await do_report_offered_terms(
+        _room(), months, monthly_price, number_kept, voicemail_preserved
+    )
+
+
+@function_tool(needs_approval=True)
+async def request_family_decision(
+    summary: str, option_one: str, option_two: str, option_three: str
+) -> str:
+    """Ask the family. At most three options. Acceptance is not a tool result."""
+    return do_request_family_decision(_room(), summary, option_one, option_two, option_three)
+
+
+@function_tool
+async def request_human_help(reason: str) -> str:
+    """The organisation will not deal with the assistant. Hand the step back."""
+    return do_request_human_help(_room(), reason)
+
+
+@function_tool
+async def end_call(reason: str) -> str:
+    """End the call without agreeing to terms."""
+    return await do_end_call(_room(), reason)
 
 
 def call_tools() -> list[object]:

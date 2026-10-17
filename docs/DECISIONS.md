@@ -125,3 +125,26 @@ Only the lead accepts ADR changes. Alternatives and reasons below come from AFTE
 - Reason: User decision on 17 Oct. There was no webhook route, so a token alone made the
   status page claim a channel that did not exist.
 - Status: implemented in `app/main.py`; covered by `tests/foundation/test_shell.py`.
+
+## ADR-013: Browser voice goes directly to OpenAI over WebRTC
+
+- Date: 2026-10-17
+- Decision: The call room no longer relays microphone audio through our server into an
+  Agents SDK `RealtimeSession`. The server mints a short-lived client secret
+  (`POST /v1/realtime/client_secrets`, session config with our instructions, voice,
+  transcription, `server_vad` turn detection and the five call tools, no accept tool). The
+  browser connects with WebRTC (`POST /v1/realtime/calls`, data channel `oai-events`). The
+  server keeps the tools (`/api/calls/{token}/tool`), the transcript record
+  (`/transcript`, deduped by item id) and the approved-sentence playback
+  (`/approved-audio`, server-built text, spoken by TTS, re-checked against the terms hash).
+  The model still has no accept path.
+- Reason: The server relay was live-tested repeatedly: audio reached the model but replies
+  and the user's transcript were missing. OpenAI recommends WebRTC for browser voice agents.
+- Honest limit: the speech check now runs on the agent transcript in the browser and again
+  on the server, after the model produced the words. The audio has already left OpenAI for
+  the browser, so a few words can be heard before a cancel lands. This is weaker than a
+  server-side audio gate. It reduces risk and is not a guarantee. The page stays labelled
+  "Browser call, not a phone call". `server relay` code (`app/call/realtime_session.py`)
+  remains for reference but is not used by the room.
+- Status: implemented; unit-tested with mocked HTTP. The live WebRTC path needs an operator
+  check in a browser (`scripts/voice_check.py` first).

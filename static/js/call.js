@@ -1,22 +1,26 @@
-/* Voice call room, GPT-Live style. One websocket per call:
-   - mic PCM16 24 kHz mono in; agent audio PCM16 out, played gap-free;
-   - live captions while either side talks; final lines land in the transcript;
-   - barge-in: when you start talking over the agent, its audio stops at once;
-   - lines and typing go over the same socket, so the page never reloads mid-call.
-   Without the socket the forms still post normally. A browser call is not a phone call. */
+/* Voice call room. Audio goes browser <-> OpenAI over WebRTC (ephemeral key minted by our
+   server). Our server keeps the tools, the transcript record, the family approval and the
+   approved-sentence playback. A websocket brings server state (transcript lines, offer,
+   approval) back to this page. The speech check also runs here on the agent transcript; it
+   reduces risk and is not a guarantee. A browser call is not a phone call. */
 (function () {
   "use strict";
   var root = document.querySelector("[data-call]");
   if (!root || !window.WebSocket || root.getAttribute("data-status") !== "live") return;
   var token = root.getAttribute("data-token");
-  var RATE = 24000;
-  var BARGE_RMS = 0.06;
+  var CALLS_URL = "https://api.openai.com/v1/realtime/calls";
+  var STOPPED_MSG = "The speech check stopped a possible agreement. Nothing was accepted.";
 
-  var socket = null, ctx = null, stream = null, source = null, node = null, gain = null;
-  var playAt = 0, sources = [], ended = false, retry = 0, mode = root.getAttribute("data-mode");
-  var agentBusy = false, userTalking = false, loud = 0, interruptedAt = 0;
+  var socket = null, ended = false, retry = 0, mode = root.getAttribute("data-mode");
+  var pc = null, dc = null, micStream = null, micTrack = null, sender = null, remoteAudio = null;
+  var micAnalyser = null, remoteAnalyser = null, audioCtx = null, connecting = null;
+  var agentBusy = false, userTalking = false, responseActive = false, playingApproved = false;
   var live = { agent: null, rep: null };
-  var pending = { agent: [], rep: [] }; // finished captions still waiting for their final line
+  var pending = { agent: [], rep: [] };
+  var items = {}; // agent item id -> { text, tripped, posted }
+  var calls = {}; // call ids already handled
+  var queued = [], typedN = 0;
+  var diagState = { connected: false, events: 0, last: "", error: "", mic: 0 };
 
   var $ = function (id) { return document.getElementById(id); };
   var micBtn = $("mic"), micLabel = micBtn ? micBtn.querySelector("[data-mic-label]") : null;
@@ -30,7 +34,7 @@
   if (status) status.parentNode.insertBefore(diag, status.nextSibling);
 
   function say(text) { if (status) status.textContent = text; }
-  function micOn() { return !!stream; }
+  function micOn() { return !!(micTrack && micTrack.enabled); }
   function setLevel(v) { if (orb) orb.style.setProperty("--level", Math.min(1, v).toFixed(3)); }
   function setState(state, label) {
     if (orb) orb.setAttribute("data-state", state);
@@ -39,13 +43,21 @@
   function idle() {
     if (agentBusy) return;
     if (micOn()) setState(userTalking ? "user" : "listening", userTalking ? "You're speaking" : "Listening");
-    else setState("idle", mode === "realtime" ? "Tap to start talking" : "Rehearsal");
+    else setState("idle", mode === "realtime" ? (dc ? "Mic is off" : "Tap to start talking") : "Rehearsal");
   }
   function setCaption(text, who) {
     if (!caption) return;
     caption.textContent = text;
     caption.classList.toggle("is-rep", who === "rep");
     caption.classList.toggle("is-quiet", !who);
+  }
+  function showDiag() {
+    diag.textContent = [
+      diagState.connected ? "connected to the model" : "not connected",
+      "mic level " + Math.round(diagState.mic * 100) + "%",
+      "events " + diagState.events + (diagState.last ? " (last: " + diagState.last + ")" : ""),
+      diagState.error ? "error: " + diagState.error : "",
+    ].filter(Boolean).join(" · ");
   }
 
   /* ---------- transcript ---------- */
@@ -129,145 +141,257 @@
     li.appendChild(chip);
     terms.appendChild(li);
   }
-  function kb(n) { return n > 1048576 ? (n / 1048576).toFixed(1) + " MB" : Math.round(n / 1024) + " KB"; }
-  function showStats(st) {
-    var parts = [st.connected ? "model connected" : "model NOT connected",
-      "sent " + kb(st.audio_in_bytes || 0),
-      "heard you " + (st.heard || 0) + "×",
-      "turns ended " + (st.turns_ended || 0),
-      "replies " + (st.replies || 0) + " started / " + (st.replies_done || 0) + " finished"
-        + (st.replies_cut ? " / " + st.replies_cut + " cut" : ""),
-      "audio back " + (st.audio_out_chunks || 0)];
-    if (st.guard_trips) parts.push("speech check stops " + st.guard_trips);
-    if (st.last_reply_status && st.last_reply_status !== "completed") parts.push("last reply " + st.last_reply_status);
-    if (st.last_error) parts.push("error " + st.last_error);
-    diag.textContent = parts.join(" · ");
+  /* ---------- speech check (same rules as app/call/guard.py; not a guarantee) ---------- */
+  var COMMIT = [
+    /\b(we|i)\s+(accept|agree)\b/i,
+    /\b(it'?s|that'?s)\s+a\s+deal\b/i,
+    /\bdeal\s*[.!]/i,
+    /(^|[.!?]\s+)agreed\b/i,
+    /\b(?:we|i)\s+(?:have\s+)?agreed\b/i,
+    /\bgo\s+ahead\s+(?:with|and)\b/i,
+    /\b(?:yes|yeah|ok(?:ay)?|sure),?\s+go\s+ahead\b/i,
+    /\bplease\s+(?:proceed|process)\b/i,
+    /\bwe(?:'ll| will)\s+take\s+it\b/i,
+  ];
+  function commitmentTripped(text) { return COMMIT.some(function (re) { return re.test(text); }); }
+
+  /* ---------- data channel ---------- */
+  function send(obj) {
+    if (!dc || dc.readyState !== "open") return false;
+    dc.send(JSON.stringify(obj));
+    return true;
   }
-  /* ---------- audio out ---------- */
-  function ensureCtx() {
-    if (ctx) return ctx;
-    var AC = window.AudioContext || window.webkitAudioContext;
-    ctx = new AC({ latencyHint: "interactive" }); // device rate: some systems give silence at 24 kHz
-    gain = ctx.createGain();
-    gain.connect(ctx.destination);
-    return ctx;
-  }
-  function stopPlayback() {
-    sources.forEach(function (s) { try { s.stop(); } catch (e) {} });
-    sources = [];
-    playAt = 0;
+  function silenceAgent() {
+    if (responseActive) send({ type: "response.cancel" });
+    send({ type: "output_audio_buffer.clear" });
     agentBusy = false;
-    setLevel(0);
-    idle();
   }
-  function play(buffer) {
-    if (Date.now() - interruptedAt < 400) return; // tail of a reply you just talked over
-    var pcm = new Int16Array(buffer);
-    if (!pcm.length) return;
-    var c = ensureCtx();
-    var audio = c.createBuffer(1, pcm.length, RATE);
-    var out = audio.getChannelData(0), sum = 0;
-    for (var i = 0; i < pcm.length; i++) { out[i] = pcm[i] / 32768; sum += out[i] * out[i]; }
-    var level = Math.sqrt(sum / pcm.length) * 4;
-    var src = c.createBufferSource();
-    src.buffer = audio;
-    src.connect(gain);
-    playAt = Math.max(playAt, c.currentTime + 0.05);
-    var startAt = playAt;
-    src.start(startAt);
-    playAt += audio.duration;
-    sources.push(src);
-    agentBusy = true;
-    setState("speaking", "Afterward is speaking");
-    window.setTimeout(function () { if (agentBusy) setLevel(level); }, Math.max(0, (startAt - c.currentTime) * 1000));
-    src.onended = function () {
-      lastAgentAudio = Date.now();
-      sources = sources.filter(function (s) { return s !== src; });
-      if (!sources.length) { agentBusy = false; setLevel(0); idle(); }
-    };
+  function postJson(path, body) {
+    return fetch("/api/calls/" + token + path, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).then(function (r) { return r.json().catch(function () { return {}; }); });
+  }
+  function postLine(who, text, itemId, via) {
+    return postJson("/transcript", { who: who, text: text, item_id: itemId, via: via || "" }).catch(function () { return {}; });
+  }
+  function trip(item, st) {
+    st.tripped = true;
+    silenceAgent();
+    if (live.agent && live.agent.item === item) { live.agent.el.remove(); live.agent = null; }
+    if (remoteAudio) remoteAudio.muted = true;
+    setState("tripped", "Stopped by the speech check");
+    say(STOPPED_MSG);
+    setCaption(STOPPED_MSG, null);
+    if (!st.posted) { st.posted = true; postLine("agent", st.text, item); }
+  }
+  function handleTool(name, callId, args) {
+    if (!callId || calls[callId]) return;
+    calls[callId] = true;
+    postJson("/tool", { name: name, call_id: callId, arguments: args }).then(function (res) {
+      var output = res && res.output ? res.output : (res && res.error ? "Not done: " + res.error : "Not done.");
+      send({ type: "conversation.item.create", item: { type: "function_call_output", call_id: callId, output: output } });
+      if (!playingApproved) send({ type: "response.create" });
+    });
+  }
+  function onEvent(ev) {
+    diagState.events++;
+    diagState.last = ev.type;
+    switch (ev.type) {
+      case "input_audio_buffer.speech_started":
+        userTalking = true;
+        if (agentBusy || responseActive) silenceAgent();
+        setState("user", "You're speaking");
+        break;
+      case "input_audio_buffer.speech_stopped":
+        userTalking = false;
+        setState("thinking", "Thinking…");
+        break;
+      case "conversation.item.input_audio_transcription.delta":
+        if (ev.delta) liveCaption("rep", ev.item_id, ev.delta);
+        break;
+      case "conversation.item.input_audio_transcription.completed":
+        if (ev.transcript && ev.transcript.trim()) postLine("rep", ev.transcript.trim(), ev.item_id, "voice");
+        break;
+      case "response.created":
+        responseActive = true;
+        if (playingApproved) send({ type: "response.cancel" });
+        else if (!agentBusy) setState("thinking", "Thinking…");
+        break;
+      case "output_audio_buffer.started":
+        if (!playingApproved) { agentBusy = true; setState("speaking", "Afterward is speaking"); }
+        break;
+      case "output_audio_buffer.stopped":
+      case "output_audio_buffer.cleared":
+        agentBusy = false; setLevel(0); idle();
+        break;
+      case "response.output_audio_transcript.delta": {
+        var st = items[ev.item_id] || (items[ev.item_id] = { text: "", tripped: false, posted: false });
+        if (st.tripped || playingApproved) break;
+        st.text += ev.delta || "";
+        liveCaption("agent", ev.item_id, ev.delta || "");
+        if (commitmentTripped(st.text)) trip(ev.item_id, st);
+        break;
+      }
+      case "response.output_audio_transcript.done": {
+        var s2 = items[ev.item_id] || (items[ev.item_id] = { text: "", tripped: false, posted: false });
+        var full = (ev.transcript || s2.text || "").trim();
+        if (!s2.tripped && full && commitmentTripped(full)) { s2.text = full; trip(ev.item_id, s2); }
+        else if (!s2.posted && full && !playingApproved) { s2.posted = true; postLine("agent", full, ev.item_id); }
+        break;
+      }
+      case "response.function_call_arguments.done":
+        handleTool(ev.name, ev.call_id, ev.arguments);
+        break;
+      case "response.done": {
+        responseActive = false;
+        var out = (ev.response && ev.response.output) || [];
+        out.forEach(function (it) { if (it.type === "function_call") handleTool(it.name, it.call_id, it.arguments); });
+        if (ev.response && ev.response.status === "failed") {
+          var d = ev.response.status_details && ev.response.status_details.error;
+          diagState.error = (d && (d.message || d.code)) || "response failed";
+        }
+        if (!agentBusy) idle();
+        break;
+      }
+      case "error":
+        diagState.error = (ev.error && (ev.error.message || ev.error.code)) || "unknown error";
+        break;
+    }
+    showDiag();
   }
 
-  /* ---------- audio in ---------- */
-  function toPcm16(f32, fromRate) {
-    var ratio = fromRate / RATE, length = Math.floor(f32.length / ratio), out = new Int16Array(length);
-    for (var i = 0; i < length; i++) {
-      var start = Math.floor(i * ratio), end = Math.min(f32.length, Math.floor((i + 1) * ratio));
-      var acc = 0, n = 0;
-      for (var j = start; j < end; j++) { acc += f32[j]; n++; }
-      var v = Math.max(-1, Math.min(1, n ? acc / n : f32[start] || 0));
-      out[i] = v < 0 ? v * 32768 : v * 32767;
+  /* ---------- WebRTC ---------- */
+  function ensureCtx() {
+    if (!audioCtx) { var AC = window.AudioContext || window.webkitAudioContext; audioCtx = new AC(); }
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    return audioCtx;
+  }
+  function analyserFor(stream) {
+    var c = ensureCtx(), a = c.createAnalyser();
+    a.fftSize = 512;
+    c.createMediaStreamSource(stream).connect(a);
+    return a;
+  }
+  function rms(a) {
+    var buf = new Uint8Array(a.fftSize), sum = 0;
+    a.getByteTimeDomainData(buf);
+    for (var i = 0; i < buf.length; i++) { var v = (buf[i] - 128) / 128; sum += v * v; }
+    return Math.sqrt(sum / buf.length);
+  }
+  function meter() {
+    if (ended) return;
+    var m = micAnalyser && micOn() ? rms(micAnalyser) : 0;
+    var r = remoteAnalyser ? rms(remoteAnalyser) : 0;
+    diagState.mic = Math.min(1, m * 4);
+    if (r > 0.02 && !playingApproved) {
+      if (!agentBusy) { agentBusy = true; setState("speaking", "Afterward is speaking"); }
+      setLevel(r * 5);
+    } else if (agentBusy && r <= 0.02 && !responseActive) {
+      agentBusy = false; idle();
+    } else if (!agentBusy) {
+      setLevel(m * 6);
     }
-    return out.buffer;
+    if (Math.random() < 0.1) showDiag();
+    window.requestAnimationFrame(meter);
   }
-  var held = [], frames = 0, lastAgentAudio = 0;
-  function onMic(f32, rate) {
-    frames++;
-    var sum = 0;
-    for (var i = 0; i < f32.length; i++) sum += f32[i] * f32[i];
-    var rms = Math.sqrt(sum / f32.length);
-    var chunk = toPcm16(f32, rate);
-    var agentAudible = agentBusy || Date.now() - lastAgentAudio < 350;
-    if (!agentAudible) setLevel(rms * 6);
-    if (agentAudible) {
-      // The agent's own voice comes back through the mic. Don't send it, or the model
-      // hears itself and cuts its answer short. A clear voice over it is a barge-in.
-      held.push(chunk);
-      if (held.length > 8) held.shift();
-      loud = rms > BARGE_RMS ? loud + 1 : 0;
-      if (loud >= 3) bargeIn();
-      return;
-    }
-    loud = 0;
-    if (held.length) { held.forEach(sendAudio); held = []; }
-    sendAudio(chunk);
-  }
-  function sendAudio(chunk) { if (socket && socket.readyState === 1) socket.send(chunk); }
-  function bargeIn() {
-    interruptedAt = Date.now();
-    lastAgentAudio = 0;
-    stopPlayback();
-    sendJson({ type: "interrupt" });
-    setState("user", "You're speaking");
-  }
-  async function startMic() {
-    try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+  async function connect() {
+    if (pc) return connecting;
+    connecting = (async function () {
+      say("Connecting to the live model…");
+      var res = await fetch("/api/calls/" + token + "/session", { method: "POST" });
+      var data = await res.json().catch(function () { return {}; });
+      if (!res.ok || !data.client_secret) throw new Error(data.error || "Could not start a voice session.");
+      var key = data.client_secret;
+      pc = new RTCPeerConnection();
+      remoteAudio = document.createElement("audio");
+      remoteAudio.autoplay = true;
+      remoteAudio.setAttribute("playsinline", "");
+      document.body.appendChild(remoteAudio);
+      pc.ontrack = function (e) {
+        remoteAudio.srcObject = e.streams[0];
+        try { remoteAnalyser = analyserFor(e.streams[0]); } catch (err) { /* meter only */ }
+      };
+      pc.onconnectionstatechange = function () {
+        diagState.connected = pc && pc.connectionState === "connected";
+        if (pc && (pc.connectionState === "failed" || pc.connectionState === "disconnected") && !ended) {
+          diagState.error = "connection " + pc.connectionState;
+          say("The voice connection dropped. Press the microphone to reconnect.");
+          closePeer();
+        }
+        showDiag();
+      };
+      var tx = pc.addTransceiver("audio", { direction: "sendrecv" });
+      sender = tx.sender;
+      dc = pc.createDataChannel("oai-events");
+      dc.onmessage = function (m) { try { onEvent(JSON.parse(m.data)); } catch (e) { /* ignore */ } };
+      dc.onopen = function () {
+        say(micOn() ? "Listening. Talk over the agent any time; it stops." : "Connected. Start talking or type.");
+        queued.splice(0).forEach(function (t) { sendTypedNow(t); });
+        idle();
+      };
+      var offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      var answer = await fetch(CALLS_URL, {
+        method: "POST",
+        body: offer.sdp,
+        headers: { Authorization: "Bearer " + key, "Content-Type": "application/sdp" },
       });
+      if (!answer.ok) throw new Error("OpenAI refused the connection (" + answer.status + ").");
+      await pc.setRemoteDescription({ type: "answer", sdp: await answer.text() });
+      window.requestAnimationFrame(meter);
+    })();
+    try { await connecting; } catch (e) { closePeer(); throw e; } finally { connecting = null; }
+  }
+  function closePeer() {
+    if (dc) { try { dc.close(); } catch (e) { /* closed */ } dc = null; }
+    if (pc) { try { pc.close(); } catch (e) { /* closed */ } pc = null; }
+    if (remoteAudio) { remoteAudio.remove(); remoteAudio = null; }
+    remoteAnalyser = null; sender = null; agentBusy = false; responseActive = false;
+    diagState.connected = false;
+    stopMicTrack();
+    showDiag();
+  }
+  function stopMicTrack() {
+    if (micStream) micStream.getTracks().forEach(function (t) { t.stop(); });
+    micStream = null; micTrack = null; micAnalyser = null;
+    setMicButton(false);
+  }
+  function setMicButton(on) {
+    if (micBtn) { micBtn.setAttribute("aria-pressed", String(on)); micBtn.setAttribute("aria-label", on ? "Stop talking" : "Start talking"); }
+    if (micLabel) micLabel.textContent = on ? "Stop talking" : "Start talking";
+  }
+  async function startTalking() {
+    try {
+      if (!micStream) {
+        micStream = await navigator.mediaDevices.getUserMedia({
+          audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+        });
+        micTrack = micStream.getAudioTracks()[0];
+        micAnalyser = analyserFor(micStream);
+      }
     } catch (e) {
-      stream = null;
       say("The microphone is blocked. Allow it in the browser, or type instead.");
       return;
     }
-    var c = ensureCtx();
-    if (c.state === "suspended") await c.resume();
-    source = c.createMediaStreamSource(stream);
-    node = c.createScriptProcessor(2048, 1, 1);
-    node.onaudioprocess = function (ev) { onMic(ev.inputBuffer.getChannelData(0), c.sampleRate); };
-    source.connect(node);
-    node.connect(c.destination); // the processor writes no output, so nothing is played back
-    frames = 0;
-    window.setTimeout(function () {
-      if (micOn() && frames === 0) say("No sound is reaching the page from your microphone. Check the browser's input device.");
-    }, 2500);
-    if (micBtn) { micBtn.setAttribute("aria-pressed", "true"); micBtn.setAttribute("aria-label", "End talking"); }
-    if (micLabel) micLabel.textContent = "Stop talking";
+    try { await connect(); } catch (e) { say(e.message); diagState.error = e.message; showDiag(); return; }
+    if (sender) await sender.replaceTrack(micTrack);
+    micTrack.enabled = true;
+    setMicButton(true);
     idle();
-    setCaption("Go ahead — you're on. Answer as Northline would.", null);
+    setCaption("Go ahead, you're on. Answer as Northline would.", null);
     say("Listening. Talk over the agent any time; it stops.");
   }
-  function stopMic(message) {
-    if (node) { node.disconnect(); node = null; }
-    if (source) { source.disconnect(); source = null; }
-    if (stream) { stream.getTracks().forEach(function (t) { t.stop(); }); stream = null; }
-    if (micBtn) { micBtn.setAttribute("aria-pressed", "false"); micBtn.setAttribute("aria-label", "Start talking"); }
-    if (micLabel) micLabel.textContent = "Start talking";
-    setLevel(0);
+  function muteMic() {
+    if (micTrack) micTrack.enabled = false;
+    setMicButton(false);
+    userTalking = false;
     idle();
-    if (message) say(message);
+    say("Microphone off. The call is still open.");
   }
   if (micBtn) micBtn.addEventListener("click", function () {
-    if (micOn()) stopMic("Microphone off. The call is still open."); else startMic();
+    if (micOn()) muteMic(); else startTalking();
   });
   if (padToggle && pad) padToggle.addEventListener("click", function () {
     var open = pad.hidden;
@@ -276,66 +400,72 @@
     if (open) { var i = $("typed"); if (i) i.focus(); }
   });
 
-  /* ---------- socket ---------- */
+  /* ---------- typed lines ---------- */
+  function sendTypedNow(text) {
+    if (agentBusy || responseActive) silenceAgent();
+    send({ type: "conversation.item.create", item: { type: "message", role: "user", content: [{ type: "input_text", text: text }] } });
+    send({ type: "response.create" });
+    typedN++;
+    postLine("rep", text, "typed-" + Date.now() + "-" + typedN, "typed");
+  }
+  async function sendTyped(text) {
+    if (dc && dc.readyState === "open") { sendTypedNow(text); return; }
+    queued.push(text);
+    try { await connect(); } catch (e) { queued = []; say(e.message); }
+  }
+
+  /* ---------- approved sentence (server-built; the model never says it) ---------- */
+  async function playApproved() {
+    var res = await postJson("/approved-audio", {});
+    if (!res || !res.played) { say("The approved terms changed, so nothing was played."); return; }
+    if (!res.audio) { say("The approved sentence is in the transcript. Speech was not available."); return; }
+    playingApproved = true;
+    silenceAgent();
+    if (remoteAudio) remoteAudio.muted = true;
+    var clip = new Audio("data:" + (res.mime || "audio/ogg") + ";base64," + res.audio);
+    var done = function () { playingApproved = false; if (remoteAudio) remoteAudio.muted = false; idle(); };
+    clip.onended = done;
+    clip.onerror = done;
+    setState("speaking", "Approved wording");
+    clip.play().catch(done);
+  }
+
+  /* ---------- server state socket ---------- */
   function onFrame(data) {
     switch (data.kind) {
       case "call.ready":
         retry = 0;
         mode = data.mode;
         if (micBtn) micBtn.disabled = data.mode !== "realtime";
-        say(data.mode === "realtime" ? (micOn() ? "Listening." : "Connected to the live model.")
-          : "Rehearsal (no model): send a line; a fixed reply comes back as text." + (data.note ? " " + data.note : ""));
+        if (!micOn()) say(data.mode === "realtime" ? "Ready. Press Start talking." : "Rehearsal (no model): send a line; a fixed reply comes back as text." + (data.note ? " " + data.note : ""));
         idle();
         break;
       case "turn":
         addTurn(data);
-        if (data.who === "rep") { userTalking = false; if (mode === "realtime") setState("thinking", "Thinking…"); }
-        if (data.who === "agent" && data.type !== "template") setCaption(data.text, "agent");
-        if (data.type === "guard") { stopPlayback(); setState("tripped", "Stopped by the speech check"); }
-        break;
-      case "caption":
-        liveCaption(data.who, data.item, data.delta);
-        break;
-      case "speech":
-        if (data.who === "rep" && data.state === "start") {
-          userTalking = true;
-          if (agentBusy) { interruptedAt = Date.now(); stopPlayback(); }
-          setState("user", "You're speaking");
-        } else if (data.who === "rep") {
-          userTalking = false;
-          setState("thinking", "Thinking…");
-        }
-        break;
-      case "agent":
-        if (data.state === "thinking" && !agentBusy) setState("thinking", "Thinking…");
-        if (data.state === "done" && !agentBusy) idle();
+        if (data.type === "guard" && mode !== "realtime") { setState("tripped", "Stopped by the speech check"); }
         break;
       case "state": showState(data); break;
-      case "stats": showStats(data); break;
-      case "event":
-        if (data.event === "audio_interrupted") stopPlayback();
-        if (data.event === "guardrail_tripped") { stopPlayback(); say("The speech check stopped a possible agreement. Nothing was accepted."); }
+      case "ended":
+        ended = true;
+        say("The call has ended.");
+        setState("idle", "Call ended");
+        window.setTimeout(function () { closePeer(); }, 6000); // let the goodbye finish
         break;
-      case "error": say(data.text); break;
-      case "ended": ended = true; stopMic("The call has ended."); setState("idle", "Call ended"); break;
-      case "missing": case "not_started": ended = true; stopMic("This call link is not open."); break;
+      case "missing": case "not_started": ended = true; closePeer(); say("This call link is not open."); break;
     }
   }
-  function connect() {
+  function openSocket() {
     var proto = location.protocol === "https:" ? "wss" : "ws";
     socket = new WebSocket(proto + "://" + location.host + "/ws/calls/" + token);
-    socket.binaryType = "arraybuffer";
     socket.onmessage = function (msg) {
-      if (typeof msg.data !== "string") { play(msg.data); return; }
+      if (typeof msg.data !== "string") return;
       try { onFrame(JSON.parse(msg.data)); } catch (e) { /* ignore a bad frame */ }
     };
     socket.onclose = function () {
       socket = null;
-      if (micBtn) micBtn.disabled = true;
       if (ended) return;
       retry = Math.min(retry + 1, 5);
-      say("Connection lost. Reconnecting…");
-      window.setTimeout(connect, 600 * retry);
+      window.setTimeout(openSocket, 600 * retry);
     };
   }
   function sendJson(obj) {
@@ -344,19 +474,29 @@
     return true;
   }
 
+  function lineSubmit(form, getText, clear) {
+    if (!form) return;
+    form.addEventListener("submit", function (e) {
+      var text = getText();
+      if (!text) return;
+      if (mode === "realtime") { e.preventDefault(); sendTyped(text); if (clear) clear(); }
+      else if (sendJson({ type: "line", text: text })) { e.preventDefault(); if (clear) clear(); }
+    });
+  }
   var talk = $("talk-form");
-  if (talk) talk.addEventListener("submit", function (e) {
-    var picked = talk.querySelector("input[name=line]:checked");
-    if (picked && sendJson({ type: "line", text: picked.value })) { e.preventDefault(); if (agentBusy) bargeIn(); }
+  lineSubmit(talk, function () {
+    var p = talk && talk.querySelector("input[name=line]:checked");
+    return p ? p.value : "";
   });
   var typed = $("typed-form");
-  if (typed) typed.addEventListener("submit", function (e) {
-    var input = typed.querySelector("input[name=text]"), text = input ? input.value.trim() : "";
-    if (text && sendJson({ type: "line", text: text })) { e.preventDefault(); input.value = ""; if (agentBusy) bargeIn(); }
-  });
+  var typedInput = typed ? typed.querySelector("input[name=text]") : null;
+  lineSubmit(typed, function () { return typedInput ? typedInput.value.trim() : ""; }, function () { typedInput.value = ""; });
   if (cont) cont.addEventListener("submit", function (e) {
-    if (sendJson({ type: "continue" })) { e.preventDefault(); cont.hidden = true; }
+    e.preventDefault();
+    cont.hidden = true;
+    playApproved();
   });
-  window.addEventListener("beforeunload", function () { ended = true; stopMic(); });
-  connect();
+  window.addEventListener("beforeunload", function () { ended = true; closePeer(); });
+  showDiag();
+  openSocket();
 })();

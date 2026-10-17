@@ -1,4 +1,5 @@
-"""Call-room routes. Audio stays on our server. A browser call is not a phone call."""
+"""Call-room routes. Voice runs browser to OpenAI over WebRTC; the tools, the transcript
+record and the approved sentence stay on this server. A browser call is not a phone call."""
 
 from __future__ import annotations
 
@@ -8,14 +9,22 @@ import json
 import logging
 
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
-from fastapi.responses import RedirectResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 
-from app.call.acceptance import CallRoom, OfferedTerms, Turn, hash_terms
+from app.call.acceptance import CallRoom, Turn, hash_terms, offered_terms_from_text
 from app.call.live import agent_turn, speak_aloud
-from app.call.realtime_session import OpenAIRealtimeSession, realtime_allowed
-from app.call.tools import bind_room, build_call_agent
-from app.contracts import CallEvent, CallEventKind, CallTransport
-from app.fakes import FakeCallSession
+from app.call.realtime_session import realtime_allowed
+from app.call.tools import (
+    bind_room,
+    build_call_agent,
+    do_end_call,
+    do_report_offered_terms,
+    do_request_family_decision,
+    do_request_human_help,
+    read_request_and_conditions,
+)
+from app.call.webrtc import SessionError, mint_client_secret, parse_arguments
+from app.contracts import CALL_TOOL_NAMES, CallEventKind, CallTransport
 from app.web.render import render
 from app.web.router import _page, get_surface
 
@@ -64,58 +73,14 @@ def _room_for(request: Request, token: str) -> CallRoom | None:
 
 
 async def start_room(request_or_ws, room: CallRoom, token: str) -> None:
-    """Start the call on the real realtime session when allowed, else a labelled rehearsal."""
+    """Open the call. Live voice runs in the browser; without a key this is a rehearsal."""
     if room.session.started and not room.session.stopped:
         return
     settings = getattr(request_or_ws.app.state, "settings", None)
-    if realtime_allowed(settings) and not isinstance(room.session, OpenAIRealtimeSession):
-        session = OpenAIRealtimeSession(settings, room=room)
-        _hook_events(request_or_ws, room, token, session)
-        room.session = session
-        room.mode = "realtime"
-        room.mode_note = ""
-    elif isinstance(room.session, OpenAIRealtimeSession):
-        room.session.attach_room(room)
-    else:
-        room.mode = "rehearsal"
+    room.mode = "realtime" if realtime_allowed(settings) else "rehearsal"
+    room.mode_note = ""
     bind_room(room)
-    try:
-        await room.start()
-    except Exception:
-        logger.info("realtime start", extra={"kind": "call.realtime", "ok": False})
-        room.session = FakeCallSession()
-        room.mode = "rehearsal"
-        room.mode_note = "The live model could not be reached."
-        await room.start()
-
-
-def _hook_events(request_or_ws, room: CallRoom, token: str, session: OpenAIRealtimeSession) -> None:
-    """Publish call events and ask the family once when the model records an offer."""
-    surface = get_surface(request_or_ws)
-    case_id = surface.call_tokens[token]
-    app = request_or_ws.app
-
-    def _on_event(event: CallEvent) -> None:
-        if event.kind is CallEventKind.terms_offered:
-            payload = event.payload
-            try:
-                offered = OfferedTerms(
-                    int(str(payload.get("months"))),
-                    str(payload.get("monthly_price")).lstrip("$"),
-                    str(payload.get("number_kept")),
-                    str(payload.get("voicemail_preserved")),
-                )
-            except (TypeError, ValueError):
-                return
-            if room.terms is None or room.terms_hash != hash_terms(offered):
-                asyncio.ensure_future(room.report_offered_terms(offered))
-            if ask_family_once(room):
-                asyncio.ensure_future(_tell_owner(app, surface, case_id, room))
-        surface.live.publish(
-            case_id, "call.turn", {"via": "realtime", "summary": "Call event"}, actor="call"
-        )
-
-    session.on_event = _on_event
+    await room.start()
 
 
 async def _tell_owner(app, surface, case_id, room: CallRoom) -> None:
@@ -274,9 +239,10 @@ async def dial(request: Request, token: str):
 
 @router.websocket("/ws/calls/{token}")
 async def call_socket(websocket: WebSocket, token: str):
-    """The live call: mic audio in, agent audio and transcript out, typed lines both ways.
+    """Server to browser state for the call: transcript lines, offer and approval, ended.
 
-    Binary frames are PCM16 mono 24 kHz. Text frames are JSON: `{"type": "line", "text"}`
+    Voice does not pass through here: the browser talks to OpenAI over WebRTC.
+    Text frames are JSON: `{"type": "line", "text"}`
     sends what the representative says, `{"type": "continue"}` asks for the approved sentence
     (re-checked against the terms first). Plain text is treated as a line. Server frames:
     `call.ready`, `turn` (one transcript line), `state` (offer and approval), `event`, `ended`.
@@ -312,13 +278,8 @@ async def call_socket(websocket: WebSocket, token: str):
             incoming = await websocket.receive()
             if incoming.get("type") == "websocket.disconnect":
                 break
-            payload = incoming.get("bytes")
-            if payload:
-                if room.session.stopped:
-                    continue
-                await room.on_representative_speech()
-                await room.session.relay_audio_in(payload)
-                continue
+            if incoming.get("bytes"):
+                continue  # audio goes browser to OpenAI directly; nothing to relay
             text = incoming.get("text")
             if text:
                 await _socket_message(websocket, room, token, case_id, text)
@@ -451,6 +412,172 @@ async def _send_out(websocket: WebSocket, room: CallRoom, token: str) -> None:
                 await asyncio.sleep(0.1)
     except (WebSocketDisconnect, RuntimeError, asyncio.CancelledError):
         return
+
+
+def _json_error(status: int, message: str) -> JSONResponse:
+    return JSONResponse({"error": message}, status_code=status)
+
+
+async def _json_body(request: Request) -> dict:
+    try:
+        body = await request.json()
+    except ValueError:
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _live_room(request: Request, token: str) -> tuple[CallRoom | None, JSONResponse | None]:
+    room = _room_for(request, token)
+    if room is None:
+        return None, _json_error(404, "That call link is not valid.")
+    if room.status != "live":
+        return None, _json_error(409, "The call is not open.")
+    return room, None
+
+
+@router.post("/api/calls/{token}/session")
+async def create_session(request: Request, token: str):
+    """Mint a short-lived client secret so the browser can talk to OpenAI directly."""
+    room, error = _live_room(request, token)
+    if error is not None or room is None:
+        return error
+    settings = getattr(request.app.state, "settings", None)
+    if not realtime_allowed(settings):
+        return _json_error(409, "No model key is set. The room is a rehearsal.")
+    try:
+        minted = await mint_client_secret(settings)
+    except SessionError as exc:
+        return _json_error(exc.status, exc.message)
+    bind_room(room)
+    return JSONResponse(
+        {
+            "client_secret": minted["value"],
+            "expires_at": minted["expires_at"],
+            "model": minted["model"],
+            "transcribe_model": minted["transcribe_model"],
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
+async def _offer_follow_up(request: Request, token: str, room: CallRoom) -> None:
+    """Ask the family once about a new offer and tell them. Code decides, not the model."""
+    surface = get_surface(request)
+    case_id = surface.call_tokens[token]
+    if ask_family_once(room) and room.terms is not None:
+        await _tell_owner(request.app, surface, case_id, room)
+    surface.live.publish(
+        case_id, "call.turn", {"via": "realtime", "summary": "Call turn recorded"}, actor="call"
+    )
+
+
+@router.post("/api/calls/{token}/tool")
+async def run_tool(request: Request, token: str):
+    """Run one allowed call tool on the server. Anything else is refused."""
+    room, error = _live_room(request, token)
+    if error is not None or room is None:
+        return error
+    body = await _json_body(request)
+    name = str(body.get("name") or "")
+    call_id = str(body.get("call_id") or "")[:128]
+    if name not in CALL_TOOL_NAMES:
+        return _json_error(403, "That tool is not allowed on a call.")
+    cache: dict[str, str] = room.__dict__.setdefault("tool_outputs", {})
+    if call_id and call_id in cache:
+        return {"output": cache[call_id]}
+    args = parse_arguments(body.get("arguments"))
+    bind_room(room)
+    output = await _execute_tool(room, name, args)
+    if output is None:
+        return _json_error(422, "The tool arguments were not valid.")
+    if call_id:
+        cache[call_id] = output
+    if name == "report_offered_terms":
+        await _offer_follow_up(request, token, room)
+    return {"output": output}
+
+
+def _text(args: dict, key: str, limit: int = 300) -> str:
+    return " ".join(str(args.get(key) or "").split())[:limit]
+
+
+async def _execute_tool(room: CallRoom, name: str, args: dict) -> str | None:
+    if name == "get_request_and_conditions":
+        return await read_request_and_conditions(room)
+    if name == "report_offered_terms":
+        try:
+            months = int(args.get("months"))
+        except (TypeError, ValueError):
+            return None
+        price = _text(args, "monthly_price", 12).lstrip("$")
+        if not 1 <= months <= 120 or not price.replace(".", "", 1).isdigit():
+            return None
+        return await do_report_offered_terms(
+            room,
+            months,
+            price,
+            _text(args, "number_kept", 40) or "not stated",
+            _text(args, "voicemail_preserved", 40) or "not stated",
+        )
+    if name == "request_family_decision":
+        return do_request_family_decision(
+            room,
+            _text(args, "summary"),
+            _text(args, "option_one", 100),
+            _text(args, "option_two", 100),
+            _text(args, "option_three", 100),
+        )
+    if name == "request_human_help":
+        return do_request_human_help(room, _text(args, "reason"))
+    return await do_end_call(room, _text(args, "reason"))
+
+
+@router.post("/api/calls/{token}/transcript")
+async def add_transcript(request: Request, token: str):
+    """Record one final line from the browser. Agent lines go through the speech check."""
+    room, error = _live_room(request, token)
+    if error is not None or room is None:
+        return error
+    body = await _json_body(request)
+    who = str(body.get("who") or "")
+    text = " ".join(str(body.get("text") or "").split())[:1000]
+    item_id = str(body.get("item_id") or "")[:128]
+    if who not in ("rep", "agent") or not text or not item_id:
+        return _json_error(422, "A line needs who, text and item_id.")
+    seen: set[str] = room.__dict__.setdefault("transcript_items", set())
+    key = f"{who}:{item_id}"
+    if key in seen:
+        return {"tripped": False, "duplicate": True}
+    seen.add(key)
+    if who == "agent":
+        tripped = await room.screen_model_speech(text)
+        if not tripped and room.turns and room.turns[-1].text == text:
+            room.turns[-1].via = "realtime_voice"
+        return {"tripped": tripped}
+    via = "typed" if body.get("via") == "typed" else "voice"
+    await room.on_representative_speech()
+    room.turns.append(Turn(who="rep", text=text, via=via))
+    offered = offered_terms_from_text(text, room.terms)
+    if offered is not None and hash_terms(offered) != room.terms_hash:
+        await room.report_offered_terms(offered)
+    await _offer_follow_up(request, token, room)
+    return {"tripped": False}
+
+
+@router.post("/api/calls/{token}/approved-audio")
+async def approved_audio(request: Request, token: str):
+    """Re-check the approved terms, then give the browser the fixed sentence as speech.
+
+    The sentence is built by the server. The model never writes or speaks it.
+    """
+    room, error = _live_room(request, token)
+    if error is not None or room is None:
+        return error
+    played = await room.try_play_acceptance()
+    if not played or not room.sentence:
+        return {"played": False, "audio": None, "text": None}
+    audio = await speak_aloud(getattr(request.app.state, "settings", None), room.sentence)
+    return {"played": True, "audio": audio, "mime": "audio/ogg", "text": room.sentence}
 
 
 def agent_for_tests():

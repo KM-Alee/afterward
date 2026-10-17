@@ -24,7 +24,9 @@ class Settings(BaseModel):
     llm_accurate_effort: str = "low"
     tts_voice: str = "marin"
     realtime_model: str = "gpt-realtime-2.1"
-    realtime_transcribe_model: str = "gpt-live-transcribe"
+    # Listed in the Realtime client-secrets docs. Override with REALTIME_TRANSCRIBE_MODEL.
+    realtime_transcribe_model: str = "gpt-4o-mini-transcribe"
+    realtime_silence_ms: int = 550
     realtime_voice: str = "marin"
     agents_tracing: bool = True
     telegram_bot_token: SecretStr = Field(default=SecretStr(""), repr=False)
