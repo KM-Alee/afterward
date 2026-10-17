@@ -17,7 +17,7 @@
       <button class="btn btn--sm" type="button" data-open="timing"{% if not room.latency %} disabled{% endif %}>{{ ui.icon('clock') }}Timing</button>
     </div>
   </div>
-  <div class="disclosure" role="note">{{ ui.icon('shield') }}<span>You are talking to <b>Afterward, an AI assistant</b> acting for the Malik family.</span><span class="sim-tag">{{ ui.icon('ring') }}Browser call, not a phone call</span></div>
+  <div class="disclosure" role="note">{{ ui.icon('shield') }}<span>You are talking to <b>Afterward, an AI assistant</b> acting for the Malik family.</span><span class="sim-tag">{{ ui.icon('ring') }}Browser call, not a phone call</span>{% if room and room.mode_label %}<span class="sim-tag">{{ room.mode_label }}</span>{% endif %}</div>
   <p class="small muted">The speech check reduces the chance of an implied agreement. It is not a guarantee. Phone calls are {% if phone_calls_enabled %}enabled{% else %}off{% endif %}.</p>
   <div class="call">
     <section class="stage" aria-label="Agent">
@@ -126,3 +126,4 @@
   </div>
 </dialog>
 {% endblock %}
+{% block scripts %}<script src="/static/js/call.js" defer></script>{% endblock %}

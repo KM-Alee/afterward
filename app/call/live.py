@@ -11,7 +11,7 @@ import logging
 from typing import Any
 
 from app.call.acceptance import CallRoom
-from app.call.tools import CALL_INSTRUCTIONS
+from app.call.tools import CALL_INSTRUCTIONS, request_text
 
 logger = logging.getLogger(__name__)
 
@@ -48,8 +48,7 @@ def _context(room: CallRoom) -> str:
             if introduced
             else ""
         )
-        + "The approved request: move Northline line 4417 to Amina Malik, keep the number and the "
-        "existing voicemail, no new contract. "
+        + f"The approved request: {request_text(room)[0]} "
         f"{terms} Family approval status: {room.approval_status}.\n"
         "Reply as spoken words, at most two short sentences. Never agree to an offer; say the "
         "family decides.\nTranscript so far:\n" + "\n".join(lines)

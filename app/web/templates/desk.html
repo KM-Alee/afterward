@@ -29,6 +29,7 @@
     <div>
       <h1 class="page-title">{{ board.deceased }}</h1>
       <p class="page-sub">Died {{ board.died }}. {{ board.handler }}</p>
+      <p class="small" data-source="{{ board.source }}">{% if board.source == 'database' %}{{ ui.chip('holding', board.source_label) }}{% else %}<span class="sim-tag">{{ ui.icon('ring') }}{{ board.source_label }}</span>{% endif %}</p>
       <p class="reality">What is real: Gmail, Telegram, and a browser call, not a phone call. The 14 proofs use a stand-in model. A restart keeps this desk. Reminders use Google Calendar unless a Fastn workflow is configured. <a href="https://docs.google.com/document/d/18cnj5XJ1pz1jFCk0CWtGWtuKwZElqs7jpd-PW7hg7-c/edit">This status note</a> was written once through Fastn. It has no message bodies.</p>
     </div>
     <div class="toolbar">
@@ -51,9 +52,9 @@
   <div class="banner-line banner-line--alert" role="alert">{{ ui.icon('eye-off') }}<span><b>Mailbox disconnected.</b> Replies aren't being read, so nothing can be checked.</span></div>
   {% endif %}
   {% if board.delivery == 'uncertain' %}
-  <div class="banner-line banner-line--warn">{{ ui.icon('question') }}<span><b>A FitLife follow-up may not have sent.</b> Checking the Sent folder before trying again. Delivery is uncertain.</span></div>
+  <div class="banner-line banner-line--warn">{{ ui.icon('question') }}<span><b>A message may not have sent.</b> Checking the Sent folder before trying again. Delivery is uncertain.</span></div>
   {% elif board.delivery == 'reconciled' %}
-  <div class="banner-line banner-line--good">{{ ui.icon('check') }}<span><b>Found it.</b> The FitLife follow-up went once.</span></div>
+  <div class="banner-line banner-line--good">{{ ui.icon('check') }}<span><b>Found it.</b> The message went once.</span></div>
   {% endif %}
   <div class="desk">
     <div class="desk__col">
@@ -74,7 +75,7 @@
             </ul>
           </div>
           <div class="compare__col">
-            <h3 class="compare__label">Northline said</h3>
+            <h3 class="compare__label">{{ board.outcome.provider }} said{% if board.outcome_simulated %} <span class="sim-tag">{{ ui.icon('ring') }}Simulated reply</span>{% endif %}</h3>
             <figure class="quote">
               <blockquote class="quote__text">{{ board.outcome.quote }}</blockquote>
               <figcaption class="quote__source">{{ ui.evidence(board.outcome.quote_evidence) }}<span>{{ board.outcome.quote_at }}</span></figcaption>
@@ -103,7 +104,7 @@
           <div class="tiles">
             {% for account in board.accounts %}
             <button class="tile{% if account.focus %} is-focus{% endif %}" type="button" data-open="acct-{{ account.id }}">
-              <span class="tile__top"><span class="tile__name">{{ account.name }}</span>{{ ui.chip(account.bucket_kind if account.bucket_kind in ['holding','violated','unknown','review','waiting','info','progress','neutral'] else 'review', account.bucket_text) }}</span>
+              <span class="tile__top"><span class="tile__name">{{ account.name }}</span>{{ ui.chip(account.bucket_kind if account.bucket_kind in ['holding','violated','unauthorised','unknown','review','waiting','info','progress','neutral','void'] else 'review', account.bucket_text) }}</span>
               <span class="tile__sub">{{ account.label }}</span>
             </button>
             {% endfor %}
@@ -120,6 +121,14 @@
           </div>
         </div>
         <div class="panel-box__body scroll" data-panel="activity" data-events="{{ board.id }}" id="event-stream" tabindex="0">
+          {% if board.scheduled %}
+          <div class="small" aria-label="Scheduled">
+            <b>Scheduled</b>
+            <ul class="facts" role="list">
+              {% for job in board.scheduled %}<li>{{ ui.icon('clock') }}<span>{{ job.label }} &middot; {{ job.due }} ({{ job.status }})</span></li>{% endfor %}
+            </ul>
+          </div>
+          {% endif %}
           <ol class="tl" role="list">
             {% for event in board.events | reverse %}
             <li class="t--{{ event.tone }}">
@@ -170,13 +179,24 @@
       <button class="icon-btn" type="button" data-close aria-label="Close">{{ ui.icon('close') }}</button>
     </div>
     <div class="drawer__body" tabindex="0">
-      <p class="secondary">{{ account.label }}<br><span class="small muted">Found in: {{ account.origin }}</span></p>
+      <p class="secondary">{{ account.label }}<br><span class="small muted">Found in: {{ account.origin }}{% if account.origin_detail %} ({{ account.origin_detail }}){% endif %}</span>{% if account.track %}<br><span class="small muted">Track: {{ account.track }}</span>{% endif %}</p>
+      {% if account.plan_line %}<p class="small">{{ account.plan_line }}</p>{% endif %}
       <dl class="dims">
         <div><dt>Service</dt><dd>{{ ui.chip(account.service.kind, account.service.text) }}</dd></div>
         <div><dt>Money</dt><dd>{{ ui.chip(account.money.kind, account.money.text) }}</dd></div>
         <div><dt>Documents</dt><dd>{{ ui.chip(account.docs.kind, account.docs.text) }}</dd></div>
         <div><dt>Next</dt><dd><b>{{ account.next_owner }}</b>: {{ account.next_action }}</dd></div>
       </dl>
+      {% if account.commitments %}
+      <div class="drawer__group">
+        <p class="drawer__label">What the provider said</p>
+        <ul class="checks" role="list">
+          {% for line in account.commitments %}
+          <li><span>{{ line.label }}</span>{{ ui.chip(line.chip_kind, line.chip_text) }}<span class="checks__why">{% if line.why %}&ldquo;{{ line.why }}&rdquo;{% endif %}</span></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% endif %}
       {% if account.conditions %}
       <div class="drawer__group">
         <p class="drawer__label">Conditions</p>
@@ -193,22 +213,25 @@
   <dialog class="drawer" id="cov" aria-labelledby="cov-title">
     <div class="drawer__head"><h2 class="drawer__title" id="cov-title">What we searched</h2><button class="icon-btn" type="button" data-close aria-label="Close">{{ ui.icon('close') }}</button></div>
     <div class="drawer__body" tabindex="0">
-      <div class="drawer__group"><p class="drawer__label">Searched</p><ul class="facts" role="list"><li>{{ ui.icon('check') }}<span>Forwarded email</span></li><li>{{ ui.icon('check') }}<span>Photos of bills and letters</span></li></ul></div>
-      <div class="drawer__group"><p class="drawer__label">Not searched</p><ul class="facts" role="list"><li>{{ ui.icon('eye-off') }}<span>Paper post</span></li><li>{{ ui.icon('eye-off') }}<span>Cash payments</span></li></ul></div>
+      <div class="drawer__group"><p class="drawer__label">Searched</p><ul class="facts" role="list">{% for item in board.coverage.searched %}<li>{{ ui.icon('check') }}<span>{{ item }}</span></li>{% else %}<li><span class="muted">Nothing yet.</span></li>{% endfor %}</ul></div>
+      {% if board.coverage.waiting %}<div class="drawer__group"><p class="drawer__label">Started, waiting</p><ul class="facts" role="list">{% for item in board.coverage.waiting %}<li>{{ ui.icon('clock') }}<span>{{ item }}</span></li>{% endfor %}</ul></div>{% endif %}
+      {% if board.coverage.needs_you %}<div class="drawer__group"><p class="drawer__label">Needs the family</p><ul class="facts" role="list">{% for item in board.coverage.needs_you %}<li>{{ ui.icon('question') }}<span>{{ item }}</span></li>{% endfor %}</ul></div>{% endif %}
+      <div class="drawer__group"><p class="drawer__label">Not searched</p><ul class="facts" role="list">{% for item in board.coverage.not_searched %}<li>{{ ui.icon('eye-off') }}<span>{{ item }}</span></li>{% endfor %}</ul></div>
+      {% if board.coverage.where_else %}<div class="drawer__group"><p class="drawer__label">Where else to look</p><ul class="facts" role="list">{% for item in board.coverage.where_else %}<li>{{ ui.icon('info') }}<span>{{ item }}</span></li>{% endfor %}</ul></div>{% endif %}
       <p class="small muted">The list never closes. New accounts can turn up at any time.</p>
+      {% if family_token %}<p><a href="/family/{{ family_token }}/onboarding">Add a place to look</a></p>{% endif %}
     </div>
   </dialog>
   <dialog class="drawer" id="sum" aria-labelledby="sum-title">
     <div class="drawer__head"><h2 class="drawer__title" id="sum-title">Did you finish everything?</h2><button class="icon-btn" type="button" data-close aria-label="Close">{{ ui.icon('close') }}</button></div>
     <div class="drawer__body" tabindex="0">
-      <p class="lede">Not everything. Northline's "done" did not match the plan.</p>
+      <p class="lede">{{ board.finish_lead }}</p>
       <ul class="finished__lines" role="list">
-        <li>{{ ui.chip('violated', 'Not done') }}<small>Northline Mobile</small></li>
-        <li>{{ ui.chip('waiting', 'Promised') }}<small>FitLife Gym</small></li>
-        <li>{{ ui.chip('unknown', 'Unconfirmed') }}<small>A second Northline line, and Meridian Life</small></li>
-        <li>{{ ui.chip('info', 'With Sara') }}<small>Paperleaf Books</small></li>
+        {% for line in board.finish_lines %}
+        <li>{{ ui.chip(line.kind, line.text) }}<small>{{ line.name }}</small></li>
+        {% endfor %}
       </ul>
-      <p class="small muted">Confirmed, promised, blocked, handed back and unconfirmed stay separate.</p>
+      <p class="small muted">{{ board.finish_note }}</p>
     </div>
   </dialog>
   <dialog class="drawer" id="case" aria-labelledby="case-title">

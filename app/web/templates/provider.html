@@ -9,7 +9,7 @@
       <h1 class="page-title">Reply as a provider</h1>
       <p class="page-sub">Pick an organisation and answer Afterward's email.</p>
     </div>
-    <span class="sim-tag">{{ ui.icon('ring') }}Demo mailbox</span>
+    <span class="sim-tag">{{ ui.icon('ring') }}Simulated provider</span>
   </div>
   {% if board.empty %}
   <div class="empty">
@@ -41,7 +41,7 @@
     <label class="label" for="reply-text">Reply</label>
     <textarea class="textarea" id="reply-text" name="text" placeholder="Your reply"></textarea>
     <div class="compose__foot">
-      <span class="small muted">This records a message in the demo mailbox. Status after a successful send: sent.</span>
+      <span class="small muted">This is a simulator, not a real organisation. With a mailbox set up it sends real mail to the family mailbox and waits for the inbox check; without one it records the reply in the demo only and says so.</span>
       <button class="btn btn--primary" type="submit">{{ ui.icon('send') }}Send reply</button>
     </div>
   </form>

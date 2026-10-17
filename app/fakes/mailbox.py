@@ -60,6 +60,24 @@ class FakeMailbox:
         self.sent.append(record)
         return record
 
+    async def search_headers(self, mailbox: str, query: str, limit: int) -> list[dict[str, str]]:
+        """Headers of messages whose text holds any quoted anchor in the query."""
+        anchors = [part.lower() for part in query.split('"')[1::2]]
+        rows: list[dict[str, str]] = []
+        for gmail_id in self._order.get(mailbox, []):
+            message = self._messages[(mailbox, gmail_id)]
+            haystack = f"{message.subject} {message.full_text}".lower()
+            if any(anchor in haystack for anchor in anchors):
+                rows.append(
+                    {
+                        "id": gmail_id,
+                        "from": message.from_addr,
+                        "subject": message.subject,
+                        "date": "",
+                    }
+                )
+        return rows[: max(0, limit)]
+
     async def search_sent(self, mailbox: str, footer_ref: str) -> SentRecord | None:
         for record in self.sent:
             if record.mailbox == mailbox and footer_ref and footer_ref in record.text:

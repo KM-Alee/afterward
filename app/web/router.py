@@ -11,6 +11,7 @@ from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 
 from app.contracts import SendRequest
+from app.web.projection import project_board, resolve_case
 from app.web.proofs import PROOF_CASES, run_proof_panel
 from app.web.render import render
 from app.web.state import (
@@ -19,40 +20,13 @@ from app.web.state import (
     VARIANTS,
     CaseBoard,
     SurfaceState,
-    TimelineEvent,
     build_surface,
     case_time_label,
 )
+from app.web.store import session_factory_for
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-
-async def _send_fitlife_followup(surface: SurfaceState) -> None:
-    """One follow-up after the +14 day jump. FitLife's window is 10 business days."""
-    already = [
-        record
-        for record in surface.mailbox.sent
-        if "FL-5531" in record.text or "following up" in record.text.casefold()
-    ]
-    if already:
-        return
-    profile = PROVIDERS["fitlife"]
-    text = (
-        "Following up on membership FL-5531. "
-        "Please confirm the cancellation in writing.\n\n"
-        "Ref AW-1042-FL1"
-    )
-    await surface.mailbox.send(
-        SendRequest(
-            mailbox="family@demo.example",
-            to_addrs=[profile["recipient"]],
-            subject=profile["subject"],
-            text=text,
-            footer_ref="AW-1042-FL1",
-            from_name="Afterward",
-        )
-    )
 
 
 BOUNDARY_NOTE = (
@@ -72,7 +46,25 @@ def get_surface(request: Request) -> SurfaceState:
     if surface is None:
         surface = build_surface("")
         request.app.state.surface = surface
+    surface.session_factory = session_factory_for(request.app)
     return surface
+
+
+def board_for(request: Request, case_id: UUID) -> CaseBoard | None:
+    """The desk board: rows from the database when there is one, else the labelled demo data."""
+    surface = get_surface(request)
+    memory = surface.cases.get(case_id)
+    factory = surface.session_factory
+    if factory is not None:
+        try:
+            with factory() as session:
+                projected = project_board(session, case_id, overlay=memory)
+        except Exception:
+            logger.info("desk projection", extra={"kind": "desk.projection", "ok": False})
+            projected = None
+        if projected is not None:
+            return projected
+    return memory
 
 
 def signed_in(request: Request) -> bool:
@@ -233,7 +225,7 @@ def desk(request: Request, case_id: UUID):
     if denied is not None:
         return denied
     surface = get_surface(request)
-    board = surface.cases.get(case_id)
+    board = board_for(request, case_id)
     if board is None:
         return render(
             request,
@@ -243,6 +235,7 @@ def desk(request: Request, case_id: UUID):
         )
     call_token = _token_for(surface.call_tokens, case_id)
     room = surface.calls.get(call_token)
+    family_token = _token_for(surface.family_tokens, case_id)
     return render(
         request,
         "desk.html",
@@ -250,11 +243,49 @@ def desk(request: Request, case_id: UUID):
             request,
             "desk",
             board=board,
-            case_time=case_time_label(surface, board),
+            case_time=board.case_time or case_time_label(surface, board),
             call_token=call_token,
             room=room,
+            family_token=family_token,
         ),
     )
+
+
+def _error(request: Request, page: str, status_code: int, message: str):
+    return render(
+        request,
+        "error.html",
+        _page(request, page, status_code=status_code, message=message),
+        status_code=status_code,
+    )
+
+
+async def run_due_jobs_now(request: Request) -> int:
+    """Let the durable job runner fire what is due. Nothing is sent from this page."""
+    factory = get_surface(request).session_factory
+    if factory is None:
+        return 0
+    from app.engine import executors as _engine_executors  # noqa: F401  (registers kinds)
+    from app.engine.runner import RunContext, now_utc, register_executor, run_due_jobs
+    from app.mail.jobs import register_mail_executors
+
+    register_mail_executors(register_executor)
+    ctx = getattr(request.app.state, "run_context", None)
+    if ctx is None:
+        settings = getattr(request.app.state, "settings", None)
+        if settings is not None:
+            from app.runtime import build_run_context
+
+            ctx = build_run_context(settings, request.app)
+        else:
+            ctx = RunContext(settings=None)
+    fired = 0
+    for _round in range(3):  # a follow-up queues a send; the next round picks it up
+        done = await run_due_jobs(factory, ctx, wall=now_utc())
+        fired += done
+        if not done:
+            break
+    return fired
 
 
 @router.post("/api/cases/{case_id}/clock")
@@ -263,46 +294,46 @@ async def advance_clock(request: Request, case_id: UUID):
     if denied is not None:
         return denied
     surface = get_surface(request)
-    board = surface.cases.get(case_id)
+    board = board_for(request, case_id)
     if board is None:
-        return render(
-            request,
-            "error.html",
-            _page(request, "desk", status_code=404, message="That case link is not valid."),
-            status_code=404,
-        )
+        return _error(request, "desk", 404, "That case link is not valid.")
     form = await request.form()
     try:
         days = int(str(form.get("advance_days") or ""))
     except ValueError:
         days = 0
     if days not in {14, 35}:
-        return render(
-            request,
-            "error.html",
-            _page(
-                request,
-                "desk",
-                status_code=422,
-                message="The demo clock only moves 14 or 35 days.",
-            ),
-            status_code=422,
-        )
+        return _error(request, "desk", 422, "The demo clock only moves 14 or 35 days.")
     if not board.is_demo:
-        return render(
-            request,
-            "error.html",
-            _page(request, "desk", status_code=403, message="The case clock is demo only."),
-            status_code=403,
-        )
-    board.clock_case.clock_offset_s += days * 86400
-    if days == 14:
-        await _send_fitlife_followup(surface)
-        await _relay_fitlife_followup(request, surface, board)
+        return _error(request, "desk", 403, "The case clock is demo only.")
+    fired = 0
+    if board.source == "database":
+        from app.engine.clock import advance_case_clock
+        from app.engine.errors import EngineError
+
+        try:
+            with surface.session_factory() as session:  # type: ignore[operator]
+                row = resolve_case(session, case_id)
+                advance_case_clock(session, row.id, days * 86400)  # type: ignore[union-attr]
+                session.commit()
+        except EngineError as exc:
+            status = 403 if exc.code == "clock_demo_only" else 422
+            return _error(request, "desk", status, "The case clock could not move.")
+        try:
+            fired = await run_due_jobs_now(request)
+        except Exception:
+            logger.info("job run", extra={"kind": "job.run", "ok": False})
+    else:
+        memory = surface.cases[case_id]
+        memory.clock_case.clock_offset_s += days * 86400
+        if days == 14:
+            from app.web.simulated import simulate_followup
+
+            await simulate_followup(request.app, surface, memory)
     surface.live.publish(
         case_id,
         "clock.advanced",
-        {"days": days, "summary": f"Demo clock moved {days} days"},
+        {"days": days, "summary": f"Demo clock moved {days} days", "jobs_run": fired},
         actor="desk",
     )
     return RedirectResponse(f"/desk/{case_id}", status_code=303)
@@ -310,22 +341,29 @@ async def advance_clock(request: Request, case_id: UUID):
 
 @router.post("/api/cases/{case_id}/reset")
 def reset_demo(request: Request, case_id: UUID):
-    """Start the Malik story again: board, call room, demo mailbox and chat state."""
+    """Start the Malik story again: board, call room, demo mailbox, chat state and demo rows."""
     denied = _require_desk(request)
     if denied is not None:
         return denied
     surface = get_surface(request)
     if case_id != surface.demo_case_id:
-        return render(
-            request,
-            "error.html",
-            _page(request, "desk", status_code=403, message="Only the demo case can be reset."),
-            status_code=403,
-        )
+        return _error(request, "desk", 403, "Only the demo case can be reset.")
     from app.call.acceptance import CallRoom
     from app.fakes import FakeCallSession, FakeMailbox
     from app.story import mail_ready
 
+    factory = surface.session_factory
+    if factory is not None:
+        from app.web.demo_reset import reset_demo_rows
+
+        settings = getattr(request.app.state, "settings", None)
+        providers = getattr(settings, "providers_mailbox", "") if settings else ""
+        try:
+            with factory() as session:  # type: ignore[operator]
+                reset_demo_rows(session, providers_mailbox=providers)
+                session.commit()
+        except PermissionError:
+            return _error(request, "desk", 403, "Only the demo case can be reset.")
     fresh = build_surface("")
     board = fresh.cases[case_id]
     if mail_ready(getattr(request.app.state, "settings", None)):
@@ -335,6 +373,9 @@ def reset_demo(request: Request, case_id: UUID):
     for token, owner in surface.call_tokens.items():
         if owner == case_id:
             surface.calls[token] = CallRoom(session=FakeCallSession(), status="ready")
+    from app.web.state import attach_call_rooms
+
+    attach_call_rooms(surface)
     request.app.state.conversation = None
     surface.live.publish(case_id, "demo.reset", {"summary": "Demo reset"}, actor="desk")
     return RedirectResponse(f"/desk/{case_id}", status_code=303)
@@ -375,6 +416,11 @@ def run_proofs(request: Request):
     )
 
 
+from app.web.onboarding import router as _onboarding_router  # noqa: E402
+
+router.include_router(_onboarding_router)
+
+
 @router.get("/family/{token}")
 def family(request: Request, token: str):
     surface = get_surface(request)
@@ -393,7 +439,7 @@ def _family_page(
     request: Request, token: str, case_id: UUID, *, error: str = "", status_code: int = 200
 ):
     surface = get_surface(request)
-    board = surface.cases[case_id]
+    board = board_for(request, case_id)
     room = surface.calls.get(_token_for(surface.call_tokens, case_id))
     offer = room if room is not None and room.terms is not None else None
     return render(
@@ -489,7 +535,7 @@ async def family_decision(request: Request, token: str):
             _page(request, "family", status_code=422, message="That choice is not on the card."),
             status_code=422,
         )
-    board = surface.cases[case_id]
+    board = surface.cases[case_id]  # the choice lives in memory; no plan changes from this tap
     board.family_choice = choice
     surface.live.publish(
         case_id,
@@ -511,7 +557,7 @@ def provider(request: Request, token: str, sent: str = ""):
             _page(request, "provider", status_code=404, message="That provider link is not valid."),
             status_code=404,
         )
-    board = surface.cases[case_id]
+    board = board_for(request, case_id)
     return render(
         request,
         "provider.html",
@@ -523,10 +569,17 @@ def provider(request: Request, token: str, sent: str = ""):
             providers=PROVIDERS,
             variants=VARIANTS,
             notice=(
-                "Sent through the connected Gmail mailbox."
+                "Sent as real mail to the family mailbox. It reaches the desk only when the "
+                "inbox check reads it; this page does not put it on the board."
                 if sent == "live"
-                else ("" if sent != "1" else "Recorded in the demo mailbox as sent.")
+                else (
+                    ""
+                    if sent != "1"
+                    else "Simulated reply. Recorded in the demo mailbox as sent, because no "
+                    "mailbox is set up."
+                )
             ),
+            simulated_note=sent == "1",
             error="",
             reveal=True,
         ),
@@ -549,7 +602,7 @@ async def provider_send(request: Request):
             _page(request, "provider", status_code=404, message="That provider link is not valid."),
             status_code=404,
         )
-    board = surface.cases[case_id]
+    board = board_for(request, case_id)
     profile = PROVIDERS.get(provider_id)
     if profile is None:
         return render(
@@ -591,6 +644,23 @@ async def provider_send(request: Request):
     subject = thread.subject if thread else profile["subject"]
     body = f"{text}\n\n{FOOTER_REF}"
     live = await _relay_provider_mail(request, subject, body, profile["name"])
+    memory = surface.cases[case_id]
+    thread = memory.threads.get(provider_id)
+    if thread is None:
+        from app.web.state import ProviderThread
+
+        thread = ProviderThread(provider_id, subject, "")
+        memory.threads[provider_id] = thread
+    if live:
+        # Real mail to the family mailbox. The inbox check reads it; nothing is injected here.
+        thread.replies.append({"text": text, "status": "sent, waiting for the inbox check"})
+        surface.live.publish(
+            case_id,
+            "provider.reply",
+            {"provider": provider_id, "status": "mailed", "summary": f"{profile['name']} mailed"},
+            actor="provider",
+        )
+        return RedirectResponse(f"/provider/{token}?sent=live", status_code=303)
     await surface.mailbox.send(
         SendRequest(
             mailbox="providers@demo.example",
@@ -602,105 +672,55 @@ async def provider_send(request: Request):
             from_name=profile["name"],
         )
     )
-    if thread is None:
-        from app.web.state import ProviderThread
-
-        thread = ProviderThread(provider_id, subject, "")
-        board.threads[provider_id] = thread
-    thread.replies.append({"text": text, "status": "sent"})
-    if provider_id == "northline":
-        await _apply_northline_outcome(request, surface, board, text)
+    thread.replies.append({"text": text, "status": "sent (simulated)"})
+    await _apply_reply_outcome(request, surface, memory, provider_id, text)
     surface.live.publish(
         case_id,
         "provider.reply",
         {"provider": provider_id, "status": "sent", "summary": f"{profile['name']} reply recorded"},
         actor="provider",
     )
-    sent_flag = "live" if live else "1"
-    return RedirectResponse(f"/provider/{token}?sent={sent_flag}", status_code=303)
+    return RedirectResponse(f"/provider/{token}?sent=1", status_code=303)
 
 
-async def _relay_fitlife_followup(
-    request: Request, surface: SurfaceState, board: CaseBoard
+def _reply_plan(request: Request, provider_id: str):
+    """Plan, thread reference and case references for a simulated reply, from the rows.
+
+    Returns None when the database holds no approved plan for this provider; the scripted
+    in-memory Northline plan then stands in, and only for Northline.
+    """
+    factory = get_surface(request).session_factory
+    if factory is None:
+        return None
+    from sqlalchemy import select
+
+    from app.models import Account, ProviderProfile
+    from app.story import approved_plan_for, plan_view_from_row
+
+    with factory() as session:
+        profile = session.scalar(
+            select(ProviderProfile).where(ProviderProfile.name == PROVIDERS[provider_id]["name"])
+        )
+        if profile is None:
+            return None
+        accounts = list(session.scalars(select(Account).where(Account.provider_id == profile.id)))
+        for account in accounts:
+            found = approved_plan_for(session, account.id)
+            if found is not None:
+                refs = list(
+                    session.scalars(
+                        select(Account.account_ref).where(Account.case_id == account.case_id)
+                    )
+                )
+                plan = plan_view_from_row(found[0], profile.completion_evidence)
+                return account.account_ref, refs, plan
+    return None
+
+
+async def _apply_reply_outcome(
+    request: Request, surface: SurfaceState, board: CaseBoard, provider_id: str, text: str
 ) -> None:
-    """One Gmail follow-up for the +14 day jump. A second jump does not send another."""
-    if any(event.text.startswith("FitLife follow-up sent") for event in board.events):
-        return
-    sent = await _relay_family_mail(
-        request,
-        PROVIDERS["fitlife"]["subject"],
-        (
-            "Following up on membership FL-5531. "
-            "Please confirm the cancellation in writing.\n\n"
-            "Ref AW-1042-FL1"
-        ),
-        "AW-1042-FL1",
-    )
-    if sent:
-        board.events.append(
-            TimelineEvent(
-                "FitLife follow-up sent through the connected mailbox.",
-                case_time_label(surface, board),
-                "unverified",
-                "system",
-            )
-        )
-    found = await _find_sent(request, surface, "AW-1042-FL1", live=sent)
-    board.delivery = "reconciled" if found else "uncertain"
-    if found:
-        board.events.append(
-            TimelineEvent(
-                "Checked the Sent folder before saying so: the FitLife follow-up is there.",
-                case_time_label(surface, board),
-                "unverified",
-                "system",
-            )
-        )
-
-
-async def _find_sent(request: Request, surface: SurfaceState, footer: str, *, live: bool) -> bool:
-    """Look for the footer in Sent before saying a follow-up went."""
-    if not live:
-        return await surface.mailbox.search_sent("family@demo.example", footer) is not None
-    settings = request.app.state.settings
-    from app.integrations.google import gmail_mailbox_for
-
-    try:
-        mailbox = gmail_mailbox_for(settings, "family")
-        return await mailbox.search_sent(settings.family_mailbox, footer) is not None
-    except Exception:
-        logger.info("sent search", extra={"kind": "mail.reconcile", "ok": False})
-        return False
-
-
-async def _relay_family_mail(request: Request, subject: str, body: str, footer_ref: str) -> bool:
-    settings = getattr(request.app.state, "settings", None)
-    if settings is None or not _mail_ready(settings):
-        return False
-    from app.integrations.google import gmail_mailbox_for
-
-    try:
-        mailbox = gmail_mailbox_for(settings, "family")
-        await mailbox.send(
-            SendRequest(
-                mailbox=settings.family_mailbox,
-                to_addrs=[settings.providers_mailbox],
-                subject=subject,
-                text=body,
-                footer_ref=footer_ref,
-                from_name="Afterward",
-            )
-        )
-    except Exception:
-        logger.info("family mail", extra={"kind": "mail.relay", "ok": False})
-        return False
-    return True
-
-
-async def _apply_northline_outcome(
-    request: Request, surface: SurfaceState, board: CaseBoard, text: str
-) -> None:
-    """Check the Northline reply with the engine and show that result on the desk."""
+    """Simulated path only: check the reply with the engine and show it, labelled simulated."""
     ai = getattr(request.app.state, "reply_reader", None)
     settings = getattr(request.app.state, "settings", None)
     if ai is None:
@@ -711,10 +731,19 @@ async def _apply_northline_outcome(
         ai = AgentsSDKClient(settings)
     if board.outcome is None:
         return
-    from app.story import read_northline_reply, show_northline_verdict
+    from app.story import read_northline_reply, read_reply, show_northline_verdict
 
     try:
-        verdict, commitments = await read_northline_reply(ai, text)
+        row_plan = _reply_plan(request, provider_id)
+        if row_plan is not None:
+            ref, refs, plan = row_plan
+            verdict, commitments = await read_reply(
+                ai, text, account_ref=ref, case_refs=refs, plan=plan
+            )
+        elif provider_id == "northline":
+            verdict, commitments = await read_northline_reply(ai, text)
+        else:
+            return
     except Exception:
         logger.info("outcome check", extra={"kind": "outcome.live", "ok": False})
         return

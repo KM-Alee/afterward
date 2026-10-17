@@ -351,6 +351,8 @@ class Account(TimestampMixin, Base):
         _enum(DocsStatus, "account_status_docs"), nullable=False, default=DocsStatus.none_needed
     )
     next_step: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    track: Mapped[str | None] = mapped_column(String(32))
+    evidence_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
 
 
 class Dependency(TimestampMixin, Base):
@@ -682,6 +684,79 @@ class ProofRun(TimestampMixin, Base):
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
     results: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class MailConnection(TimestampMixin, Base):
+    """A mailbox the family connected. A deceased person's mailbox needs a stated authority."""
+
+    __tablename__ = "mail_connections"
+    __table_args__ = (
+        CheckConstraint("account_of IN ('household', 'deceased')", name="ck_mail_conn_account_of"),
+        CheckConstraint(
+            "account_of <> 'deceased' OR length(btrim(stated_authority)) > 0",
+            name="ck_mail_conn_authority",
+        ),
+        Index("ix_mail_connections_case", "case_id"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    case_id: Mapped[UUID] = mapped_column(
+        ForeignKey("cases.id", ondelete="CASCADE"), nullable=False
+    )
+    connected_by_member_id: Mapped[UUID | None] = mapped_column(
+        ForeignKey("members.id", ondelete="SET NULL")
+    )
+    owner_label: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    account_of: Mapped[str] = mapped_column(String(16), nullable=False)
+    stated_authority: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    address: Mapped[str] = mapped_column(String(320), nullable=False)
+    scope: Mapped[str] = mapped_column(String(64), nullable=False, default="readonly")
+    token_ciphertext: Mapped[bytes | None] = mapped_column(LargeBinary)
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class ProcessedUpdate(TimestampMixin, Base):
+    """Channel updates already handled, so a webhook retry does nothing twice."""
+
+    __tablename__ = "processed_updates"
+    __table_args__ = (
+        UniqueConstraint("channel", "update_id", name="uq_processed_updates_channel_update"),
+    )
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    channel: Mapped[str] = mapped_column(String(32), nullable=False)
+    update_id: Mapped[str] = mapped_column(String(128), nullable=False)
+    received_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class ConversationSnapshot(TimestampMixin, Base):
+    """The latest conversation state for a case; a restart reloads it."""
+
+    __tablename__ = "conversation_snapshots"
+
+    case_id: Mapped[UUID] = mapped_column(
+        ForeignKey("cases.id", ondelete="CASCADE"), primary_key=True
+    )
+    state: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+
+
+class DiscoverySource(TimestampMixin, Base):
+    """One place the family asked us to look for accounts, and how far it got."""
+
+    __tablename__ = "discovery_sources"
+
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True, default=uuid4)
+    case_id: Mapped[UUID] = mapped_column(
+        ForeignKey("cases.id", ondelete="CASCADE"), nullable=False
+    )
+    kind: Mapped[str] = mapped_column(String(64), nullable=False)
+    started_by: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    scope_text: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="pending")
+    matched: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
+    read: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
 
 
 def _remember_new_cases() -> None:

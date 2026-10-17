@@ -111,6 +111,26 @@ class DocOut(BaseModel):
     confidence: Literal["low", "high"]
 
 
+class PayeeLine(BaseModel):
+    """One recurring payee on a statement, with the words it was read from."""
+
+    model_config = STRICT
+
+    payee: str
+    reference: str | None
+    amount: str
+    date: str
+    quote: str
+
+
+class StatementOut(BaseModel):
+    """Payee lines read from a bank or card statement. Candidates only; grants nothing."""
+
+    model_config = STRICT
+
+    lines: list[PayeeLine]
+
+
 class DocRequest(BaseModel):
     """A document ask found in an untrusted reply. The recipient is not approved."""
 

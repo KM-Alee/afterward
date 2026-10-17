@@ -10,11 +10,13 @@ from uuid import uuid4
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy import create_engine, text
+from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 
 from app.call.router import router as call_router
 from app.config import Settings, postgres_url
 from app.db import init_db, make_engine
+from app.engine.demo_case import ensure_demo_case
 from app.logging import case_id_context, configure_logging, request_id_context
 from app.runtime import handle_telegram, supervise
 from app.web.router import router as web_router
@@ -37,8 +39,7 @@ async def lifespan(app: FastAPI):
         settings.demo_passcode.get_secret_value(),
         phone_calls_enabled=settings.phone_calls_enabled,
     )
-    if _mail_configured(settings):
-        app.state.surface.cases[app.state.surface.demo_case_id].monitoring = "ok"
+    # Monitoring is reported by the inbox_poll job after a real poll, never from config alone.
     app.state.run_proofs_live = bool(database_url)
     stop = asyncio.Event()
     worker = None
@@ -49,7 +50,13 @@ async def lifespan(app: FastAPI):
 
             attach_snapshot(app.state.surface, database_url)
             logger.info("database bootstrap", extra={"kind": "db.bootstrap", "ok": True})
-            worker = asyncio.create_task(supervise(stop, database_url, settings.poll_seconds))
+            _seed_demo_case(
+                database_url, settings.providers_mailbox, start_poll=_mail_configured(settings)
+            )
+            worker = asyncio.create_task(
+                supervise(stop, database_url, settings.poll_seconds, app=app, settings=settings)
+            )
+            _restore_conversation(app, settings)
         except Exception:
             logger.info("database bootstrap", extra={"kind": "db.bootstrap", "ok": False})
             app.state.run_proofs_live = False
@@ -63,6 +70,38 @@ async def lifespan(app: FastAPI):
         worker.cancel()
         with suppress(asyncio.CancelledError):
             await worker
+
+
+def _restore_conversation(app: FastAPI, settings: Settings) -> None:
+    """Load the saved Telegram conversation at boot, so a restart resumes the case."""
+    if not settings.telegram_bot_token.get_secret_value():
+        return
+    try:
+        from app.runtime import _conversation
+
+        app.state.conversation = _conversation(settings)
+    except Exception:
+        logger.info("conversation restore", extra={"kind": "conversation.restore", "ok": False})
+
+
+def _seed_demo_case(database_url: str, providers_mailbox: str, *, start_poll: bool) -> None:
+    """Insert the demo case once and start its inbox poll when mail is configured.
+
+    A failure is logged by kind and never stops boot.
+    """
+    engine = make_engine(database_url)
+    try:
+        with Session(engine) as session:
+            case_id = ensure_demo_case(session, providers_mailbox=providers_mailbox)
+            if start_poll:
+                from app.mail.jobs import ensure_inbox_poll
+
+                ensure_inbox_poll(session, case_id)
+            session.commit()
+    except Exception:
+        logger.info("demo seed", extra={"kind": "db.seed", "ok": False})
+    finally:
+        engine.dispose()
 
 
 app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -136,7 +175,8 @@ def status(request: Request) -> dict:
         },
         "channels": {
             "telegram": settings.telegram_mode,
-            "whatsapp": "webhook" if settings.whatsapp_token.get_secret_value() else "disabled",
+            # WhatsApp is out of this build: no webhook route is mounted (ADR-012).
+            "whatsapp": "disabled",
         },
         "mail": "configured" if _mail_configured(settings) else "disabled",
         "phone_calls": "enabled" if settings.phone_calls_enabled else "disabled",

@@ -39,8 +39,8 @@ MAX_ATTEMPTS = 3
 LEASE_SECONDS = 60
 _OUTBOUND_KINDS = {"send_request", "followup"}
 _FAMILY_KINDS = {"digest"}
+# inbox_poll is exempt: a successful poll is how an unhealthy mailbox recovers.
 _MAILBOX_KINDS = {
-    "inbox_poll",
     "send_request",
     "followup",
     "reconcile_action",

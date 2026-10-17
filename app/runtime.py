@@ -47,13 +47,85 @@ def run_health_checks(session: Session) -> int:
     return finished
 
 
+_ENGINES: dict[str, object] = {}
+
+
+def _db_session(settings) -> Session | None:
+    """A session on the configured database, or None when the app runs without one."""
+    url = settings.database_url.get_secret_value() if settings is not None else ""
+    if not url:
+        return None
+    from app.db import make_engine
+
+    engine = _ENGINES.get(url)
+    if engine is None:
+        engine = _ENGINES[url] = make_engine(url)
+    return Session(engine)
+
+
 def _conversation(settings: Settings):
+    """Build from the case rows when a database is configured; Malik constants otherwise."""
     from app.ai.client import AgentsSDKClient
+    from app.conversation.live import build_conversation, connect_url, latest_case_id
+    from app.discovery.agent import sdk_runner
+
+    ai = AgentsSDKClient(settings, timeout_s=60, max_retries=1)
+    runner = sdk_runner(settings)
+    session = _db_session(settings)
+    if session is not None:
+        try:
+            with session:
+                case_id = _case_id(session, settings) or latest_case_id(session)
+                if case_id is not None:
+                    _wire_ai_hooks(ai, settings, session, case_id)
+                    built = build_conversation(
+                        session, settings, ai, case_id=case_id, runner=runner
+                    )
+                    session.commit()
+                    if built is not None:
+                        return built
+        except Exception:
+            logger.info("conversation build", extra={"kind": "conversation.build", "ok": False})
+    return _demo_conversation(ai, runner, connect_url(settings))
+
+
+def _wire_ai_hooks(ai, settings, session: Session, case_id) -> None:
+    """Give the family agent read-only case facts and a proposal sink. Missing -> tools say so."""
+    try:
+        from app.ai.facts import make_account_facts, make_case_facts, make_proposal_sink
+        from app.models import Case
+
+        case = session.get(Case, case_id)
+        if case is None:
+            return
+
+        def factory() -> Session:
+            return _db_session(settings)  # type: ignore[return-value]
+
+        ai.hooks.case_facts = make_case_facts(factory)
+        ai.hooks.account_facts = make_account_facts(factory, case.ref)
+        ai.hooks.on_proposal = make_proposal_sink(factory, case.ref)
+    except Exception:
+        logger.info("ai hooks", extra={"kind": "conversation.hooks", "ok": False})
+
+
+def _case_id(session: Session, settings: Settings):
+    try:
+        from app.engine.demo_case import ensure_demo_case
+
+        return ensure_demo_case(session, providers_mailbox=settings.providers_mailbox or "")
+    except Exception:
+        session.rollback()
+        return None
+
+
+def _demo_conversation(ai, runner, url):
+    """No database: the fictional Malik constants. Discovery still works on forwards and photos."""
     from app.conversation.demo_malik import ALLOWED_RECIPIENTS, INVITE_TOKEN, NORTHLINE, PROVIDERS
     from app.conversation.session import Conversation, Invite
 
     return Conversation(
-        AgentsSDKClient(settings, timeout_s=60, max_retries=1),
+        ai,
         providers=PROVIDERS,
         allowed_recipients=ALLOWED_RECIPIENTS,
         line=NORTHLINE,
@@ -65,6 +137,9 @@ def _conversation(settings: Settings):
             )
         },
         case_date=date(2026, 3, 3),
+        discovery_runner=runner,
+        discovery=True,
+        connect_url=url,
     )
 
 
@@ -129,18 +204,23 @@ async def _media_replies(conversation, channel, event, *, cipher) -> list:
                 "I can see that picture, but the document key is not set, so I have not stored it.",
             )
         ]
-    await conversation.ingest_picture(
+    label = event.text or "photo from the family"
+    item = await conversation.ingest_picture(
         image=data,
         mime=mime,
-        label=event.text or "photo from the family",
-        evidence="telegram",
+        label=label,
+        evidence=f"photo:{conversation.state.photos_ingested + 1}",
         cipher=cipher,
     )
-    return [Outbound(event.sender, "I saved that picture with the case documents.")]
+    replies = [Outbound(event.sender, "I saved that picture with the case documents.")]
+    replies += await conversation.photo_discovery(
+        event.sender, label, doc_type=item.doc_type, image=data, mime=mime
+    )
+    return replies
 
 
 async def after_turn(app, conversation, sender: str, replies: list) -> list:
-    """Continue the Malik story the desk shows: ask Amina, mirror the turn, send on approval."""
+    """Continue the story the desk shows: ask the household, mirror the turn, queue on approval."""
     from app.conversation.session import Outbound
     from app.story import mark_request_sent, reflect_turn
 
@@ -150,27 +230,197 @@ async def after_turn(app, conversation, sender: str, replies: list) -> list:
         replies = [*replies, *asked]
         kinds += [reply.kind for reply in asked]
     surface = getattr(app.state, "surface", None)
+    if surface is not None:
+        reflect_turn(surface, conversation, kinds)
+    if "approval_recorded" not in kinds or conversation.state.approval is None:
+        return replies
+    settings = getattr(app.state, "settings", None)
+    queued = _queue_send(settings, conversation, sender)
+    if queued is False:
+        return [
+            *replies,
+            Outbound(
+                sender,
+                "Approved, but I couldn't tie it to the saved plan, so nothing was queued or "
+                "sent. Ask me to review the plan again.",
+                kind="request_not_queued",
+            ),
+        ]
+    if queued is True:
+        if surface is not None:
+            from app.story import add_event, publish
+
+            note = "Sara approved the plan on Telegram. The request is queued to send once."
+            add_event(surface, note, evidence="family", tone="family")
+            publish(surface, "request.queued", note, "family")
+        return [
+            *replies,
+            Outbound(
+                sender,
+                "Queued. It goes out once, under this approval, to the address on the provider "
+                "profile. I'll compare their reply with your conditions before anything is "
+                "marked done.",
+                kind="request_queued",
+            ),
+        ]
     if surface is None:
         return replies
-    reflect_turn(surface, conversation, kinds)
-    if "approval_recorded" in kinds:
-        text = await mark_request_sent(
-            surface, getattr(app.state, "settings", None), conversation.state.approval
-        )
-        replies = [*replies, Outbound(sender, text, kind="request_sent")]
-    return replies
+    text = await mark_request_sent(surface, settings, conversation.state.approval)
+    return [*replies, Outbound(sender, text, kind="request_sent")]
 
 
-async def notify_owner(app, text: str) -> bool:
-    """Tell Sara in Telegram when a provider reply was checked. No-op without a chat."""
+def _queue_send(settings, conversation, sender: str) -> bool | None:
+    """True when a send_request job was queued, False when it could not be, None without a DB."""
+    from app.conversation.live import enqueue_send
+
+    if getattr(conversation, "case_id", None) is None:
+        return None
+    session = _db_session(settings)
+    if session is None:
+        return None
+    try:
+        with session:
+            job_id = enqueue_send(session, conversation, sender)
+            session.commit()
+            return job_id is not None
+    except Exception:
+        logger.info("send queue", extra={"kind": "job.enqueue", "ok": False})
+        return False
+
+
+async def _followup_button(settings, conversation, event) -> list | None:
+    """`fu:<decision>:<choice>` answers the job runner's follow-up question. None if not one."""
+    button = getattr(event, "button_id", None) or ""
+    if not button.startswith("fu:") or not event.sender:
+        return None
+    from uuid import UUID
+
+    from app.conversation.session import Outbound
+    from app.engine.errors import EngineError
+    from app.engine.followups import answer_followup
+
+    member = conversation.state.members.get(event.sender)
+    if member is None:
+        return [Outbound(event.sender, "Only people on this case can answer that.")]
+    parts = button.split(":")
+    session = _db_session(settings)
+    if len(parts) != 3 or session is None:
+        return [Outbound(event.sender, "I don't have that button on the current card.")]
+    try:
+        with session:
+            text = await answer_followup(session, UUID(parts[1]), parts[2], actor=member.name)
+            session.commit()
+    except (EngineError, ValueError):
+        text = "That question was already answered or has expired. Nothing was sent."
+    return [Outbound(event.sender, text, kind="followup_answer")]
+
+
+def _point_connect_link(app, settings, conversation) -> None:
+    """Send the family to their own Finding accounts page, where connecting is a form.
+
+    The connect start route is POST-only (it carries the stated authority), so a bare link to
+    it would fail; the family page holds both forms.
+    """
+    base = str(getattr(settings, "public_base_url", "") or "").rstrip("/")
+    surface = getattr(app.state, "surface", None)
+    if not base or surface is None:
+        return
+    token = next(
+        (key for key, case in surface.family_tokens.items() if case == surface.demo_case_id),
+        None,
+    )
+    if token:
+        conversation.connect_url = f"{base}/family/{token}/onboarding#src-household"
+
+
+def _sync_candidates(settings, conversation) -> None:
+    """Pull web decisions and accounts into the chat before a turn."""
+    from app.discovery.sync import sync_candidates
+
+    session = _db_session(settings)
+    case_id = getattr(conversation, "case_id", None)
+    if session is None or case_id is None:
+        return
+    try:
+        with session:
+            sync_candidates(session, case_id, conversation.state.candidates)
+            _sync_locators(session, conversation)
+            session.commit()
+    except Exception:
+        logger.info("candidate sync", extra={"kind": "discovery.sync", "ok": False})
+
+
+def _sync_locators(session, conversation) -> None:
+    from app.discovery.sync import sync_locators
+
+    tools = getattr(conversation, "tools", None)
+    if tools is None:
+        return
+    owner = conversation.state.members.get(conversation.state.owner_sender or "")
+    sync_locators(
+        session, conversation.case_id, tools.locators_started, by=owner.name if owner else "Family"
+    )
+
+
+def _save_state(settings, conversation) -> None:
+    from app.conversation.live import save_state
+    from app.discovery.sync import sync_candidates
+
+    session = _db_session(settings)
+    if session is None or getattr(conversation, "case_id", None) is None:
+        return
+    try:
+        with session:
+            sync_candidates(session, conversation.case_id, conversation.state.candidates)
+            _sync_locators(session, conversation)
+            save_state(session, conversation)
+            session.commit()
+    except Exception:
+        logger.info("snapshot save", extra={"kind": "conversation.snapshot", "ok": False})
+
+
+def _claim_update(settings, update_id: int) -> bool | None:
+    """True if new, False if a retry, None when there is no database to ask."""
+    from app.conversation.live import claim_update
+
+    session = _db_session(settings)
+    if session is None:
+        return None
+    try:
+        with session:
+            fresh = claim_update(session, update_id)
+            session.commit()
+            return fresh
+    except Exception:
+        logger.info("update claim", extra={"kind": "channel.dedupe", "ok": False})
+        return None
+
+
+def _refresh_scan(settings, conversation) -> None:
+    from app.conversation.live import refresh_scan
+
+    session = _db_session(settings)
+    if session is None:
+        return
+    try:
+        with session:
+            refresh_scan(session, settings, conversation)
+    except Exception:
+        logger.info("scan refresh", extra={"kind": "discovery.scan", "ok": False})
+
+
+async def notify_owner(app, text: str, *, buttons: list[tuple[str, str]] | None = None) -> bool:
+    """Tell the case owner in Telegram, optionally with buttons. No-op without a chat."""
     conversation = getattr(app.state, "conversation", None)
     channel = getattr(app.state, "telegram_channel", None)
     owner = getattr(getattr(conversation, "state", None), "owner_sender", None)
     if conversation is None or channel is None or not owner:
         return False
+    from app.contracts import Option
     from app.conversation.session import Outbound
 
-    await _deliver(channel, Outbound(owner, text))
+    options = [Option(id=key, label=label) for key, label in buttons or []] or None
+    await _deliver(channel, Outbound(owner, text, options=options))
     return True
 
 
@@ -203,33 +453,42 @@ async def handle_telegram(request: Request) -> Response:
     except WebhookRejected:
         return Response(status_code=401)
     update_id = _update_id(body)
-    seen = getattr(request.app.state, "telegram_updates", None)
-    if seen is None:
-        seen = set()
-        request.app.state.telegram_updates = seen
-    if update_id is not None and update_id in seen:
-        return Response(status_code=200)
     if update_id is not None:
-        seen.add(update_id)
+        fresh = _claim_update(settings, update_id)
+        if fresh is None:  # no database: remember in memory for this process
+            seen = getattr(request.app.state, "telegram_updates", None)
+            if seen is None:
+                seen = set()
+                request.app.state.telegram_updates = seen
+            fresh = update_id not in seen
+            seen.add(update_id)
+        if not fresh:
+            return Response(status_code=200)
     if not settings.openai_api_key.get_secret_value() or not events:
         return Response(status_code=200)
     conversation = getattr(request.app.state, "conversation", None)
     if conversation is None:
         conversation = _conversation(settings)
         request.app.state.conversation = conversation
+    _point_connect_link(request.app, settings, conversation)
     lock = getattr(request.app.state, "conversation_lock", None)
     if lock is None:
         lock = asyncio.Lock()
         request.app.state.conversation_lock = lock
     cipher = _cipher(settings)
     async with lock:
+        _refresh_scan(settings, conversation)
+        _sync_candidates(settings, conversation)
         for event in events:
             try:
-                replies = await replies_for(conversation, channel, event, cipher=cipher)
+                replies = await _followup_button(settings, conversation, event)
+                if replies is None:
+                    replies = await replies_for(conversation, channel, event, cipher=cipher)
                 replies = await after_turn(request.app, conversation, event.sender, replies)
             except Exception:
                 logger.info("telegram turn", extra={"kind": "channel.turn", "ok": False})
                 continue
+            _save_state(settings, conversation)
             for reply in replies:
                 await _deliver(channel, reply)
         try:
@@ -248,21 +507,60 @@ def _update_id(body: bytes) -> int | None:
     return update_id if isinstance(update_id, int) else None
 
 
-async def supervise(stop: asyncio.Event, database_url: str, poll_seconds: int) -> None:
-    """Run health checks until stopped. The log records the kind, not the error text."""
+def build_run_context(settings: Settings, app=None):
+    """Build the job runner's context once. Missing credentials leave a part out, never fake."""
+    from app.engine.runner import RunContext
+
+    mailbox = None
+    if settings.family_mailbox and settings.google_refresh_token_family.get_secret_value():
+        try:
+            from app.integrations.google import gmail_mailbox_for
+
+            mailbox = gmail_mailbox_for(settings, "family")
+        except Exception:
+            logger.info("mailbox build", extra={"kind": "job.context", "ok": False})
+    ai = None
+    if settings.openai_api_key.get_secret_value():
+        from app.ai.client import AgentsSDKClient
+
+        ai = AgentsSDKClient(settings)
+    notify = ask = None
+    if app is not None:
+
+        async def notify(text: str) -> bool:
+            return await notify_owner(app, text)
+
+        async def ask(text: str, buttons: list[tuple[str, str]]) -> bool:
+            return await notify_owner(app, text, buttons=buttons)
+
+    return RunContext(settings=settings, mailbox=mailbox, ai=ai, notify=notify, ask=ask)
+
+
+async def supervise(
+    stop: asyncio.Event, database_url: str, poll_seconds: int, app=None, settings=None
+) -> None:
+    """Run due jobs until stopped. The log records the kind, not the error text."""
     if not database_url:
         return
     from app.db import make_engine
+    from app.engine import executors as _engine_executors  # noqa: F401  (registers kinds)
+    from app.engine.runner import now_utc, register_executor, run_due_jobs
+    from app.mail.jobs import register_mail_executors
 
+    register_mail_executors(register_executor)
+    settings = settings or getattr(getattr(app, "state", None), "settings", None) or Settings()
+    ctx = build_run_context(settings, app)
     engine = make_engine(database_url)
+
+    def factory() -> Session:
+        return Session(engine)
+
     try:
         while not stop.is_set():
             try:
-                with Session(engine) as session:
-                    run_health_checks(session)
-                    session.commit()
+                await run_due_jobs(factory, ctx, wall=now_utc())
             except Exception:
-                logger.info("health tick", extra={"kind": "job.health", "ok": False})
+                logger.info("job tick", extra={"kind": "job.tick", "ok": False})
             try:
                 await asyncio.wait_for(stop.wait(), timeout=poll_seconds)
             except TimeoutError:

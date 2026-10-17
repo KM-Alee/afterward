@@ -1,5 +1,6 @@
 """Honest coverage. There is no field for looking complete."""
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from app.discovery.candidates import Candidate
@@ -29,21 +30,37 @@ class Coverage:
 
 
 def coverage_panel(
-    candidates: list[Candidate], *, emails: int, photos: int, manual: int = 0
+    candidates: list[Candidate],
+    *,
+    emails: int,
+    photos: int,
+    manual: int = 0,
+    sources: Sequence[str] = (),
+    his_inbox_connected: bool = False,
 ) -> Coverage:
-    """Build the panel from what was actually ingested. The list stays open."""
+    """Build the panel from what was actually ingested. The list stays open.
+
+    `sources` are extra searched lines from connected inboxes and locators. When a family
+    member connected Yusuf's own inbox, it moves from not-searched to a searched line.
+    """
     if manual == 0:
         manual_line = "Accounts Sara added by hand (none yet)"
     else:
         manual_line = f"{manual} accounts added by hand"
-    unconfirmed = tuple(item.service_label for item in candidates if item.ownership != "confirmed")
+    unconfirmed = tuple(
+        item.service_label for item in candidates if item.ownership == "unconfirmed"
+    )
     return Coverage(
         searched=(
             f"{emails} emails Sara forwarded",
             f"{photos} photos of bills and letters",
             manual_line,
+            *sources,
         ),
-        not_searched=NOT_SEARCHED,
+        not_searched=tuple(
+            item for item in NOT_SEARCHED if not (his_inbox_connected and item == NOT_SEARCHED[0])
+        )
+        + ("Government, court and tax records", "His credit file"),
         unconfirmed=unconfirmed,
         where_else=WHERE_ELSE,
     )

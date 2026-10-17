@@ -35,7 +35,7 @@ fmt:
 	uv run --offline --frozen ruff format .
 
 proof:
-	@echo 'Placeholder: the 14 product proofs are not implemented; this is not a passing proof run.'
+	uv run --frozen python -m app.engine.proofs
 
 ci: lint test
 

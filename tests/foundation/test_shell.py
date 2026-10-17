@@ -51,3 +51,14 @@ def test_status_reports_real_postgres(monkeypatch, db_engine):
     monkeypatch.setenv("DATABASE_URL", db_engine.url.render_as_string(hide_password=False))
     with TestClient(app) as client:
         assert client.get("/status").json()["db_reachable"] is True
+
+
+def test_whatsapp_reported_disabled_even_with_token(monkeypatch):
+    """WhatsApp is out of this build; a token alone must not claim a webhook."""
+    monkeypatch.setenv("DATABASE_URL", "")
+    monkeypatch.setenv("WHATSAPP_TOKEN", "fixture-value-only")
+    with TestClient(app) as client:
+        status = client.get("/status").json()
+    assert status["channels"]["whatsapp"] == "disabled"
+    paths = {getattr(route, "path", "") for route in app.routes}
+    assert not any("whatsapp" in path for path in paths)

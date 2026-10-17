@@ -108,6 +108,10 @@ class AccountTile:
     next_action: str
     focus: bool = False
     conditions: list[Check] = field(default_factory=list)
+    origin_detail: str = ""
+    track: str = ""
+    plan_line: str = ""
+    commitments: list[Check] = field(default_factory=list)
 
 
 @dataclass
@@ -131,6 +135,30 @@ class OutcomePanel:
     verdict_kind: str
     verdict_text: str
     checks: list[Check]
+    provider: str = "Northline"
+
+
+@dataclass
+class FinishLine:
+    kind: str
+    text: str
+    name: str
+
+
+@dataclass
+class ScheduledJob:
+    label: str
+    due: str
+    status: str
+
+
+@dataclass
+class CoverageView:
+    searched: list[str] = field(default_factory=list)
+    waiting: list[str] = field(default_factory=list)
+    not_searched: list[str] = field(default_factory=list)
+    needs_you: list[str] = field(default_factory=list)
+    where_else: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -165,6 +193,15 @@ class CaseBoard:
     events: list[TimelineEvent]
     threads: dict[str, ProviderThread]
     family_choice: str | None = None
+    source: str = "memory"
+    source_label: str = "Demo data (not from the database)"
+    case_time: str = ""
+    outcome_simulated: bool = False
+    finish_lead: str = ""
+    finish_note: str = ""
+    finish_lines: list[FinishLine] = field(default_factory=list)
+    coverage: CoverageView = field(default_factory=CoverageView)
+    scheduled: list[ScheduledJob] = field(default_factory=list)
 
 
 @dataclass
@@ -185,6 +222,7 @@ class SurfaceState:
     call_tokens: dict[str, UUID] = field(default_factory=dict)
     calls: dict[str, CallRoom] = field(default_factory=dict)
     proof_history: list[dict[str, object]] = field(default_factory=list)
+    session_factory: object | None = None
 
     @property
     def demo_case_id(self) -> UUID:
@@ -221,7 +259,18 @@ def build_surface(demo_passcode: str, *, phone_calls_enabled: bool = False) -> S
     surface.call_tokens[empty_call] = empty.id
     surface.calls[call] = CallRoom(session=FakeCallSession(), status="ready")
     surface.calls[empty_call] = CallRoom(session=FakeCallSession(), status="none")
+    attach_call_rooms(surface)
     return surface
+
+
+def attach_call_rooms(surface: SurfaceState) -> None:
+    """Give each call room the approved plan's request text (from the rows, when there is a DB)."""
+    from app.web.plan_text import attach_request_provider
+
+    for token, room in surface.calls.items():
+        case_id = surface.call_tokens.get(token)
+        if case_id is not None:
+            attach_request_provider(surface, room, case_id)
 
 
 def _demo_board() -> CaseBoard:
@@ -250,7 +299,7 @@ def _demo_board() -> CaseBoard:
             "nl4417",
             "Northline Mobile",
             "Mobile line ending 4417",
-            "Forwarded email",
+            "Forward",
             "decision",
             "Needs family",
             Dim("review", "Reported transferred: not accepted"),
@@ -265,7 +314,7 @@ def _demo_board() -> CaseBoard:
             "nl2290",
             "Northline Mobile",
             "Mobile line ending 2290",
-            "Photo of a bill",
+            "Photo",
             "unconfirmed",
             "Unconfirmed",
             Dim("neutral", "Not started"),
@@ -279,7 +328,7 @@ def _demo_board() -> CaseBoard:
             "cb0932",
             "Crescent Bank",
             "Current account ending 0932",
-            "Forwarded email",
+            "Forward",
             "kept",
             "Kept",
             Dim("neutral", "Left open"),
@@ -293,7 +342,7 @@ def _demo_board() -> CaseBoard:
             "cp77120",
             "City Power",
             "Electricity, 14 Orchard Row",
-            "Photo of a bill",
+            "Photo",
             "waiting",
             "In progress",
             Dim("progress", "Closure requested"),
@@ -307,7 +356,7 @@ def _demo_board() -> CaseBoard:
             "sb",
             "StreamBox",
             "Streaming subscription",
-            "Forwarded email",
+            "Forward",
             "waiting",
             "In progress",
             Dim("progress", "Cancellation requested"),
@@ -321,7 +370,7 @@ def _demo_board() -> CaseBoard:
             "fl5531",
             "FitLife Gym",
             "Membership FL-5531",
-            "Forwarded email",
+            "Forward",
             "promised",
             "Promised",
             Dim("waiting", "Cancellation acknowledged"),
@@ -335,7 +384,7 @@ def _demo_board() -> CaseBoard:
             "hw",
             "Harbor Water",
             "Water, 14 Orchard Row",
-            "Photo of a bill",
+            "Photo",
             "kept",
             "Kept",
             Dim("neutral", "Supply stays on"),
@@ -349,7 +398,7 @@ def _demo_board() -> CaseBoard:
             "ml",
             "Meridian Life",
             "Policy letter",
-            "Photo of a letter",
+            "Photo",
             "unconfirmed",
             "Unconfirmed",
             Dim("unknown", "Not started"),
@@ -363,7 +412,7 @@ def _demo_board() -> CaseBoard:
             "pb",
             "Paperleaf Books",
             "Book club subscription",
-            "Forwarded email",
+            "Forward",
             "handed",
             "With Sara",
             Dim("info", "Web form only"),
@@ -445,6 +494,18 @@ def _demo_board() -> CaseBoard:
     }
     return CaseBoard(
         id=DEMO_CASE_ID,
+        finish_lead='Not everything. Northline\'s "done" did not match the plan.',
+        finish_note=("Confirmed, promised, blocked, handed back and unconfirmed stay separate."),
+        finish_lines=[
+            FinishLine("violated", "Not done", "Northline Mobile"),
+            FinishLine("waiting", "Promised", "FitLife Gym"),
+            FinishLine("unknown", "Unconfirmed", "A second Northline line, and Meridian Life"),
+            FinishLine("info", "With Sara", "Paperleaf Books"),
+        ],
+        coverage=CoverageView(
+            searched=["Forwarded email", "Photos of bills and letters"],
+            not_searched=["Paper post", "Cash payments"],
+        ),
         deceased="Yusuf Malik",
         died="3 March 2026",
         handler="Sara is handling the estate (as she has told us).",

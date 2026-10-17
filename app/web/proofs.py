@@ -112,6 +112,7 @@ def not_run_report() -> dict[str, object]:
     """Honest idle state: the 14 cases are listed and none has a result."""
     return {
         "status": "not_run",
+        "model_output": "",
         "reason": "The proof runner is not available yet. These 14 cases have not been run.",
         "results": [
             {
@@ -141,6 +142,16 @@ def _needs_session(runner: Callable[..., Any]) -> bool:
     )
 
 
+def _model_label(raw: dict[str, object]) -> str:
+    """Say what produced the extractions. Recorded output is never shown as live proof."""
+    label = str(raw.get("model_output") or "")
+    return (
+        label
+        if label in {"recorded model output", "live model output"}
+        else "recorded model output"
+    )
+
+
 def _page_report(raw: dict[str, object]) -> dict[str, object] | None:
     """Map the engine runner onto the 14 rows the page already shows."""
     results = raw.get("results")
@@ -166,6 +177,7 @@ def _page_report(raw: dict[str, object]) -> dict[str, object] | None:
     passed_count = int(raw.get("passed") or 0)
     return {
         "status": "passed" if failed == 0 else "failed",
+        "model_output": _model_label(raw),
         "reason": f"{passed_count} passed, {failed} failed.",
         "results": rows,
     }
@@ -223,4 +235,5 @@ def run_proof_panel(*, live: bool = False) -> dict[str, object]:
         report = not_run_report()
         report["reason"] = "The proof runner did not return one result for each of the 14 cases."
         return report
+    raw.setdefault("model_output", _model_label(raw))
     return raw

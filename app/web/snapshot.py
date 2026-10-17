@@ -52,6 +52,9 @@ def load_surface(surface: SurfaceState, payload: dict[str, object]) -> None:
         for key, value in calls.items():
             if isinstance(value, dict):
                 surface.calls[key] = _call_from(value)
+    from app.web.state import attach_call_rooms
+
+    attach_call_rooms(surface)
     sent = payload.get("sent")
     surface.mailbox.sent = []
     if isinstance(sent, list):

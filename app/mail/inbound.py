@@ -1,7 +1,9 @@
-"""Store a new message and call Agent A's extraction when it is importable.
+"""Store a new message; approved replies go through the engine's reply pipeline.
 
-The adapter does nothing harmful when those functions are still stubs. Model
-output is never copied into approved recipients.
+`ingest_message` only matches and stores. `process_inbound` is the async path the
+poll job uses: unapproved or unsorted mail is stored and held, approved replies
+run through `app.engine.pipeline.process_reply`. A missing AI client fails loudly.
+Model output is never copied into approved recipients.
 """
 
 from __future__ import annotations
@@ -14,24 +16,26 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.ai.schemas import ReplyOut
 from app.contracts import EventBus, MailMessage
-from app.mail.match import MatchResult, list_unsorted, match_message
+from app.engine.outcome import CommitmentView, FactView, PlanView, conditions_from, outcome_check
+from app.engine.pipeline import process_reply
+from app.mail.errors import MailError
+from app.mail.match import list_unsorted, match_message
 from app.mail.parse import extract_text
 from app.models import (
+    Account,
+    Case,
     Commitment,
-    CommitmentScope,
-    CommitmentStatus,
-    Interpretation,
     Message,
     MessageDirection,
     OutcomeCheck,
     Plan,
-    PlanAction,
     PlanStatus,
+    ProviderProfile,
+    RecipientCheck,
 )
 
-ExtractionState = Literal["called", "unavailable", "skipped"]
+ExtractionState = Literal["called", "skipped"]
 
 
 @dataclass
@@ -77,6 +81,7 @@ class IngestResult:
     unsorted: bool
     message_id: UUID | None
     extraction: ExtractionState
+    new: bool = False
 
 
 def ingest_messages(
@@ -87,7 +92,7 @@ def ingest_messages(
     bound_case_id: UUID | None = None,
     tray: UnsortedTray | None = None,
 ) -> list[IngestResult]:
-    """Match, store and, when approved, call extraction. Recipients stay put."""
+    """Match and store. Extraction is `process_inbound`'s job. Recipients stay put."""
     holding = tray if tray is not None else UnsortedTray()
     return [
         ingest_message(
@@ -160,7 +165,9 @@ def ingest_message(
     )
     session.add(row)
     session.flush()
-    extraction = _maybe_extract(session, row, matched, extracted.latest_text)
+    extraction = _check_outcome(
+        session, matched.case_id, matched.account_id, matched.recipient_check
+    )
     if bus is not None:
         bus.publish(
             session,
@@ -185,6 +192,7 @@ def ingest_message(
         unsorted=matched.unsorted,
         message_id=row.id,
         extraction=extraction,
+        new=True,
     )
 
 
@@ -193,211 +201,194 @@ def unsorted_for(session: Session, case_id: UUID) -> list[Message]:
     return list_unsorted(session, case_id)
 
 
-def _maybe_extract(
-    session: Session,
-    row: Message,
-    matched: MatchResult,
-    latest_text: str,
+def _check_outcome(
+    session: Session, case_id: UUID, account_id: UUID | None, check: RecipientCheck
 ) -> ExtractionState:
-    if matched.recipient_check.value != "approved" or matched.account_id is None:
+    """Deterministic check of the approved plan against stored commitments. No model call."""
+    if account_id is None or check is not RecipientCheck.approved:
         return "skipped"
-    outcome_check, verify = extraction_hooks()
-    if outcome_check is None and verify is None:
-        return "unavailable"
-    proposal = _call_verify(verify, latest_text)
-    if isinstance(proposal, ReplyOut):
-        _store_commitments(session, row, matched, proposal)
-    plan = _approved_plan(session, matched.account_id)
-    if plan is None:
-        return "skipped"
-    commitments = list(
-        session.scalars(select(Commitment).where(Commitment.account_id == matched.account_id))
-    )
-    verdict = _call_outcome(outcome_check, plan, commitments)
-    if verdict is not None and plan is not None:
-        verdict_name, results = verdict
-        session.add(
-            OutcomeCheck(
-                case_id=matched.case_id,
-                account_id=matched.account_id,
-                plan_version=plan.version,
-                results=results,
-                verdict=verdict_name,
-            )
-        )
-        session.flush()
-    return "called"
-
-
-def extraction_hooks() -> tuple[object | None, object | None]:
-    """Return Agent A's callables when they exist. Missing stubs stay None."""
-    outcome_check = _callable("app.engine.outcome", "outcome_check")
-    verify = None
-    for name in ("verify_reply", "verify_quotes", "verify"):
-        verify = _callable("app.ai.verify", name)
-        if verify is not None:
-            break
-    return outcome_check, verify
-
-
-def _callable(module_name: str, attr: str) -> object | None:
-    try:
-        module = __import__(module_name, fromlist=[attr])
-    except ImportError:
-        return None
-    candidate = getattr(module, attr, None)
-    if callable(candidate):
-        return candidate
-    return None
-
-
-def judge_reply(ai: object, latest_text: str, account_refs: list[str]) -> ReplyOut:
-    """Read one approved reply with the given client. Callers pass the live client explicitly."""
-    import asyncio
-
-    from app.engine.pipeline import extract_verified_reply
-
-    async def _run() -> ReplyOut:
-        return await extract_verified_reply(ai, latest_text, account_refs)
-
-    return asyncio.run(_run())
-
-
-def _call_verify(verify: object | None, latest_text: str) -> object | None:
-    if verify is None:
-        return None
-    try:
-        return verify(latest_text)  # type: ignore[operator]
-    except TypeError:
-        return None
-
-
-def _commitment_views(rows: list[Commitment]) -> list[object]:
-    from app.engine.outcome import CommitmentView, FactView
-
-    views: list[object] = []
-    for row in rows:
-        facts = []
-        for fact in row.facts or []:
-            if isinstance(fact, dict):
-                facts.append(
-                    FactView(
-                        key=str(fact.get("key") or ""),
-                        value=str(fact.get("value") or ""),
-                        evidence_quote=str(fact.get("evidence_quote") or ""),
-                    )
-                )
-        action = row.action.value if hasattr(row.action, "value") else str(row.action)
-        status = row.status.value if hasattr(row.status, "value") else str(row.status)
-        interpretation = (
-            row.interpretation.value
-            if hasattr(row.interpretation, "value")
-            else str(row.interpretation)
-        )
-        views.append(
-            CommitmentView(
-                action=action,
-                status=status,
-                interpretation=interpretation,
-                facts=tuple(facts),
-                negated=bool(row.negated),
-                at=row.created_at or datetime.now(UTC),
-                evidence_quote=row.evidence_quote or "",
-            )
-        )
-    return views
-
-
-def _plan_view(plan: Plan) -> object:
-    from app.engine.outcome import PlanView, conditions_from
-
-    action = plan.action.value if hasattr(plan.action, "value") else str(plan.action)
-    return PlanView(
-        action=action,
-        conditions=conditions_from(list(plan.conditions or [])),
-        completion_evidence=(),
-    )
-
-
-def _call_outcome(
-    outcome_check: object | None,
-    plan: Plan | None,
-    commitments: list[Commitment],
-) -> tuple[str, dict[str, object]] | None:
-    if outcome_check is None or plan is None:
-        return None
-    try:
-        result = outcome_check(plan, commitments)  # type: ignore[operator]
-    except (TypeError, AttributeError):
-        result = outcome_check(_plan_view(plan), _commitment_views(commitments))  # type: ignore[operator]
-    return _verdict(result)
-
-
-def _verdict(result: object) -> tuple[str, dict[str, object]] | None:
-    if isinstance(result, str) and result:
-        return result, {}
-    if isinstance(result, dict):
-        name = result.get("verdict")
-        raw = result.get("results")
-        if not isinstance(name, str) or not name:
-            return None
-        results = raw if isinstance(raw, dict) else {}
-        return name, _json_object(results)
-    name = getattr(result, "verdict", None)
-    raw = getattr(result, "results", {})
-    if isinstance(name, str) and name:
-        results = raw if isinstance(raw, dict) else {}
-        return name, _json_object(results)
-    return None
-
-
-def _json_object(value: dict[object, object]) -> dict[str, object]:
-    return {str(key): _jsonish(item) for key, item in value.items()}
-
-
-def _jsonish(value: object) -> object:
-    if value is None or isinstance(value, (str, int, float, bool)):
-        return value
-    if isinstance(value, dict):
-        return {str(key): _jsonish(item) for key, item in value.items()}
-    if isinstance(value, list):
-        return [_jsonish(item) for item in value]
-    return str(value)
-
-
-def _approved_plan(session: Session, account_id: UUID) -> Plan | None:
-    return session.scalar(
+    plan = session.scalar(
         select(Plan)
         .where(Plan.account_id == account_id, Plan.status == PlanStatus.approved)
         .order_by(Plan.version.desc())
     )
+    account = session.get(Account, account_id)
+    if plan is None or account is None:
+        return "skipped"
+    profile = session.get(ProviderProfile, account.provider_id) if account.provider_id else None
+    rows = list(session.scalars(select(Commitment).where(Commitment.account_id == account_id)))
+    views = [
+        CommitmentView(
+            action=row.action.value,
+            status=row.status.value,
+            interpretation=row.interpretation.value,
+            facts=tuple(
+                FactView(
+                    key=str(f.get("key") or ""),
+                    value=str(f.get("value") or ""),
+                    evidence_quote=str(f.get("evidence_quote") or ""),
+                )
+                for f in (row.facts or [])
+                if isinstance(f, dict)
+            ),
+            negated=bool(row.negated),
+            at=row.created_at or datetime.now(UTC),
+            evidence_quote=row.evidence_quote or "",
+        )
+        for row in rows
+    ]
+    verdict = outcome_check(
+        PlanView(
+            action=plan.action.value,
+            conditions=conditions_from(list(plan.conditions or [])),
+            completion_evidence=tuple(
+                str(e) for e in (profile.completion_evidence if profile else [])
+            ),
+        ),
+        views,
+    )
+    session.add(
+        OutcomeCheck(
+            case_id=case_id,
+            account_id=account_id,
+            plan_version=plan.version,
+            results={**verdict.results, "unauthorised": list(verdict.extras)},
+            verdict=verdict.verdict,
+        )
+    )
+    session.flush()
+    return "called"
 
 
-def _store_commitments(
+async def process_inbound(
     session: Session,
-    row: Message,
-    matched: MatchResult,
-    proposal: ReplyOut,
-) -> None:
-    """Store proposed commitments. Document asks do not change recipients."""
-    if matched.case_id is None or matched.account_id is None:
-        return
-    for item in proposal.commitments:
-        session.add(
-            Commitment(
-                case_id=matched.case_id,
-                message_id=row.id,
-                account_id=matched.account_id,
-                action=PlanAction(item.action),
-                status=CommitmentStatus(item.status),
-                conditions=list(item.conditions_or_requirements),
-                facts=[fact.model_dump() for fact in item.facts],
-                negated=item.negated,
-                scope=CommitmentScope(item.scope),
-                effective_date=item.effective_date,
-                evidence_quote=item.evidence_quote,
-                quote_verified=False,
-                interpretation=Interpretation(item.interpretation),
+    messages: list[MailMessage],
+    *,
+    ai: object | None,
+    bus: EventBus | None = None,
+    bound_case_id: UUID | None = None,
+    tray: UnsortedTray | None = None,
+) -> list[IngestResult]:
+    """Store every message; run approved, matched replies through the engine pipeline.
+
+    Raises MailError before storing a message that needs reading when `ai` is None,
+    so the poll job fails visibly and the message is fetched again next time.
+    """
+    holding = tray if tray is not None else UnsortedTray()
+    results: list[IngestResult] = []
+    for message in messages:
+        matched = match_message(session, message, bound_case_id=bound_case_id)
+        reads = (
+            matched.case_id is not None
+            and matched.account_id is not None
+            and matched.recipient_check is RecipientCheck.approved
+            and not _already_stored(session, matched.case_id, message.gmail_id)
+        )
+        if not reads:
+            results.append(
+                ingest_message(session, message, bus=bus, bound_case_id=bound_case_id, tray=holding)
+            )
+            continue
+        if ai is None:
+            raise MailError("An approved reply needs reading but no AI client is configured")
+        assert matched.case_id is not None and matched.account_id is not None
+        results.append(
+            await _read_approved(
+                session, message, matched.case_id, matched.account_id, matched.method, ai, bus
             )
         )
-        session.flush()
+    return results
+
+
+def _already_stored(session: Session, case_id: UUID, gmail_id: str) -> bool:
+    return (
+        session.scalar(
+            select(Message.id).where(
+                Message.case_id == case_id,
+                Message.gmail_id == gmail_id,
+                Message.direction == MessageDirection.inbound,
+            )
+        )
+        is not None
+    )
+
+
+async def _read_approved(
+    session: Session,
+    message: MailMessage,
+    case_id: UUID,
+    account_id: UUID,
+    method: str,
+    ai: object,
+    bus: EventBus | None,
+) -> IngestResult:
+    case = session.get(Case, case_id)
+    account = session.get(Account, account_id)
+    if case is None or account is None:
+        raise MailError("Matched case or account is missing")
+    profile = session.get(ProviderProfile, account.provider_id) if account.provider_id else None
+    plan = session.scalar(
+        select(Plan)
+        .where(Plan.account_id == account.id, Plan.status == PlanStatus.approved)
+        .order_by(Plan.version.desc())
+    )
+    before = set(
+        session.scalars(
+            select(Message.id).where(
+                Message.case_id == case_id, Message.direction == MessageDirection.inbound
+            )
+        )
+    )
+    raw = message.full_text or message.latest_text
+    outcome = await process_reply(
+        session,
+        case=case,
+        account=account,
+        plan=plan,
+        raw_text=raw,
+        from_addr=message.from_addr,
+        reply_to=message.reply_to,
+        ai=ai,
+        account_refs=[account.account_ref],
+        approved_recipients=[str(a) for a in (profile.approved_recipients if profile else [])],
+        completion_evidence=tuple(str(e) for e in (profile.completion_evidence if profile else [])),
+        received_at=message.received_at,
+        subject=message.subject,
+        to_addrs=list(message.to_addrs),
+    )
+    stored = session.scalar(
+        select(Message).where(
+            Message.case_id == case_id,
+            Message.direction == MessageDirection.inbound,
+            Message.id.not_in(before) if before else Message.id.is_not(None),
+        )
+    )
+    if stored is not None:
+        stored.gmail_id = message.gmail_id
+        stored.thread_id = message.thread_id or None
+        stored.rfc_message_id = message.rfc_message_id or None
+    session.flush()
+    if bus is not None:
+        bus.publish(
+            session,
+            case_id,
+            "mail_ingested",
+            {
+                "gmail_id": message.gmail_id,
+                "recipient_check": outcome.recipient_check.value,
+                "match": method,
+                "unsorted": False,
+            },
+            actor="Afterward",
+        )
+    return IngestResult(
+        gmail_id=message.gmail_id,
+        case_id=case_id,
+        account_id=account_id,
+        recipient_check=outcome.recipient_check.value,
+        method=method,
+        unsorted=False,
+        message_id=stored.id if stored else None,
+        extraction="called",
+        new=True,
+    )

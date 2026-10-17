@@ -27,6 +27,8 @@ class GmailTransport(Protocol):
 
     def messages_get(self, gmail_id: str) -> dict[str, Any]: ...
 
+    def messages_metadata(self, gmail_id: str) -> dict[str, Any]: ...
+
     def messages_send(self, body: dict[str, Any]) -> dict[str, Any]: ...
 
     def profile_history_id(self) -> str: ...
@@ -102,6 +104,27 @@ class GmailMailbox:
             footer_ref=request.footer_ref,
             text=request.text,
         )
+
+    async def search_headers(self, mailbox: str, query: str, limit: int) -> list[dict[str, str]]:
+        """From, Subject and Date for matching messages. Bodies are not fetched."""
+        transport = self._require(mailbox)
+        rows: list[dict[str, str]] = []
+        for gmail_id in transport.messages_list(query)[: max(0, limit)]:
+            resource = transport.messages_metadata(gmail_id)
+            headers = {
+                str(item.get("name", "")).lower(): str(item.get("value", ""))
+                for item in resource.get("payload", {}).get("headers", [])
+                if isinstance(item, dict)
+            }
+            rows.append(
+                {
+                    "id": str(resource.get("id") or gmail_id),
+                    "from": headers.get("from", ""),
+                    "subject": headers.get("subject", ""),
+                    "date": headers.get("date", ""),
+                }
+            )
+        return rows
 
     async def search_sent(self, mailbox: str, footer_ref: str) -> SentRecord | None:
         if not footer_ref:
@@ -212,6 +235,21 @@ class GoogleGmailTransport:
             if http_status(exc) == 404:
                 raise MailNotFound("No message for that id") from None
             raise
+
+    def messages_metadata(self, gmail_id: str) -> dict[str, Any]:
+        """Headers only: From, Subject, Date. The body is not requested."""
+        fetched = (
+            self._api()
+            .users()
+            .messages()
+            .get(
+                userId="me",
+                id=gmail_id,
+                format="metadata",
+                metadataHeaders=["From", "Subject", "Date"],
+            )
+        )
+        return fetched.execute()
 
     def messages_send(self, body: dict[str, Any]) -> dict[str, Any]:
         try:

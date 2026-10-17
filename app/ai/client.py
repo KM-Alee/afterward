@@ -4,13 +4,15 @@ from __future__ import annotations
 
 import asyncio
 import io
+import json
 import re
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
+from dataclasses import dataclass, field
 
 from pydantic import BaseModel, ConfigDict
 
 from app.ai.prompts import PROMPTS
-from app.ai.schemas import DependencyOut, DocOut, IntakeOut, ReplyOut
+from app.ai.schemas import DependencyOut, DocOut, IntakeOut, ReplyOut, StatementOut
 from app.ai.verify import force_photo_form
 from app.config import Settings
 from app.contracts import (
@@ -65,6 +67,10 @@ ROLE_SCHEMAS: dict[str, type[BaseModel]] = {
     "document_reader": DocOut,
 }
 
+# document_reader can also read a statement; it needs its own agent for that output type.
+EXTRA_ROLE_SCHEMAS: dict[str, type[BaseModel]] = {"document_reader": StatementOut}
+STATEMENT_AGENT = "statement_reader"
+
 Runner = Callable[..., Awaitable[BaseModel | dict[str, object]]]
 
 
@@ -101,6 +107,71 @@ def output_missing_quote(output: object) -> bool:
     return False
 
 
+@dataclass
+class ToolHooks:
+    """Read-only case facts and proposal sinks injected by the application.
+
+    Nothing here approves anything. Without a provider a tool says so; it never invents data.
+    """
+
+    case_facts: Callable[[str], dict[str, object]] | None = None
+    account_facts: Callable[[str], dict[str, object]] | None = None
+    on_proposal: Callable[[str, dict[str, object]], None] | None = None
+    proposals: list[tuple[str, dict[str, object]]] = field(default_factory=list)
+
+
+NOT_AVAILABLE = "not available: no case data source is connected to this tool"
+
+
+def _short(value: object, limit: int = 400) -> str:
+    return " ".join(str(value or "").split())[:limit]
+
+
+def tool_get_case_status(hooks: ToolHooks, case_ref: str) -> str:
+    """Read-only case facts from the injected provider."""
+    if hooks.case_facts is None:
+        return NOT_AVAILABLE
+    try:
+        facts = hooks.case_facts(_short(case_ref, 64))
+    except Exception:
+        return "not available: case facts could not be read"
+    return json.dumps(facts, default=str)
+
+
+def tool_get_account(hooks: ToolHooks, account_ref: str) -> str:
+    """Read-only account dimensions from the injected provider."""
+    if hooks.account_facts is None:
+        return NOT_AVAILABLE
+    try:
+        facts = hooks.account_facts(_short(account_ref, 128))
+    except Exception:
+        return "not available: account facts could not be read"
+    return json.dumps(facts, default=str)
+
+
+def _record_proposal(hooks: ToolHooks, kind: str, payload: dict[str, object]) -> str:
+    if hooks.on_proposal is None:
+        return NOT_AVAILABLE
+    try:
+        hooks.on_proposal(kind, payload)
+    except Exception:
+        return "not available: the proposal could not be recorded"
+    hooks.proposals.append((kind, payload))
+    return "Proposed to the family. Nothing is approved, sent or changed."
+
+
+def tool_propose_decision(hooks: ToolHooks, summary: str) -> str:
+    """Record a proposed decision for the family. Never approves."""
+    return _record_proposal(hooks, "decision", {"summary": _short(summary)})
+
+
+def tool_record_dependency_answer(hooks: ToolHooks, kind: str, statement: str) -> str:
+    """Record a proposed dependency answer. Code turns it into conditions later."""
+    return _record_proposal(
+        hooks, "dependency", {"kind": _short(kind, 32), "statement": _short(statement)}
+    )
+
+
 def _message_text(messages: Sequence[ChatMessage]) -> str:
     return "\n".join(message.content for message in messages)
 
@@ -126,7 +197,7 @@ def _load_sdk():
     }
 
 
-def build_agents(settings: Settings):
+def build_agents(settings: Settings, hooks: ToolHooks | None = None):
     """Construct the five structured agents. Guardrails and approvals are attached here."""
     sdk = _load_sdk()
     tracing = bool(settings.agents_tracing and settings.openai_api_key.get_secret_value())
@@ -151,27 +222,27 @@ def build_agents(settings: Settings):
             tripwire_triggered=missing,
         )
 
+    hk = hooks if hooks is not None else ToolHooks()
+
     @sdk["function_tool"](needs_approval=False)
     def get_case_status(case_ref: str) -> str:
-        """Read a case reference. The engine supplies facts. This does not decide them."""
-        return f"read_only:{case_ref}"
+        """Read facts for a case reference. The engine supplies them; this does not decide."""
+        return tool_get_case_status(hk, case_ref)
 
     @sdk["function_tool"](needs_approval=False)
     def get_account(account_ref: str) -> str:
-        """Read an account reference. This cannot change the account."""
-        return f"read_only:{account_ref}"
+        """Read an account's status dimensions. This cannot change the account."""
+        return tool_get_account(hk, account_ref)
 
     @sdk["function_tool"](needs_approval=True)
     def propose_decision(summary: str) -> str:
         """Propose a family decision. This does not approve a plan or send anything."""
-        del summary
-        return "proposal_only"
+        return tool_propose_decision(hk, summary)
 
     @sdk["function_tool"](needs_approval=True)
     def record_dependency_answer(kind: str, statement: str) -> str:
         """Propose a dependency answer. Code turns it into conditions. This grants nothing."""
-        del kind, statement
-        return "proposal_only"
+        return tool_record_dependency_answer(hk, kind, statement)
 
     retry = sdk["ModelRetrySettings"](
         max_retries=2,
@@ -193,6 +264,14 @@ def build_agents(settings: Settings):
         )
         agent.model_settings = sdk["ModelSettings"](timeout=20, retry=retry)
         agents[role] = agent
+    statement = make_structured_agent(
+        name=STATEMENT_AGENT,
+        instructions=PROMPTS[STATEMENT_AGENT],
+        output_type=StatementOut,
+        model=settings.llm_fast_model,
+    )
+    statement.model_settings = sdk["ModelSettings"](timeout=20, retry=retry)
+    agents[STATEMENT_AGENT] = statement
     agents["intake"].input_guardrails = [crisis_guardrail]
     agents["intake"].output_guardrails = [quote_guardrail]
     agents["family_conversation"].input_guardrails = [crisis_guardrail]
@@ -228,7 +307,17 @@ class AgentsSDKClient:
         self.max_retries = max_retries
         self.retry_sleep_s = retry_sleep_s
         self._session_engine = session_engine
-        self.agents = build_agents(self._settings)
+        self.hooks = ToolHooks()
+        self.agents = build_agents(self._settings, self.hooks)
+
+    @property
+    def case_facts(self) -> Callable[[str], dict[str, object]] | None:
+        return self.hooks.case_facts
+
+    @case_facts.setter
+    def case_facts(self, provider: Callable[[str], dict[str, object]] | None) -> None:
+        """Inject the read-only case facts provider used by get_case_status."""
+        self.hooks.case_facts = provider
 
     def model_for(self, role: AIRole) -> str:
         """Fast for conversation and vision. Accurate for reply extraction. Upgrade is separate."""
@@ -282,7 +371,7 @@ class AgentsSDKClient:
     ) -> BaseModel:
         if role not in ROLE_SCHEMAS:
             raise ContractError("Unknown AI role")
-        if schema is not ROLE_SCHEMAS[role]:
+        if schema is not ROLE_SCHEMAS[role] and schema is not EXTRA_ROLE_SCHEMAS.get(role):
             raise ContractError("Schema does not match the role")
         if role in {"intake", "family_conversation"} and screen_crisis(_message_text(messages)):
             raise CrisisPaused()
@@ -290,7 +379,7 @@ class AgentsSDKClient:
         for attempt in range(self.max_retries + 1):
             try:
                 raw = await asyncio.wait_for(
-                    self._invoke(role, messages, images),
+                    self._invoke(role, messages, images, schema),
                     timeout=self.timeout_s,
                 )
                 if isinstance(raw, schema):
@@ -298,7 +387,7 @@ class AgentsSDKClient:
                 else:
                     payload = raw if isinstance(raw, dict) else raw.model_dump()
                     parsed = schema.model_validate(payload)
-                if role == "document_reader" and images:
+                if role == "document_reader" and images and isinstance(parsed, DocOut):
                     parsed = force_photo_form(parsed)
                 return parsed
             except (CrisisPaused, ContractError):
@@ -353,15 +442,22 @@ class AgentsSDKClient:
             self._session_engine = engine
         return SQLAlchemySession(session_id, engine=engine, create_tables=False)
 
-    async def _invoke(self, role: str, messages: Sequence[ChatMessage], images):
+    async def _invoke(
+        self,
+        role: str,
+        messages: Sequence[ChatMessage],
+        images,
+        schema: type[BaseModel] | None = None,
+    ):
         if self._runner is not None:
             return await self._runner(role, messages, images)
         if not self._settings.openai_api_key.get_secret_value():
             raise AIUnavailable("no_api_key")
         from agents import RunConfig, Runner
 
+        key = STATEMENT_AGENT if schema is StatementOut else role
         result = await Runner.run(
-            self.agents[role],
+            self.agents[key],
             input=[{"role": message.role, "content": message.content} for message in messages],
             run_config=RunConfig(trace_include_sensitive_data=False, tracing_disabled=True),
         )

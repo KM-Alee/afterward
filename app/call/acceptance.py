@@ -6,6 +6,7 @@ import hashlib
 import json
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass, field
 
 from app.call.guard import commitment_tripped
@@ -106,6 +107,15 @@ class CallRoom:
     acceptance_played: bool = False
     status: str = "ready"
     spoken_b64: str | None = None
+    mode: str = "rehearsal"
+    mode_note: str = ""
+    request_provider: Callable[[], str | None] | None = None
+    request_via: str = ""
+
+    @property
+    def mode_label(self) -> str:
+        """What is on the other end. A rehearsal has no model."""
+        return "live realtime model" if self.mode == "realtime" else "rehearsal (no model)"
 
     async def start(self) -> None:
         if self.session.started and not self.session.stopped:
@@ -114,6 +124,10 @@ class CallRoom:
         self.status = "live"
         if not any(turn.kind == "disclosure" for turn in self.turns):
             self.turns.append(Turn(who="agent", text=DISCLOSURE, kind="disclosure"))
+            note = f"Call mode: {self.mode_label}."
+            if self.mode_note:
+                note += f" {self.mode_note}"
+            self.turns.append(Turn(who="system", text=note, kind="mode"))
 
     async def report_offered_terms(self, terms: OfferedTerms) -> str:
         """Store offered terms. A new hash voids an earlier approval before any playback."""

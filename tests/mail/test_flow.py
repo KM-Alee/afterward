@@ -5,11 +5,11 @@ from datetime import UTC, datetime
 import pytest
 from sqlalchemy import select
 
-from app.ai.schemas import DocRequest, ReplyOut
+from app.ai.schemas import CommitmentOut, DocRequest, Fact, ReplyOut
 from app.contracts import MailMessage, SqlEventBus
 from app.demo.provider_variants import send_provider_reply
 from app.fakes.mailbox import FakeMailbox
-from app.mail.inbound import UnsortedTray, ingest_messages
+from app.mail.inbound import UnsortedTray, ingest_messages, process_inbound
 from app.mail.outbound import DISCLOSURE, execute_send_request
 from app.models import (
     Commitment,
@@ -27,7 +27,7 @@ SPOOF_ADDRESS = "records@northline-support.example"
 
 @pytest.mark.db
 @pytest.mark.asyncio
-async def test_send_provider_reply_matches_and_calls_extraction(db_session, monkeypatch):
+async def test_send_provider_reply_matches_and_calls_extraction(db_session):
     case = malik(db_session)
     account = account_by_ref(db_session, case.id, "4417")
     approved_plan(db_session, case, account)
@@ -64,32 +64,45 @@ async def test_send_provider_reply_matches_and_calls_extraction(db_session, monk
     assert reply.inbound.from_name == "Northline Mobile (demo)"
     assert len(providers.sent) == 1
 
-    seen: dict[str, object] = {}
+    quote = "Voicemail will be reset during migration."
+    recorded = ReplyOut(
+        commitments=[
+            CommitmentOut(
+                account_hint="line ending 4417",
+                action="transfer",
+                status="completed",
+                negated=False,
+                conditions_or_requirements=[],
+                facts=[Fact(key="voicemail_preserved", value="false", evidence_quote=quote)],
+                scope="this_service",
+                effective_date=None,
+                evidence_quote="Line transferred to Mrs Malik on a new 24-month plan.",
+                interpretation="clear",
+            )
+        ],
+        asks_for_documents=[
+            DocRequest(
+                document_type="will",
+                required_form="original",
+                recipient_mentioned=SPOOF_ADDRESS,
+            )
+        ],
+        is_marketing_to_deceased=False,
+    )
 
-    def verify_reply(latest_text: str) -> ReplyOut:
-        seen["latest"] = latest_text
-        return ReplyOut(
-            commitments=[],
-            asks_for_documents=[
-                DocRequest(
-                    document_type="will",
-                    required_form="original",
-                    recipient_mentioned=SPOOF_ADDRESS,
-                )
-            ],
-            is_marketing_to_deceased=False,
-        )
+    class RecordedAI:
+        """Returns the recorded reading and remembers the text it was shown."""
 
-    def outcome_check(plan, commitments) -> dict[str, object]:
-        seen["version"] = plan.version
-        seen["commitments"] = len(commitments)
-        return {"verdict": "needs_decision", "results": {"voicemail_preserved": "violated"}}
+        def __init__(self) -> None:
+            self.shown: list[str] = []
 
-    monkeypatch.setattr("app.engine.outcome.outcome_check", outcome_check, raising=False)
-    monkeypatch.setattr("app.ai.verify.verify_reply", verify_reply, raising=False)
+        async def structured(self, role, schema, messages, images=None):
+            self.shown.append(messages[-1].content)
+            return recorded
 
+    ai = RecordedAI()
     polled, _cursor = await family.poll(FAMILY, None)
-    results = ingest_messages(db_session, polled, bus=bus, bound_case_id=case.id)
+    results = await process_inbound(db_session, polled, ai=ai, bus=bus, bound_case_id=case.id)
 
     assert len(results) == 1
     assert results[0].method == "thread"
@@ -97,12 +110,12 @@ async def test_send_provider_reply_matches_and_calls_extraction(db_session, monk
     assert results[0].recipient_check == "approved"
     assert results[0].extraction == "called"
     assert results[0].unsorted is False
-    assert seen["latest"] == (
+    latest = (
         "Request complete. Line transferred to Mrs Malik on a new 24-month plan. "
         "Voicemail will be reset during migration."
     )
-    assert "Please keep the number" not in str(seen["latest"])
-    assert seen["version"] == 1
+    assert latest in ai.shown[0]
+    assert "Please keep the number" not in ai.shown[0]
     db_session.refresh(account)
     assert account.status_service == ServiceStatus.active
     db_session.refresh(profile)
@@ -110,11 +123,13 @@ async def test_send_provider_reply_matches_and_calls_extraction(db_session, monk
     assert SPOOF_ADDRESS not in profile.approved_recipients
     outcome = db_session.scalar(select(OutcomeCheck))
     assert outcome is not None
+    assert outcome.plan_version == 1
     assert outcome.verdict == "needs_decision"
     assert outcome.results["voicemail_preserved"] == "violated"
     stored = db_session.get(Message, results[0].message_id)
     assert stored is not None
-    assert stored.latest_text == seen["latest"]
+    assert stored.latest_text == latest
+    assert stored.gmail_id == polled[0].gmail_id
     assert "Please keep the number" not in stored.latest_text
     assert stored.full_text_sha256
     event = db_session.scalar(select(Event).where(Event.kind == "mail_ingested"))

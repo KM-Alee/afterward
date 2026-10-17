@@ -30,9 +30,13 @@ PRODUCT_TABLES = {
     "latency",
     "proof_runs",
     "desk_snapshots",
+    "mail_connections",
+    "processed_updates",
+    "conversation_snapshots",
+    "discovery_sources",
 }
 
-GLOBAL_TABLES = {"provider_profiles", "proof_runs", "desk_snapshots"}
+GLOBAL_TABLES = {"provider_profiles", "proof_runs", "desk_snapshots", "processed_updates"}
 
 
 def test_revision_declares_every_product_table():

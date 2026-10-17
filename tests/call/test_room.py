@@ -86,7 +86,7 @@ def test_typed_turn_end_to_end_on_fakes():
         assert page.status_code == 200
         assert "Browser call, not a phone call" in page.text
         assert "not a guarantee" in page.text
-        assert "Hold to talk" in page.text
+        assert "Send this line" in page.text
         assert "Type instead" in page.text
         sent = client.post(
             f"/api/calls/{token}/turn",

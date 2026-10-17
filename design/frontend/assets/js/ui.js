@@ -21,6 +21,7 @@
     { id: "index", href: "index.html", label: "Start", icon: "horizon" },
     { id: "desk", href: "desk.html", label: "Case desk", icon: "desk" },
     { id: "family", href: "family.html", label: "Family", icon: "users" },
+    { id: "onboarding", href: "onboarding.html", label: "Finding accounts", icon: "link" },
     { id: "call", href: "call.html", label: "Call room", icon: "phone" },
     { id: "provider", href: "provider.html", label: "Provider console", icon: "building" },
     { id: "proofs", href: "proofs.html", label: "Proofs", icon: "flask" },

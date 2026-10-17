@@ -1,7 +1,7 @@
 # Agent instructions
 
 Afterward is a bereavement administration case manager for Agentika 2.0, NaSCon’26.
-The family shares intent once through Telegram, with WhatsApp as a secondary channel.
+The family shares intent once through Telegram. WhatsApp is out of this build (ADR-012).
 Human dependency answers shape conditional plans and explicit approvals.
 AI proposes structured records; deterministic code controls permission and outcomes.
 Provider replies must satisfy the approved plan before an account is marked resolved.

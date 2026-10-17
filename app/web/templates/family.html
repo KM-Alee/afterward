@@ -63,7 +63,7 @@
         <div class="needs__card">
           <article class="fcard fcard--active">
             <p class="fcard__meta"><span>{{ board.outcome.quote_at }}</span><span title="Also sent in chat">{{ ui.icon('chat') }}<span class="visually-hidden">Also sent in chat</span></span></p>
-            <h3 class="fcard__title">Northline says it's done. It isn't.</h3>
+            <h3 class="fcard__title">{% if board.outcome.verdict_kind == 'notdone' %}{{ board.outcome.provider }} says it's done. It isn't.{% elif board.outcome.verdict_kind == 'resolved' %}{{ board.outcome.provider }} replied, and it matches the plan.{% else %}{{ board.outcome.provider }} replied. It does not settle this yet.{% endif %}</h3>
             <div class="fcard__body">
               <figure class="quote"><blockquote class="quote__text">{{ board.outcome.quote }}</blockquote><figcaption class="quote__source">{{ ui.evidence('writing') }}</figcaption></figure>
               <ul class="checks" role="list">
@@ -72,11 +72,13 @@
                 {% endfor %}
               </ul>
             </div>
+            {% if board.outcome.verdict_kind == 'notdone' %}
             <form class="fcard__actions btn-row btn-row--stack decision-btns" method="post" action="/family/{{ token }}/decision">
               {% for value, label, detail in options %}
               <button class="btn{% if loop.first %} btn--primary{% endif %}" type="submit" name="choice" value="{{ value }}"><span>{{ label }}<span class="option-desc">{{ detail }}</span></span></button>
               {% endfor %}
             </form>
+            {% endif %}
           </article>
         </div>
         {% else %}
@@ -90,6 +92,7 @@
     <aside class="side-note" aria-label="About this view">
       <section class="card stack stack-sm">
         <h2 class="h4">This is Sara's phone</h2>
+        <p class="small"><a href="/family/{{ token }}/onboarding">Finding accounts</a></p>
         <p class="small secondary">The buttons are the only way to decide. The agent cannot accept an offer or mark a reply done.</p>
       </section>
     </aside>

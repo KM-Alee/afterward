@@ -8,10 +8,12 @@ import logging
 from fastapi import APIRouter, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import RedirectResponse
 
-from app.call.acceptance import CallRoom, Turn
+from app.call.acceptance import CallRoom, OfferedTerms, Turn, hash_terms
 from app.call.live import agent_turn, speak_aloud
+from app.call.realtime_session import OpenAIRealtimeSession, realtime_allowed
 from app.call.tools import bind_room, build_call_agent
-from app.contracts import CallTransport
+from app.contracts import CallEvent, CallEventKind, CallTransport
+from app.fakes import FakeCallSession
 from app.web.render import render
 from app.web.router import _page, get_surface
 
@@ -59,6 +61,81 @@ def _room_for(request: Request, token: str) -> CallRoom | None:
     return surface.calls.get(token)
 
 
+async def start_room(request_or_ws, room: CallRoom, token: str) -> None:
+    """Start the call on the real realtime session when allowed, else a labelled rehearsal."""
+    if room.session.started and not room.session.stopped:
+        return
+    settings = getattr(request_or_ws.app.state, "settings", None)
+    if realtime_allowed(settings) and not isinstance(room.session, OpenAIRealtimeSession):
+        session = OpenAIRealtimeSession(settings, room=room)
+        _hook_events(request_or_ws, room, token, session)
+        room.session = session
+        room.mode = "realtime"
+        room.mode_note = ""
+    elif isinstance(room.session, OpenAIRealtimeSession):
+        room.session.attach_room(room)
+    else:
+        room.mode = "rehearsal"
+    bind_room(room)
+    try:
+        await room.start()
+    except Exception:
+        logger.info("realtime start", extra={"kind": "call.realtime", "ok": False})
+        room.session = FakeCallSession()
+        room.mode = "rehearsal"
+        room.mode_note = "The live model could not be reached."
+        await room.start()
+
+
+def _hook_events(request_or_ws, room: CallRoom, token: str, session: OpenAIRealtimeSession) -> None:
+    """Publish call events and ask the family once when the model records an offer."""
+    surface = get_surface(request_or_ws)
+    case_id = surface.call_tokens[token]
+    app = request_or_ws.app
+
+    def _on_event(event: CallEvent) -> None:
+        if event.kind is CallEventKind.terms_offered:
+            payload = event.payload
+            try:
+                offered = OfferedTerms(
+                    int(str(payload.get("months"))),
+                    str(payload.get("monthly_price")).lstrip("$"),
+                    str(payload.get("number_kept")),
+                    str(payload.get("voicemail_preserved")),
+                )
+            except (TypeError, ValueError):
+                return
+            if room.terms is None or room.terms_hash != hash_terms(offered):
+                asyncio.ensure_future(room.report_offered_terms(offered))
+            if ask_family_once(room):
+                asyncio.ensure_future(_tell_owner(app, surface, case_id, room))
+        surface.live.publish(
+            case_id, "call.turn", {"via": "realtime", "summary": "Call event"}, actor="call"
+        )
+
+    session.on_event = _on_event
+
+
+async def _tell_owner(app, surface, case_id, room: CallRoom) -> None:
+    from app.runtime import notify_owner
+    from app.web.router import _token_for
+
+    if room.terms is None:
+        return
+    settings = getattr(app.state, "settings", None)
+    base = getattr(settings, "public_base_url", "") if settings is not None else ""
+    family = _token_for(surface.family_tokens, case_id)
+    try:
+        await notify_owner(
+            app,
+            f"On the call, Northline offered {room.terms.months} months at "
+            f"${room.terms.price} a month. Nothing is accepted unless you approve it: "
+            f"{base}/family/{family}",
+        )
+    except Exception:
+        logger.info("owner notice", extra={"kind": "channel.send", "ok": False})
+
+
 @router.get("/call/{token}")
 def call_room(request: Request, token: str):
     room = _room_for(request, token)
@@ -97,8 +174,7 @@ async def join_call(request: Request, token: str):
             _page(request, "call", status_code=404, message="There is no call to join."),
             status_code=404,
         )
-    bind_room(room)
-    await room.start()
+    await start_room(request, room, token)
     return RedirectResponse(f"/call/{token}", status_code=303)
 
 
@@ -121,14 +197,16 @@ async def typed_turn(request: Request, token: str):
             _page(request, "call", status_code=422, message="Type a turn before sending."),
             status_code=422,
         )
-    bind_room(room)
+    await start_room(request, room, token)
     await room.handle_typed_turn(text)
     surface = get_surface(request)
     case_id = surface.call_tokens[token]
     asked = ask_family_once(room)
     settings = getattr(request.app.state, "settings", None)
-    via = await agent_turn(settings, room, text)
-    if room.turns and room.turns[-1].who == "agent":
+    live = room.mode == "realtime"
+    # The live session answers this turn itself; the one-shot reply path is for rehearsal.
+    via = "realtime" if live else await agent_turn(settings, room, text)
+    if not live and room.turns and room.turns[-1].who == "agent":
         try:
             room.spoken_b64 = await asyncio.wait_for(speak_aloud(settings, room.turns[-1].text), 8)
         except Exception:
@@ -141,20 +219,7 @@ async def typed_turn(request: Request, token: str):
         actor="call",
     )
     if asked and room.terms is not None:
-        from app.runtime import notify_owner
-        from app.web.router import _token_for
-
-        base = getattr(settings, "public_base_url", "") if settings is not None else ""
-        family = _token_for(surface.family_tokens, case_id)
-        try:
-            await notify_owner(
-                request.app,
-                f"On the call, Northline offered {room.terms.months} months at "
-                f"${room.terms.price} a month. Nothing is accepted unless you approve it: "
-                f"{base}/family/{family}",
-            )
-        except Exception:
-            logger.info("owner notice", extra={"kind": "channel.send", "ok": False})
+        await _tell_owner(request.app, surface, case_id, room)
     return RedirectResponse(f"/call/{token}", status_code=303)
 
 
@@ -207,7 +272,11 @@ async def dial(request: Request, token: str):
 
 @router.websocket("/ws/calls/{token}")
 async def call_socket(websocket: WebSocket, token: str):
-    """Relay browser audio through the call session. This does not open an OpenAI socket."""
+    """Relay browser mic audio to the call session and its audio and events back.
+
+    Binary frames are PCM16 mono 24 kHz. Text frames are typed turns. Server JSON frames are
+    `call.ready`, `event`, `ended`. A rehearsal room has no model and returns no audio.
+    """
     await websocket.accept()
     surface = get_surface(websocket)
     room = surface.calls.get(token)
@@ -215,13 +284,24 @@ async def call_socket(websocket: WebSocket, token: str):
         await websocket.send_json({"kind": "missing"})
         await websocket.close(code=1008)
         return
-    bind_room(room)
-    await room.start()
-    await websocket.send_json({"kind": "call.ready", "transport": "browser"})
+    await start_room(websocket, room, token)
+    await websocket.send_json(
+        {
+            "kind": "call.ready",
+            "transport": "browser",
+            "mode": room.mode,
+            "label": room.mode_label,
+            "note": room.mode_note,
+            "phone": False,
+        }
+    )
+    sender = asyncio.create_task(_send_out(websocket, room))
     try:
         while True:
             incoming = await websocket.receive()
             if incoming.get("type") == "websocket.disconnect":
+                break
+            if room.session.stopped:
                 break
             payload = incoming.get("bytes")
             if payload:
@@ -233,6 +313,35 @@ async def call_socket(websocket: WebSocket, token: str):
                 await room.handle_typed_turn(text)
                 await websocket.send_json({"kind": "turn", "via": "typed"})
     except WebSocketDisconnect:
+        pass
+    except Exception:
+        logger.info("call socket", extra={"kind": "call.ws", "ok": False})
+    finally:
+        sender.cancel()
+
+
+async def _send_out(websocket: WebSocket, room: CallRoom) -> None:
+    """Forward new call events and agent audio until the call stops."""
+    sent = 0
+    try:
+        while True:
+            events = room.session.events()
+            for event in events[sent:]:
+                await websocket.send_json(
+                    {"kind": "event", "event": event.kind.value, "payload": dict(event.payload)}
+                )
+            sent = len(events)
+            heard = False
+            if not room.session.stopped:
+                async for chunk in room.session.relay_audio_out():
+                    heard = True
+                    await websocket.send_bytes(chunk)
+            if room.session.stopped:
+                await websocket.send_json({"kind": "ended"})
+                return
+            if not heard:
+                await asyncio.sleep(0.1)
+    except (WebSocketDisconnect, RuntimeError, asyncio.CancelledError):
         return
 
 

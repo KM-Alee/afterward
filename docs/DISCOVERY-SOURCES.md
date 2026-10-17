@@ -29,13 +29,25 @@ from a family action (an upload, a forward, a button). The model never creates a
 | S6 | **Locator or registry the family runs** (policy locator, unclaimed-money search, pension tracing) | The family member who is entitled to run it, on the official site | Prepares a copy sheet and opens the official link; records "started by Sara on …"; reads the result letter when it is forwarded or photographed | Submit the form, create an account there, search as the deceased |
 | S7 | **Said by the family** ("he had a gym membership") | Voice note or text | Proposes a candidate with the quote as evidence | Mark it confirmed because a family member said it |
 
+### His own mailbox, connected by a family member (decided 2026-10-17)
+
+A family member may connect **Yusuf's own mailbox** with access they already hold: a
+provider legacy-contact route, delegation he set up, or his sign-in on a device they keep.
+Afterward does not ask for or store his password; the family member completes Google's
+consent screen themselves.
+
+- They must state their authority first ("I'm his executor"). It is stored as **stated**,
+  never verified. No statement, no connection (`AuthorityMissing`).
+- Scope is `gmail.readonly`. The connection can never send (`can_send` is False), and
+  Afterward never changes his settings, password or recovery details.
+- Same two-step search as S3: code-built scope, headers first, read only what that family
+  member ticks.
+- Coverage moves "Yusuf's own inbox" from *not searched* to a searched line naming who
+  connected it and their stated authority.
+
 ### What is never a source
 
-- **The deceased's own accounts as him.** No OAuth as Yusuf, no use of his password even if the
-  family knows it, no session cookies from his phone. The legitimate route into his mail is the
-  provider's own process (Google Inactive Account Manager / deceased-user request, Apple Legacy
-  Contact, Microsoft next-of-kin). Afterward prepares what that process asks for and hands it to
-  the family. If the provider releases an export to a family member, it comes back as S4.
+- **Afterward signing in as Yusuf on its own**, or using a password the family typed into chat.
 - **Government, court, tax or credit-file systems.** We do not query them. Where an official
   service exists (UK Tell Us Once, a pension tracing service, a credit-file request by the
   executor), it is a hand-back step (§6), and its result letter returns as S1 or S2.

@@ -35,3 +35,15 @@ def test_proof_route_returns_the_same_result(db_session):
     assert body["ok"] is True
     assert body["passed"] == 14
     assert [item["id"] for item in body["results"]] == list(range(1, 15))
+
+
+@pytest.mark.db
+def test_recorded_run_is_labelled(db_session):
+    assert run_proofs(db_session)["model_output"] == "recorded model output"
+
+
+@pytest.mark.db
+def test_live_mode_needs_a_key_and_never_falls_back_to_recorded(db_session, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="OPENAI_API_KEY"):
+        run_proofs(db_session, live=True)

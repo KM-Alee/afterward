@@ -134,14 +134,15 @@ def _plan(session: Session, case: Case, account: Account, spec: dict[str, Any]):
 
 
 async def _reply_proof(
-    session: Session, ai: FakeAI, spec: dict[str, Any], suffix: str
+    session: Session, ai: Any, spec: dict[str, Any], suffix: str
 ) -> dict[str, object]:
     case, _member, profile, account = _case(session, suffix)
     plan = _plan(session, case, account, spec)
     text = str(spec["text"])
     latest = strip_quoted_history(text)
     recorded = ReplyOut.model_validate(spec["recorded"])
-    ai.register_structured("reply_reader", ReplyOut, extraction_messages(latest), recorded)
+    if hasattr(ai, "register_structured"):  # recorded mode only; a live model is not scripted
+        ai.register_structured("reply_reader", ReplyOut, extraction_messages(latest), recorded)
     held = ()
     if spec.get("held_form"):
         held = (HeldDocument(doc_type="death_certificate", form=str(spec["held_form"])),)
@@ -211,7 +212,7 @@ async def _reply_proof(
 
 
 async def _recipient_proof(
-    session: Session, ai: FakeAI, spec: dict[str, Any], suffix: str
+    session: Session, ai: Any, spec: dict[str, Any], suffix: str
 ) -> dict[str, object]:
     case, _member, profile, account = _case(session, suffix)
     before = list(profile.approved_recipients)
@@ -502,9 +503,27 @@ def _summary_proof(session: Session, suffix: str) -> dict[str, object]:
     }
 
 
-async def run_proofs_async(session: Session, *, ai: FakeAI | None = None) -> dict[str, Any]:
-    """Execute every proof. A failure is recorded; it is not hidden."""
+RECORDED_LABEL = "recorded model output"
+LIVE_LABEL = "live model output"
+
+
+async def run_proofs_async(
+    session: Session, *, ai: Any | None = None, live: bool = False
+) -> dict[str, Any]:
+    """Execute every proof. A failure is recorded; it is not hidden.
+
+    Recorded mode replays FakeAI outputs and says so. Live mode asks the real model to read
+    each reply, so a pass there shows the same code verdict on real model output.
+    """
+    if live and ai is None:
+        from app.ai.client import AgentsSDKClient
+
+        settings = Settings.from_env()
+        if not settings.openai_api_key.get_secret_value():
+            raise RuntimeError("live proofs need OPENAI_API_KEY configured by the operator")
+        ai = AgentsSDKClient(settings)
     model = ai or FakeAI()
+    label = LIVE_LABEL if live else RECORDED_LABEL
     token = uuid4().hex[:8]
     results: list[dict[str, object]] = []
     for spec in PROOFS:
@@ -559,6 +578,7 @@ async def run_proofs_async(session: Session, *, ai: FakeAI | None = None) -> dic
         "ok": passed == len(PROOFS),
         "passed": passed,
         "failed": len(PROOFS) - passed,
+        "model_output": label,
         "results": results,
     }
     session.add(ProofRun(results=payload))
@@ -566,11 +586,43 @@ async def run_proofs_async(session: Session, *, ai: FakeAI | None = None) -> dic
     return payload
 
 
-def run_proofs(session: Session, *, ai: FakeAI | None = None) -> dict[str, Any]:
+def run_proofs(session: Session, *, ai: Any | None = None, live: bool = False) -> dict[str, Any]:
     """Synchronous entry point for tests and `POST /api/proofs/run` callers outside a loop."""
     import asyncio
 
-    return asyncio.run(run_proofs_async(session, ai=ai))
+    return asyncio.run(run_proofs_async(session, ai=ai, live=live))
+
+
+def main() -> int:
+    """`make proof`: run all proofs against the configured database and print pass/fail."""
+    live = os.environ.get("PROOF_LIVE") == "1"
+    raw = Settings.from_env().database_url.get_secret_value() or os.environ.get("DATABASE_URL", "")
+    if not raw:
+        print("proofs: DATABASE_URL is not set")
+        return 2
+    from app.db import init_db, make_engine
+
+    engine = make_engine(raw)
+    try:
+        init_db(engine)
+        with Session(engine) as session:
+            payload = run_proofs(session, live=live)
+            session.commit()
+    except RuntimeError as exc:
+        print(f"proofs: {exc}")
+        return 2
+    finally:
+        engine.dispose()
+    print(f"proofs ({payload['model_output']}): {payload['passed']}/{len(PROOFS)} passed")
+    for item in payload["results"]:
+        mark = "PASS" if item["passed"] else "FAIL"
+        extra = "" if item["passed"] else f"  {item['records']}"
+        print(f"  {mark} {item['id']:>2} {item['title']}{extra}")
+    return 0 if payload["ok"] else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
 
 
 @router.post("/api/proofs/run")

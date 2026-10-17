@@ -20,6 +20,7 @@ from app.engine.outcome import (
     FactView,
     PlanView,
     Verdict,
+    conditions_from,
     outcome_check,
 )
 from app.web.state import (
@@ -87,14 +88,68 @@ def views_for(commitments: Sequence[CommitmentOut], at: datetime) -> list[Commit
     ]
 
 
-async def read_northline_reply(ai: Any, text: str) -> tuple[Verdict, list[CommitmentOut]]:
-    """Read one reply on the Northline thread and compare it with the approved plan."""
+def condition_label(key: str) -> str:
+    """Plain label for a plan condition key. Unknown keys are spelled out, never hidden."""
+    return CONDITION_LABELS.get(key) or key.replace("_", " ").strip().capitalize()
+
+
+def plan_view_from_row(plan: Any, completion_evidence: Sequence[str] = ()) -> PlanView:
+    """The approved Plan row as the outcome check's input. Nothing here is Northline-specific."""
+    return PlanView(
+        action=plan.action.value if hasattr(plan.action, "value") else str(plan.action),
+        conditions=conditions_from(list(plan.conditions or [])),
+        completion_evidence=tuple(str(item) for item in completion_evidence),
+    )
+
+
+async def read_reply(
+    ai: Any,
+    text: str,
+    *,
+    account_ref: str,
+    case_refs: Sequence[str],
+    plan: PlanView,
+) -> tuple[Verdict, list[CommitmentOut]]:
+    """Read one reply on an account's thread and compare it with that account's approved plan."""
     from app.engine.pipeline import extract_verified_reply
 
-    reply = await extract_verified_reply(ai, text, CASE_REFS, thread_ref=NORTHLINE_REF)
-    mine = [item for item in reply.commitments if item.account_hint == NORTHLINE_REF]
-    verdict = outcome_check(NORTHLINE_PLAN, views_for(mine, datetime.now(UTC)))
+    reply = await extract_verified_reply(ai, text, tuple(case_refs), thread_ref=account_ref)
+    mine = [item for item in reply.commitments if item.account_hint == account_ref]
+    verdict = outcome_check(plan, views_for(mine, datetime.now(UTC)))
     return verdict, mine
+
+
+async def read_northline_reply(ai: Any, text: str) -> tuple[Verdict, list[CommitmentOut]]:
+    """In-memory demo only (no database): the scripted Northline plan stands in for the rows."""
+    return await read_reply(
+        ai, text, account_ref=NORTHLINE_REF, case_refs=CASE_REFS, plan=NORTHLINE_PLAN
+    )
+
+
+def approved_plan_for(session: Any, account_id: Any) -> tuple[Any, Any] | None:
+    """The latest approved Plan and its approved Approval for an account, or None."""
+    from sqlalchemy import select
+
+    from app.models import Approval, ApprovalStatus, Plan, PlanStatus
+
+    plan = session.scalar(
+        select(Plan)
+        .where(Plan.account_id == account_id, Plan.status == PlanStatus.approved)
+        .order_by(Plan.version.desc())
+        .limit(1)
+    )
+    if plan is None:
+        return None
+    approval = session.scalar(
+        select(Approval).where(
+            Approval.plan_id == plan.id,
+            Approval.plan_hash == plan.hash,
+            Approval.status == ApprovalStatus.approved,
+        )
+    )
+    if approval is None:
+        return None
+    return plan, approval
 
 
 def _quote_for(key: str, commitments: Sequence[CommitmentOut]) -> str:
@@ -110,14 +165,22 @@ def _quote_for(key: str, commitments: Sequence[CommitmentOut]) -> str:
 def checks_for(verdict: Verdict, commitments: Sequence[CommitmentOut] = ()) -> list[Check]:
     """One row per approved condition. Missing stays 'Not stated', never 'Broken'."""
     checks: list[Check] = []
-    for key, label in CONDITION_LABELS.items():
-        state = verdict.results.get(key, "missing")
+    for key, state in verdict.results.items():
+        if key == "action":
+            continue
+        label = condition_label(key)
         quote = _quote_for(key, commitments)
         if state == "violated":
-            why = f"The reply says: “{quote}”" if quote else "The reply breaks this condition."
+            why = (
+                f"The reply says: \u201c{quote}\u201d"
+                if quote
+                else "The reply breaks this condition."
+            )
             checks.append(Check(label, "violated", "Broken", why))
         elif state == "matched":
-            checks.append(Check(label, "holding", "Holding", f"“{quote}”" if quote else ""))
+            checks.append(
+                Check(label, "holding", "Holding", f"\u201c{quote}\u201d" if quote else "")
+            )
         else:
             checks.append(Check(label, "unknown", "Not stated", "The reply does not say."))
     if "price_change" in verdict.extras:
@@ -132,16 +195,9 @@ def verdict_text(verdict: Verdict) -> str:
     if verdict.verdict == "resolved":
         return "Done. The reply meets every approved condition."
     if verdict.verdict == "needs_decision":
-        broken = [
-            CONDITION_LABELS[key].lower()
-            for key in CONDITION_LABELS
-            if verdict.results.get(key) == "violated"
-        ]
-        unstated = [
-            CONDITION_LABELS[key].lower()
-            for key in CONDITION_LABELS
-            if verdict.results.get(key) == "missing"
-        ]
+        keys = [key for key in verdict.results if key != "action"]
+        broken = [condition_label(k).lower() for k in keys if verdict.results[k] == "violated"]
+        unstated = [condition_label(k).lower() for k in keys if verdict.results[k] == "missing"]
         parts = ["Not done."]
         if broken:
             parts.append(f"Broken: {', '.join(broken)}.")
@@ -271,9 +327,18 @@ def approval_body(card: Any) -> str:
     )
 
 
-async def send_approved_request(settings: Any, card: Any) -> bool:
-    """Send the approved card through Gmail. The demo provider inbox stands in for Northline."""
-    if card is None or card.recipient != NORTHLINE_RECIPIENT:
+async def send_approved_request(
+    settings: Any, card: Any, *, approved_recipients: Sequence[str] | None = None
+) -> bool:
+    """Send the approved card through Gmail. The demo provider inbox stands in for Northline.
+
+    With a database, pass the recipients of the approved Plan rows; without one, the scripted
+    Northline address is the only one allowed.
+    """
+    allowed = (
+        tuple(approved_recipients) if approved_recipients is not None else (NORTHLINE_RECIPIENT,)
+    )
+    if card is None or card.recipient not in allowed:
         return False
     if not mail_ready(settings):
         return False

@@ -4,7 +4,7 @@
 
 **Agentika 2.0 · NaSCon'26 · Theme: Human + AI: Better Together**
 
-Afterward is an AI case manager for the months after someone dies. The family talks to it on **WhatsApp or Telegram**: a voice note, a photo of a letter, a tap on a button. It turns what the family wants into a plan with conditions, carries out that plan with each organisation, and keeps following through in the background for months.
+Afterward is an AI case manager for the months after someone dies. The family talks to it on **Telegram** (WhatsApp is planned, not in this build): a voice note, a photo of a letter, a tap on a button. It turns what the family wants into a plan with conditions, carries out that plan with each organisation, and keeps following through in the background for months.
 
 Its central job is to check every organisation's response against what the family actually authorised.
 
@@ -144,7 +144,7 @@ That table is the product. Discovery, voice, timers and documents all serve it.
 
 For each feature: what it does, where the AI is needed, and where the human stays in charge.
 
-### F1. Chat-first interface (WhatsApp and Telegram)
+### F1. Chat-first interface (Telegram; WhatsApp later)
 - **What:** Voice notes, text, photos and buttons. No app to learn. A web view is also available, and a household member (e.g. Amina) can join the case to answer questions.
 - **AI:** Speech-to-text, intent understanding, short and warm replies.
 - **Human:** Every consequential choice is a button. Free text that implies a decision ("just keep Mum's line") is read back as a button to confirm.

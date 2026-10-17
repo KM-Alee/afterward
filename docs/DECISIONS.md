@@ -114,3 +114,14 @@ Only the lead accepts ADR changes. Alternatives and reasons below come from AFTE
   [Telephony and SIP](https://developers.openai.com/api/docs/guides/realtime-sip),
   [Agents SDK realtime guide](https://openai.github.io/openai-agents-python/realtime/guide/),
   [Human-in-the-loop](https://openai.github.io/openai-agents-python/human_in_the_loop/).
+
+## ADR-012: WhatsApp out of this build
+
+- Date: 2026-10-17
+- Decision: Telegram is the only family channel for the submission. WhatsApp is removed from
+  the plan: no webhook route is mounted, `/status` always reports it `disabled`, and nothing in
+  the demo or pitch mentions it as available. The adapter code in `app/channels/whatsapp.py`
+  stays unused for later.
+- Reason: User decision on 17 Oct. There was no webhook route, so a token alone made the
+  status page claim a channel that did not exist.
+- Status: implemented in `app/main.py`; covered by `tests/foundation/test_shell.py`.

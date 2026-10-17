@@ -8,6 +8,11 @@ from app.config import postgres_url
 
 SCHEMA_REVISION = "contract-rev-1"
 
+_ADD_COLUMNS = (
+    "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS track VARCHAR(32)",
+    "ALTER TABLE accounts ADD COLUMN IF NOT EXISTS evidence_ids JSONB NOT NULL DEFAULT '[]'::jsonb",
+)
+
 
 def make_engine(url: str) -> Engine:
     """Open PostgreSQL. Other database engines are rejected by `postgres_url`."""
@@ -20,6 +25,9 @@ def init_db(engine: Engine) -> None:
 
     Base.metadata.create_all(engine)
     with engine.begin() as connection:
+        # create_all never alters an existing table; add later columns idempotently.
+        for statement in _ADD_COLUMNS:
+            connection.execute(text(statement))
         connection.execute(
             text(
                 """

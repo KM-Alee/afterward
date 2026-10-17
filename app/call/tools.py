@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from contextvars import ContextVar
 
 from agents import function_tool
@@ -18,6 +19,11 @@ CALL_INSTRUCTIONS = (
     "A speech check may cancel you; that check is not perfect."
 )
 
+FALLBACK_LINE = (
+    "Move Northline line 4417 to Amina Malik. Keep the number and the voicemail. "
+    "Do not start a new contract."
+)
+
 _ROOM: ContextVar[CallRoom | None] = ContextVar("afterward_call_room", default=None)
 
 
@@ -30,21 +36,39 @@ def _room() -> CallRoom | None:
     return _ROOM.get()
 
 
+def request_text(room: CallRoom | None) -> tuple[str, str]:
+    """The request to read out and where it came from: the approved plan, else scripted."""
+    provider = getattr(room, "request_provider", None)
+    if provider is not None:
+        try:
+            planned = provider()
+        except Exception:
+            planned = None
+        if planned:
+            return planned, "plan"
+    return FALLBACK_LINE, "scripted"
+
+
+async def read_request_and_conditions(room: CallRoom | None) -> str:
+    """Body of the read-only request tool. Records `via` on the room."""
+    text, via = request_text(room)
+    if room is not None:
+        room.request_via = via
+    body = f"Request: {text}"
+    if room is not None and room.terms is not None:
+        terms = room.terms
+        body += (
+            f" Current offer on the table: {terms.months} months at ${terms.price} a month. "
+            f"Number: {terms.number_kept}. Voicemail: {terms.voicemail_preserved}."
+        )
+    body += " Nothing has been accepted."
+    return json.dumps({"via": via, "request": body})
+
+
 @function_tool
 async def get_request_and_conditions() -> str:
     """Read the approved request and its conditions. This does not accept anything."""
-    room = _room()
-    if room is None or room.terms is None:
-        return (
-            "Move Northline line 4417 to Amina Malik. Keep the number and the voicemail. "
-            "Do not start a new contract. Nothing has been accepted."
-        )
-    terms = room.terms
-    return (
-        f"Current offer on the table: {terms.months} months at ${terms.price} a month. "
-        f"Number: {terms.number_kept}. Voicemail: {terms.voicemail_preserved}. "
-        "This is not an acceptance."
-    )
+    return await read_request_and_conditions(_room())
 
 
 @function_tool
